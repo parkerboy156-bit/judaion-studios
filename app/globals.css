@@ -1397,7 +1397,7 @@
   .google-app-fallback-message {
     display: none; 
     position: absolute !important;
-    top: 35dvh !important;
+    top: 30dvh !important;
     left: 155vw !important; /* Pinned to your Contact sheet position */
     transform: translate(-50%, -50%) !important;
     width: 65% !important;
