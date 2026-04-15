@@ -1389,49 +1389,38 @@
 /* MOBILE VERSION LAYER END */
 
 
-/* GOOGLE DEBUG */
-
+/* MOBILE VERSION LAYER START */
+/* FAIL-SAFE: GOOGLE APP FALLBACK PROTOCOL */
 @media (max-width: 1023px) {
 
-  /* STEP A: THE GOOGLE APP BASELINE 
-     We set the "Google" values as the default for ALL mobile browsers first. 
-  */
-  @media (min-height: 700px) {
-    .contact-form-mobile-pinned {
-      top: 22% !important;        /* Manual Google adjustment */
-      left: 115vw !important;     /* Manual Google adjustment */
-      transform: scale(0.75) !important; 
-      -webkit-text-size-adjust: 100% !important; 
-    }
+  /* 1. HIDE THE FALLBACK BY DEFAULT */
+  .google-app-fallback-message {
+    display: none; 
+    position: absolute !important;
+    top: 50dvh !important;
+    left: 120vw !important; /* Pinned to your Contact sheet position */
+    transform: translate(-50%, -50%) !important;
+    width: 80% !important;
+    text-align: center !important;
+    font-family: var(--font-brand-bold) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.3em !important;
+    color: #ffffff !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    padding: 20px;
+    z-index: 1000;
   }
 
-  @media (max-height: 699px) {
-    .contact-form-mobile-pinned {
-      top: 16% !important; 
-      left: 102vw !important; 
-      transform: scale(0.60) !important;
-      -webkit-text-size-adjust: 100% !important;
-    }
+  /* 2. THE SWAP LOGIC (FORCING GOOGLE APP ONLY) */
+  /* This targets the Google Search App specifically */
+  body.is-google-app .contact-form-mobile-pinned {
+    display: none !important;
   }
 
-  /* STEP B: THE SAFARI OVERRIDE
-     This specific selector hack targets ONLY standalone Safari.
-     It will override the "Google" values above back to your perfect Safari settings.
-  */
-  _::-webkit-full-page-media, _:future, :root .contact-form-mobile-pinned {
-    /* IPHONE 11 / TALL SAFARI RESTORATION */
-    @media (min-height: 700px) {
-       top: 20% !important; 
-       left: 120vw !important; 
-       transform: scale(0.80) !important;
-    }
-
-    /* IPHONE 8 / SMALL SAFARI RESTORATION */
-    @media (max-height: 699px) {
-       top: 14% !important; 
-       left: 106vw !important; 
-       transform: scale(0.65) !important;
-    }
+  body.is-google-app .google-app-fallback-message {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
   }
 }
 /* MOBILE VERSION LAYER END */

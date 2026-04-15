@@ -8,12 +8,20 @@ import emailjs from '@emailjs/browser';
 import Image from 'next/image';
 import contactBgAvif from '@/public/contact-us-bg.avif';
 import contactBgWebp from '@/public/contact-us-bg.webp';
+import { useEffect } from 'react'
 
 export default function Contact() {
   const router = useRouter(); // MANDATORY CHANGE: Replace useNavigate for Next.js
   const form = useRef<HTMLFormElement>(null);
   const [status, setStatus] = React.useState<'idle' | 'initiating...' | 'initiated'>('idle');
   const [isMobile, setIsMobile] = React.useState(false);
+
+  useEffect(() => {
+  const isGoogleApp = /GSA\/\d/.test(navigator.userAgent);
+  if (isGoogleApp) {
+    document.body.classList.add('is-google-app');
+  }
+}, []);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -106,6 +114,12 @@ const sendEmail = (e: React.FormEvent) => {
 </picture>
 
 {/* THE PINNED CONTACT FORM */}
+      <div className="google-app-fallback-message">
+  BROWSER NOT SUITABLE FOR CONTACT FORM. <br/>
+  PLEASE USE SAFARI OR CHROME.
+</div>
+
+
 <div className={`absolute z-10 ${isMobile ? 'contact-form-mobile-pinned'
    : 'w-[26%] h-[39%] top-[28%] left-[52%]'} pointer-events-auto flex flex-col justify-center`}>
 
@@ -148,7 +162,7 @@ const sendEmail = (e: React.FormEvent) => {
         </label>
         <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
           <input name="tier" value="Digital Authority" type="checkbox" className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow" />
-          change test // T 2
+          Digital Authority // T 2
         </label>
         <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
           <input name="tier" value="Scale Partner" type="checkbox" className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow" />
