@@ -3,14 +3,12 @@
 import { motion, useMotionValue, useSpring, useTransform,} from 'framer-motion';
 import * as React from 'react';
 import { useRef } from 'react';
-import { useRouter } from 'next/navigation'; // MANDATORY CHANGE: Framework compatibility
 import emailjs from '@emailjs/browser';
-import Image from 'next/image';
+import Link from 'next/link';
 import contactBgAvif from '@/public/contact-us-bg.avif';
 import contactBgWebp from '@/public/contact-us-bg.webp';
 
 export default function Contact() {
-  const router = useRouter(); // MANDATORY CHANGE: Replace useNavigate for Next.js
   const form = useRef<HTMLFormElement>(null);
   const [status, setStatus] = React.useState<'idle' | 'initiating...' | 'initiated'>('idle');
   const [isMobile, setIsMobile] = React.useState(false);
@@ -256,7 +254,9 @@ const sendEmail = (e: React.FormEvent) => {
         className={`absolute z-50 pointer-events-auto ${isMobile ? 'contact-floor-nav-mobile' : 'bottom-12 left-12'}`}
         >
       
-        <button onClick={() => router.push('/aboutus')} className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
+        <Link
+        href="/aboutus"
+         className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
           <motion.img 
             src="/re-enter.png" 
             className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -267,7 +267,7 @@ const sendEmail = (e: React.FormEvent) => {
             <span className="text-[10px] tracking-[0.5em] uppercase text-white/40  font-brand-secondary-thin">Re-Enter Studio</span>
             <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">05 About Us</span>
           </div>
-        </button>
+        </Link>
       </motion.div>
     </div>
     </main>

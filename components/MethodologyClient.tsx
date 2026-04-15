@@ -2,18 +2,16 @@
 
 import { motion, useMotionValue, useSpring, useTransform, useScroll, AnimatePresence } from 'framer-motion';
 import * as React from 'react';
-import { useRouter } from 'next/navigation'; // REQUIRED: Framework-required structural wrapping
-import Image from 'next/image';
 import methodBgAvif from '@/public/method-bg.avif';
 import methodBgMobileAvif from '@/public/method-bg-mobile.avif'
 import methodBgPng from '@/public/method-bg.png';
 import methodBgMobilePng from '@/public/method-bg-mobile.png'
+import Link from 'next/link';
 
 export default function MethodologyPage() {
   const { scrollYProgress } = useScroll();
   const [showProcess, setShowProcess] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
-  const router = useRouter(); // REQUIRED: Replacement for useNavigate
 
   // Detect Mobile and lock scroll position
   React.useEffect(() => {
@@ -217,13 +215,15 @@ export default function MethodologyPage() {
                           <span className="text-[38px] tracking-[0.3em] text-white/ uppercase font-brand-other ">
                             <span className="font-brand-cn">Build your</span> AUTHORITY
                           </span>
-                          <button onClick={() => router.push('/contact')} className="block cursor-pointer bg-transparent border-none p-0">
+                          <Link
+                          href="/contact" 
+                          className="block cursor-pointer bg-transparent border-none p-0">
                             <img 
                               src="/CTA.png" 
                               alt="Build Your Authority"
                               className="w-full max-w-[5500px] h-auto object-contain select-none"
                             />
-                          </button>
+                          </Link>
                         </div>
                       </div>
                     )}
@@ -258,7 +258,10 @@ export default function MethodologyPage() {
           transition={{ delay: 1.5, duration: 1 }}
           className="absolute bottom-12 left-12 z-50 pointer-events-auto"
         >
-          <button onClick={() => router.push('/')} className="flex flex-col items-start group no-underline bg-transparent border-none cursor-pointer">
+          <Link 
+          href="/"
+           className="flex flex-col items-start group no-underline bg-transparent border-none cursor-pointer"
+           >
             <motion.img 
               src="/exit-the-studio-1.png" 
               className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -269,7 +272,7 @@ export default function MethodologyPage() {
               <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light">Previous Floor</span>
               <span className="text-[12px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500">Exit The Studio</span>
             </div>
-          </button>
+          </Link>
         </motion.div>
 
         {/* NEXT FLOOR (BOTTOM RIGHT) */}
@@ -279,7 +282,9 @@ export default function MethodologyPage() {
           transition={{ delay: 1, duration: 1 }}
           className="absolute bottom-12 right-12 z-50 pointer-events-auto"
         >
-          <button onClick={() => router.push('/services')} className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
+          <Link
+          href="/services" 
+          className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
             <motion.img 
               src="/upstairs.png" 
               className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -290,7 +295,7 @@ export default function MethodologyPage() {
               <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">Next Floor</span>
               <span className="text-[12px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">02 Services</span>
             </div>
-          </button>
+          </Link>
         </motion.div>
 
         <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 m-4 z-20" />

@@ -1,7 +1,7 @@
 "use client"; // REQUIRED: Component utilizes Framer Motion and Browser APIs
 
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation'; // MANDATORY CHANGE: Framework compatibility
+import Link from 'next/link';
 import heroBgAvif from '@/public/hero-bg-block.avif';
 import heroBgPng from '@/public/hero-bg-block.png';
 import archiveheaderAvif from '@/public/archive-header.avif';
@@ -9,7 +9,6 @@ import archiveheaderWebp from '@/public/archive-header.webp';
 
 
 export default function AboutTemplate() {
-  const router = useRouter(); // MANDATORY CHANGE: Replace useNavigate for Next.js
 
   return (
 
@@ -65,9 +64,9 @@ export default function AboutTemplate() {
         transition={{ delay: 1, duration: 1 }}
         className="absolute top-20 left-12 z-50 pointer-events-auto"
       >
-        <button 
-          onClick={() => router.push('/projectarchive')} // ADJUSTED: Parity with next/navigation
-          className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
+        <Link
+        href="/projectarchive"
+         className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
         >
           <motion.img 
             src="/last-floor-straight.png" 
@@ -79,7 +78,7 @@ export default function AboutTemplate() {
                <span className="text-[9px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">Previous Floor</span>
             <span className="text-[12px] tracking-[0.4em] uppercase text-white/60 group-hover:text-white transition-colors duration-500">03 Project Archive</span>
           </div>
-        </button>
+        </Link>
       </motion.div>
 
 
@@ -511,8 +510,8 @@ export default function AboutTemplate() {
 
   {/* RIGHT: CTA ASSET ANCHOR */}
   <div className="relative group cursor-pointer mt-13 lg:mt-0">
-    <button 
-      onClick={() => router.push('/contact')} // ADJUSTED: Parity with next/navigation
+    <Link 
+      href="/contact"
       className="relative z-10 overflow-hidden  p-5 transition-all duration-500 hover:border-orange-600/50 cursor-pointer"
     >
       <img 
@@ -522,7 +521,7 @@ export default function AboutTemplate() {
       />
       
 
-    </button>
+    </Link>
   </div>
 
 </section>

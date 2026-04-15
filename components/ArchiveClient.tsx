@@ -1,20 +1,9 @@
 "use client";
 
-/**
- * MIGRATION STATUS: STAGE 4
- * SOURCE: ArchiveCatalogue.tsx (CRA/Vite)
- * TARGET: app/archivecatalogue/page.tsx (Next.js App Router)
- * CHANGE LOG: 
- * - Added "use client" directive.
- * - Replaced 'react-router-dom' with 'next/navigation'.
- * - Adjusted supabase import path to relative structure.
- * - Logic, UI, and Styles: 100% PRESERVED.
- */
-
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase'; // Path adjusted per project tree
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation'; // Replaces useNavigate
+import Link from 'next/link';
 
 export default function ArchiveCatalogue() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -28,7 +17,6 @@ export default function ArchiveCatalogue() {
   const [isHovering, setIsHovering] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
-  const router = useRouter(); // Standard Next.js routing hook
 
   useEffect(() => {
     if (isMobile && scrollRef.current) {
@@ -227,14 +215,16 @@ export default function ArchiveCatalogue() {
               </div>
             )}
 
-            <button onClick={() => router.push('/projectarchive')} className="flex items-center cursor-pointer group mb-0 self-start">
+            <Link 
+            href="/projectarchive"
+             className="flex items-center cursor-pointer group mb-0 self-start">
               <motion.img 
                 src="/return-to.png" 
                 className="pt-8 w-22 h-auto opacity-70 group-hover:opacity-100" 
                 animate={{ x: [0, -4, 0] }} 
                 transition={{ duration: 3, repeat: Infinity }} 
               />
-            </button>
+            </Link>
           </div>
 
           <nav ref={scrollRef as any} className="archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1">

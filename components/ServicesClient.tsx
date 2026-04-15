@@ -2,13 +2,11 @@
 
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import * as React from 'react';
-import { useRouter } from 'next/navigation'; // FRAMEWORK REQUIRED: Replacement for react-router-dom
-import Image from 'next/image';
+import Link from 'next/link';
 import servicesBgAvif from '@/public/service-home-bg.avif';
 import servicesBgPng from '@/public/service-home-bg.png';
 
 export default function ServicesHome() {
-  const router = useRouter(); // FRAMEWORK REQUIRED: Replacement for useNavigate
 
   // MOUSE PARALLAX LOGIC (PRESERVED)
   const x = useMotionValue(0);
@@ -132,16 +130,16 @@ export default function ServicesHome() {
           : "absolute inset-0 z-20 flex items-center justify-center px-20"}>
           <div className={isMobile ? "relative w-full h-full" : "w-full max-w-[1400px] h-[650px] flex justify-between relative"}>
             {serviceTiers.map((tier, index) => (
-              <div 
+              <Link
                 key={`${tier.id}-hitbox`} 
-                onClick={() => router.push(`/tier-${index + 1}`)}
-                className={`cursor-pointer ${
+                href={`/tier-${index + 1}`}
+                className={`cursor-pointer block ${
                   isMobile 
                     ? `w-[80vw] h-[70vh] tier-0${index + 1}-mobile` 
                     : "w-[30%] h-full"                            
                 }`}
               >
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -155,7 +153,9 @@ export default function ServicesHome() {
           transition={{ delay: 1, duration: 1 }}
           className="absolute bottom-12 left-12 z-50 pointer-events-auto"
         >
-          <button onClick={() => router.push('/methodology')} className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
+          <Link 
+          href="/methodology"
+           className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
             <motion.img 
               src="/down-stairs-last-floor.png" 
               className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -166,7 +166,7 @@ export default function ServicesHome() {
               <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">Previous Floor</span>
               <span className="text-[12px] tracking-[0.6em] uppercase text-white/800 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">01 Methodology</span>
             </div>
-          </button>
+          </Link>
         </motion.div>
 
         {/* NEXT FLOOR (BOTTOM RIGHT) */}
@@ -176,7 +176,9 @@ export default function ServicesHome() {
           transition={{ delay: 1, duration: 1 }}
           className="absolute bottom-12 right-12 z-50 pointer-events-auto"
         >
-          <button onClick={() => router.push('/projectarchive')} className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
+          <Link 
+          href="/projectarchive"
+           className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
             <motion.img 
               src="/next-floor.png" 
               className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -187,7 +189,7 @@ export default function ServicesHome() {
               <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">Next Floor</span>
               <span className="text-[12px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">03 Project Archive</span>
             </div>
-          </button>
+          </Link>
         </motion.div>
 
         <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 m-4 z-20" />

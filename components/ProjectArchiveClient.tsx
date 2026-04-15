@@ -3,13 +3,11 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import Link from 'next/link';
 import projectArchiveBgAvif from '@/public/project-archive-home-bg.avif';
 import projectArchiveBgPng from '@/public/project-archive-home-bg.png';
 
 export default function ProjectArchive() {
-  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -85,8 +83,8 @@ const handleMouseMove = (e: React.MouseEvent) => {
       transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
     >
         {/* HITBOX: Coordinates (top-[15%] left-[65%]) remain identical */}
-        <div
-        onClick={() => router.push('/archivecatalogue')}
+        <Link
+        href="/archivecatalogue"
         className="absolute z-50 w-[24%] h-[45%] top-[15%] left-[65%] cursor-pointer pointer-events-auto"
       />
 
@@ -120,7 +118,8 @@ const handleMouseMove = (e: React.MouseEvent) => {
             transition={{ delay: 1, duration: 1 }}
             className="absolute bottom-12 left-10 pointer-events-auto"
           >
-            <button onClick={() => router.push('/services')} className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
+            <Link 
+            href="/services" className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
               <motion.img 
                 src="/last-floor-straight.png" 
                 className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -131,7 +130,7 @@ const handleMouseMove = (e: React.MouseEvent) => {
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">Previous Floor</span>
                 <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">02 Services</span>
               </div>
-            </button>
+            </Link>
           </motion.div>
 
           {/* NEXT FLOOR: Pinned to the far end of the 300vw image */}
@@ -141,7 +140,8 @@ const handleMouseMove = (e: React.MouseEvent) => {
             transition={{ delay: 1, duration: 1 }}
             className="absolute bottom-12 right-10 pointer-events-auto"
           >
-            <button onClick={() => router.push('/aboutus')} className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
+            <Link 
+            href="/aboutus" className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
               <motion.img 
                 src="/next-floor.png" 
                 className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -152,7 +152,7 @@ const handleMouseMove = (e: React.MouseEvent) => {
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">Next Floor</span>
                 <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">04 About us</span>
               </div>
-            </button>
+            </Link>
           </motion.div>
         </div>
       )}
@@ -167,7 +167,9 @@ const handleMouseMove = (e: React.MouseEvent) => {
             transition={{ delay: 1, duration: 1 }}
             className="absolute bottom-12 left-12 z-50 pointer-events-auto"
           >
-            <button onClick={() => router.push('/services')} className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
+            <Link 
+            href="/services"
+             className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer">
               <motion.img 
                 src="/last-floor-straight.png" 
                 className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -178,7 +180,7 @@ const handleMouseMove = (e: React.MouseEvent) => {
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">Previous Floor</span>
                 <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">02 Services</span>
               </div>
-            </button>
+            </Link>
           </motion.div>
 
           <motion.div 
@@ -187,7 +189,9 @@ const handleMouseMove = (e: React.MouseEvent) => {
             transition={{ delay: 1, duration: 1 }}
             className="absolute bottom-12 right-12 z-50 pointer-events-auto"
           >
-            <button onClick={() => router.push('/aboutus')} className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
+            <Link 
+            href="/aboutus"
+             className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right">
               <motion.img 
                 src="/next-floor.png" 
                 className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
@@ -198,7 +202,7 @@ const handleMouseMove = (e: React.MouseEvent) => {
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">Next Floor</span>
                 <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">04 About us</span>
               </div>
-            </button>
+            </Link>
           </motion.div>
         </>
       )} 

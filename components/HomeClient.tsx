@@ -3,9 +3,8 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // REPLACED: react-router-dom
 import { useLoading } from "@/components/ClientShell";
-import Image from 'next/image';
+import Link from 'next/link';
 import homeBgAvif from '@/public/home-bg.avif';
 import homeBgMobileAvif from '@/public/home-bg-mobile.avif';
 import homeBgWebp from '@/public/home-bg.webp';
@@ -13,7 +12,6 @@ import homeBgMobilePng from '@/public/home-bg-mobile.png';
 
 export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const router = useRouter(); // REPLACED: useNavigate
   const [isMobile, setIsMobile] = useState(false);
   const [hasSensorPermission, setHasSensorPermission] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
@@ -301,10 +299,8 @@ dragElastic={0.05}
     isMobile ? 'left-[149vw] -translate-x-1/2' : 'left-[50.5%] -translate-x-1/2'
   }`}
 >
-  <button 
-    onClick={() => {
-      router.push('/methodology'); // REPLACED: navigate
-    }} 
+  <Link
+    href="/methodology" 
     className="flex flex-col items-center group no-underline appearance-none bg-transparent border-none cursor-pointer z-50"
   >
     <motion.img 
@@ -318,7 +314,7 @@ dragElastic={0.05}
         Enter the Studio
       </span>
     </div>
-  </button>
+  </Link>
 </motion.div>
         </motion.div>
 
