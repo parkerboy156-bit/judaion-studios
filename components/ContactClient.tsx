@@ -109,7 +109,7 @@ const sendEmail = (e: React.FormEvent) => {
 
 {/* THE PINNED CONTACT FORM */}
       <div className="google-app-fallback-message">
-  BROWSER NOT SUITABLE FOR CONTACT FORM. <br/>
+  <span className="text-orange-700 font-brand-cn text-[80px] mr-1 leading-none">*</span>BROWSER NOT SUITABLE FOR CONTACT FORM. <br/>
   PLEASE USE SAFARI OR CHROME.
 </div>
 
