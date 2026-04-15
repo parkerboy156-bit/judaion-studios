@@ -1425,3 +1425,15 @@
   }
 }
 /* MOBILE VERSION LAYER END */
+
+
+/* GOOGLE APP EXCLUSION PROTOCOL: SERVICES SECTION */
+@media (max-width: 1023px) {
+
+  /* When the 'is-google-app' class is present on the body, 
+     we purge the collector-footer-mobile from the layout entirely. */
+  body.is-google-app .collector-footer-mobile {
+    display: none !important;
+  }
+
+}

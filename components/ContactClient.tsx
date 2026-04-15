@@ -8,7 +8,6 @@ import emailjs from '@emailjs/browser';
 import Image from 'next/image';
 import contactBgAvif from '@/public/contact-us-bg.avif';
 import contactBgWebp from '@/public/contact-us-bg.webp';
-import { useEffect } from 'react'
 
 export default function Contact() {
   const router = useRouter(); // MANDATORY CHANGE: Replace useNavigate for Next.js
@@ -16,12 +15,7 @@ export default function Contact() {
   const [status, setStatus] = React.useState<'idle' | 'initiating...' | 'initiated'>('idle');
   const [isMobile, setIsMobile] = React.useState(false);
 
-  useEffect(() => {
-  const isGoogleApp = /GSA\/\d/.test(navigator.userAgent);
-  if (isGoogleApp) {
-    document.body.classList.add('is-google-app');
-  }
-}, []);
+  
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);

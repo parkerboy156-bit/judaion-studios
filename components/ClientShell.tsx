@@ -3,12 +3,22 @@
 import React, { useState, createContext, useContext } from "react";
 import { usePathname } from "next/navigation";
 import IntroLoader from "./IntroLoader";
+import { useEffect } from 'react';
 
 const LoadingContext = createContext({ isLoaded: false });
 export const useLoading = () => useContext(LoadingContext);
 
 export default function ClientShell({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    // GLOBAL DETECTION PROTOCOL
+    const isGoogleApp = /GSA\/\d/.test(navigator.userAgent);
+    
+    if (isGoogleApp) {
+      document.body.classList.add('is-google-app');
+    }
+  }, [])
 
   return (
     <LoadingContext.Provider value={{ isLoaded }}>
