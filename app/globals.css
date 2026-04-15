@@ -1394,41 +1394,23 @@
 @media (max-width: 1023px) {
 
   /* 1. HIDE THE FALLBACK BY DEFAULT */
-html body .google-app-fallback-message {
+  .google-app-fallback-message {
     display: none; 
     position: absolute !important;
-    
-    /* VERTICAL: 50dvh is dead center. Increase to move lower. */
-    top: 52dvh !important; 
-    
-    /* HORIZONTAL: 148vw pins it to the dark vertical column on the right. 
-       Adjust this number manually (140-160) to slide it left or right. */
-    left: 148vw !important; 
-    
-    /* REMOVE CENTER-ANCHOR: We use only vertical centering now. */
-    transform: translateY(-50%) !important;
-    
-    /* THE COMPACT "SMALL BLOCK" SIZING */
-    width: 45% !important;        /* Narrow footprint */
-    max-width: 160px !important;   /* Hard cap for a "columnar" look */
-    
-    /* TYPOGRAPHY: JUDAION ARCHITECTURAL STYLE */
-    font-size: 7px !important;
-    line-height: 2.4 !important;
-    letter-spacing: 0.55em !important;
-    text-align: left !important;   /* Cleaner look for a side-block */
-    
-    /* VISUALS */
+    top: 50dvh !important;
+    left: 145vw !important; /* Pinned to your Contact sheet position */
+    transform: translate(-50%, -50%) !important;
+    width: 65% !important;
+    max-width: 240px !important;
+    text-align: center !important;
     font-family: var(--font-brand-bold) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.3em !important;
     color: #ffffff !important;
-    /* Subtle vertical line to anchor it to the layout */
-    border-left: 0.5px solid rgba(255, 255, 255, 0.4); 
-    padding: 8px 12px;
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    padding: 20px;
     z-index: 1000;
-    text-transform: uppercase;
   }
-
-  
 
   /* 2. THE SWAP LOGIC (FORCING GOOGLE APP ONLY) */
   /* This targets the Google Search App specifically */
