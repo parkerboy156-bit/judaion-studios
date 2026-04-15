@@ -1,26 +1,1389 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-black: #0a0a0a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply bg-brand-black text-white antialiased;
+    font-family: var(--font-sans);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .container-custom {
+    @apply mx-auto w-full max-w-[1400px] px-6;
+  }
 }
+
+/* Custom 0.5px border */
+.border-b-thin {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.2);
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-black: #0a0a0a;
+
+  /* ADD THESE TWO LINES */
+  --font-brand-cn: "HelveticaNowDisplay-Cn", sans-serif;
+  --font-brand-bold: "HelveticaNowMicro-CnBold", sans-serif;
+  --font-brand-italic-cn: "HelveticaNowDisplay-CnLtIt", sans-serif;
+  --font-brand-xbold-italic-cn: "HelveticaNowDisplay-CnXBdIt", sans-serif;
+  --font-brand-med-italic-cn: "HelveticaNowDisplay-CnMedIt", sans-serif;
+  --font-brand-compressed: "Helvetica-Compressed", sans-serif;
+  --font-brand-secondary-thin: "AvenirLTProRoman", sans-serif;
+  --font-brand-secondary-heavy: "Avenir-Heavy", sans-serif;
+  --font-brand-italic-thin-cn: "Helvetica-Thin-Italic", sans-serif;
+  --font-brand-other: "Khand-Bold", sans-serif;
+  
+  
+}
+
+
+/* Ensure your @font-face is still at the bottom of the file as you had it */
+@font-face {
+  font-family: 'HelveticaNowDisplay-Cn';
+  src: url('/fonts/HelveticaNowDisplay-Cn.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+@font-face {
+  font-family: 'HelveticaNowMicro-CnBold'; /* Must match the @theme mapping above */
+  src: url('/fonts/HelveticaNowMicro-CnBold.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HelveticaNowDisplay-CnXBdIt'; /* Must match the @theme mapping above */
+  src: url('/fonts/HelveticaNowDisplay-CnXBdIt.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HelveticaNowDisplay-CnLtIt';
+  src: url('/fonts/HelveticaNowDisplay-CnLtIt.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvetica-Thin-Italic';
+  src: url('/fonts/HelveticaNowDisplay-CnThiIt.woff2') format('woff2');
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+
+
+@font-face {
+  /* CHANGE THIS NAME to match the theme alias exactly */
+  font-family: 'HelveticaNowDisplay-CnMedIt'; 
+  src: url('/fonts/HelveticaNowDisplay-CnMedIt.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+  font-stretch: condensed;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AvenirLTProRoman';
+  src: url('/fonts/AvenirLTProRoman.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir-Heavy';
+  src: url('/fonts/AvenirLTProHeavy.woff2') format('woff2');
+  font-weight: 900; /* Heavy weight */
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvetica-Compressed'; /* Must match the @theme mapping above */
+  src: url('/fonts/Helvetica-Compressed.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Khand-Bold';
+  src: url('/fonts/Khand-Bold.woff2') format('woff2'),
+       url('/fonts/Khand-Bold.woff') format('woff'),
+       url('/fonts/Khand-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+
+
+/* 🛠️ JUDAION ARCHITECTURAL OVERHAUL: HIDE SCROLLBAR */
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* 🏗️ PRESERVATION LOCK */
+.overflow-x-hidden {
+  overflow-x: hidden !important;
+}
+
+.form-field-block {
+  @apply w-full bg-black/30 text-white font-mono text-[11px] uppercase tracking-wide px-3 py-2 border border-white/10 focus:border-orange-600 focus:outline-none transition-colors;
+}
+
+.custom-form-checkbox {
+  @apply accent-orange-600 w-3 h-3 bg-black/50 border border-white/20 appearance-none rounded-none checked:bg-orange-600 cursor-pointer;
+}
+
+
+
+/* ============================================================ */
+/*  HOME MOBILE VERSION LAYER: MULTI-DEVICE REFINEMENT                */
+/* ============================================================ */
+
+@media (max-width: 1023px) {
+  /* GLOBAL MOBILE BASES (Optimised for iPhone 8/SE styles) */
+  .vision-block-mobile {
+    left: 35vw !important;
+    top: 25vw !important;
+    display: none !important;
+  }
+  .structure-block-mobile {
+    left: 126vw !important;
+    top: 25vw !important;
+    display: none !important;
+  }
+  .identity-block-mobile {
+    left: 220vw !important;
+    top: 25vw !important;
+    display: none !important;
+  }
+
+  /* TALL DEVICE OVERRIDE (iPhone 11, 12, 13, 14, 15, Pro, etc.)
+     Targets devices where the screen height is significantly 
+     larger than the width (Aspect Ratio > 2:1)
+  */
+  @media (min-height: 700px) {
+    .vision-block-mobile,
+    .structure-block-mobile,
+    .identity-block-mobile {
+      top: 37vw !important; 
+      display: none !important;
+      
+    }
+  }
+}
+     
+      
+/* ============================================================ */
+/* LAYOUT LAYER: FOOTER SPREAD (Desktop & Mobile)           */
+/* ============================================================ */
+
+@media (max-width: 1023px) {
+  /* Control the vertical spacing between the menu items */
+  .mobile-nav-container {
+    gap: 4vh !important; /* Uses viewport height for dynamic spacing */
+  }
+
+  /* Control the actual size of the menu titles */
+  .nav-link-mobile {
+    font-size: 0.95rem !important; /* Scaled down for mobile readability */
+    letter-spacing: 0.5em !important;
+  }
+
+  /* TALL DEVICE REFINEMENT (iPhone 11/Pro/Max) */
+  @media (min-height: 700px) {
+    .mobile-nav-container {
+      gap: 4vh !important; /* Slightly more air for taller displays */
+    }
+    .nav-link-mobile {
+      font-size: 1.1rem !important;
+    }
+  }
+}
+
+/* ============================================================ */
+/* MOBILE VERSION LAYER: FOOTER REPOSITIONING                   */
+/* ============================================================ */
+
+
+
+/* These rules now apply to ALL screen sizes */
+.mobile-footer-container {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: flex-end !important;
+  /* Standard spread for desktop */
+  width: calc(100% - 80px) !important; 
+  left: 40px !important;
+  margin-top: 0 !important;
+}
+
+/* Neutralize the space-y-6 margin everywhere */
+.mobile-footer-container > div, 
+.mobile-footer-container > div + div {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.enquiries-block-mobile {
+  text-align: right !important;
+}
+
+/* ============================================================ */
+/* MOBILE SPECIFIC REFINEMENTS (Max-Width: 1023px)             */
+/* ============================================================ */
+
+@media (max-width: 1023px) {
+  .mobile-footer-container {
+    bottom: 5vh !important; /* Lowers it for mobile screens */
+    font-size: 0.5rem !important; /* Smaller text for mobile only */
+  }
+
+  .mobile-footer-container p.font-bold {
+    font-size: 0.46rem !important;
+    letter-spacing: 0.25em !important;
+  }
+
+  .mobile-footer-container span.text-orange-700 {
+    font-size: 14px !important;
+  }
+
+  /* TALL DEVICE REFINEMENT (iPhone 11/Pro) */
+  @media (min-height: 700px) {
+    .mobile-footer-container {
+      bottom: 8vh !important;
+    }
+  }
+}
+/* ============================================================ */
+
+
+/* ============================================================ */
+/* METHODOLOGY MOBILE SPECIFIC REFINEMENTS            */
+/* ============================================================ */
+@media (max-width: 1023px) {
+
+  /* --- 1. HEADER & UNDERLINE SPECIFIC CONTROL --- */
+  .method-text-block-mobile h2 {
+    font-family: var(--font-brand-compressed);
+    font-size: 11.49px !important;
+    letter-spacing: 0.23em !important;
+    line-height: 1.1 !important;
+    margin-bottom: 2px !important;
+  }
+
+  /* Control the underline width here */
+  .method-text-block-mobile h2 + div {
+    height: 1px !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    /* DEFAULT MOBILE UNDERLINE WIDTH */
+    width: 60px !important; 
+    margin-top: 2px !important;
+  }
+
+  /* --- 2. IPHONE 11 / MODERN LARGE (min-height: 700px) --- */
+  @media (min-height: 700px) {
+    .method-text-block-mobile {
+      left: 150vw !important;
+      top: 39% !important;
+      transform: scale(0.68) !important;
+      max-width: 297px !important;
+    }
+
+    /* Override underline width specifically for iPhone 11 if needed */
+    .method-text-block-mobile h2 + div {
+      width: 225px !important;
+    }
+
+    .method-j-trigger-mobile {
+      left: 194vw !important;
+      top: 39% !important;
+      display: none !important;
+    }
+
+    .method-j-trigger-mobile img {
+      width: 120px !important;
+    }
+  }
+
+  /* --- 3. IPHONE 8 / LEGACY SMALL (max-height: 699px) --- */
+  @media (max-height: 699px) {
+    .method-text-block-mobile {
+      left: 146vw !important;
+      top: 36% !important;
+      transform: scale(0.59) !important;
+      max-width: 290px !important;
+    }
+
+    /* Override underline width specifically for iPhone 8 if needed */
+    .method-text-block-mobile h2 + div {
+      width: 218px !important;
+    }
+
+    .method-j-trigger-mobile {
+      left: 195vw !important;
+      top: 37% !important;
+    }
+
+    .method-j-trigger-mobile img {
+      width: 110px !important;
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
+
+/* MOBILE VERSION LAYER START */
+@media (max-width: 1023px) {
+
+  /* --- INSTRUCTION BLOCK: SIZING & LAYOUT --- */
+  
+  /* Target the main mobile instructions container */
+  .method-instructions-mobile {
+    gap: 10px !important; /* Control spacing between icon and text */
+    /* Ensure the icon sits on the left by overriding the desktop flex structure if needed */
+    flex-direction: row !important;
+  }
+
+  /* Target the new arrow icon specifically for sizing on mobile */
+  .method-instruction-icon-mobile {
+    /* Use 'rem' or 'px' for specific sizing across mobile devices */
+    width: 1.6rem !important; 
+    height: auto !important;
+    opacity: 0.9 !important; /* Boost visibility on smaller screens */
+  }
+
+  /* Target the instruction text itself for sizing on mobile */
+  .method-instructions-mobile span {
+    font-size: 0.70em !important; /* Smaller text for mobile readability */
+    letter-spacing: 0.4em !important;
+  }
+
+  /* Tall Device Specific Refinement (iPhone 11/Pro) */
+  @media (min-height: 700px) {
+    .method-instructions-mobile {
+      bottom: 6vh !important; /* Move higher to avoid interaction collisions with the home bar */
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
+
+
+
+/* ============================================================ */
+/* SERVICES MOBILE SPECIFIC REFINEMENTS            
+/* ============================================================ */
+@media (max-width: 1023px) {
+  /* Common rules for all mobile hitboxes */
+  .tier-01-mobile, .tier-02-mobile, .tier-03-mobile {
+    position: absolute !important; /* CRITICAL: Allows them to leave the stack */
+    display: block !important;
+    width: 70vw !important;  /* Wider area for the larger screen */
+    height: 53vh !important;
+  }
+
+  /* IPHONE 11 / TALL */
+  @media (min-height: 700px) {
+    .tier-01-mobile { left: 34vw !important; top: 26vh !important; }
+    .tier-02-mobile { left: 119vw !important; top: 26vh !important; }
+    .tier-03-mobile { left: 203vw !important; top: 26vh !important; }
+  }
+
+  /* IPHONE 8 / SMALL */
+  @media (max-height: 699px) {
+    .tier-01-mobile { left: 34vw !important; top: 26vh !important; }
+    .tier-02-mobile { left: 119vw !important; top: 26vh !important; }
+    .tier-03-mobile { left: 203vw !important; top: 26vh !important; }
+  }
+}
+
+
+
+/* MOBILE VERSION LAYER START */
+@media (max-width: 1023px) {
+  .collector-footer-mobile {
+    display: block !important; /* Forces out of flex-box */
+    width: 100vw !important;
+    text-align: center !important;
+    white-space: nowrap !important; /* Absolute prevention of wrapping */
+    overflow: visible !important;
+    pointer-events: none !important;
+  }
+
+  .collector-footer-mobile span {
+    display: inline-block !important; /* Required for white-space: nowrap to work perfectly */
+    width: auto !important;
+    /* Font size must be very small to fit this many characters on one line */
+    font-size: 6px !important; 
+    letter-spacing: 0.2em !important; 
+    text-transform: uppercase !important;
+  }
+
+  /* iPhone 11 / Tall - 375px+ wide */
+  @media (min-height: 700px) {
+    .collector-footer-mobile {
+      bottom: 19% !important;
+      left: 11% !important;
+    }
+    .collector-footer-mobile span {
+      font-size: 9px !important;
+      letter-spacing: 0.22em !important;
+    }
+  }
+
+  /* iPhone 8 / Small - 320px wide */
+  @media (max-height: 699px) {
+    .collector-footer-mobile {
+      bottom: 14% !important;
+      left: 26% !important;
+    }
+    .collector-footer-mobile span {
+      font-size: 9px !important; /* Aggressive reduction for small screens */
+      letter-spacing: 0.18em !important;
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
+
+
+@media (max-width: 1023px) {
+  /* Targeted override for the IntroLoader navigation container */
+  .intro-nav-mobile {
+    top: 2rem !important;    /* Reduced from top-12 (3rem) */
+    right: 2rem !important;  /* Reduced from right-12 (3rem) */
+  }
+
+  /* Scale reduction for the "Begin the Tour" Image */
+  .intro-nav-mobile img {
+    width: 100px !important;  /* Reduced from w-30 (120px) */
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Font reduction for the "Begin the Tour" Label */
+  .intro-nav-mobile span {
+    font-size: 11px !important; /* Scaled for mobile density */
+    letter-spacing: 0.4em !important;
+  }
+
+  /* Specific Refinement for Small Devices (iPhone 8 / SE) */
+  @media (max-height: 699px) {
+    .intro-nav-mobile {
+      top: 1.5rem !important;
+      right: 1.5rem !important;
+    }
+    .intro-nav-mobile img {
+      width: 80px !important; /* Aggressive reduction for small viewports */
+    }
+    .intro-nav-mobile span {
+      font-size: 8px !important;
+    }
+    .establishing-authority-mobile {
+      font-size: 12px !important;
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
+
+
+
+
+/* ============================================================ */
+/* TIER 1 MOBILE SPECIFIC REFINEMENTS            
+/* ============================================================ */
+@media (max-width: 768px) {
+  /* 1. Force Column Collapse */
+  div.flex.w-full.h-screen {
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* 2. Remove Left Block */
+  div.relative.w-\[52\%\]:first-child {
+    display: none !important;
+  }
+
+  /* 3. Force Right Block to Full Width (Eliminates Black Cut-off) */
+  div.relative.w-\[52\%\]:last-child {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100vh !important;
+    display: block !important;
+  }
+
+  /* 4. Ensure Images Fill the expanded container */
+  div.relative.w-\[52\%\]:last-child img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* 5. Mobile-Only Return Button (Freely Positionable) */
+  .mobile-only-return {
+    display: block !important;
+    position: fixed !important; /* This detaches it from the Right Column width logic */
+    bottom: 240px !important;
+    left: 15px !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+
+  /* 6. Asset Remapping */
+  img[src="/tier1-bg.png"] { content: url('/tier1-bg-mobile.png') !important; }
+  img[src="/tier1-foundation.png"] { content: url('/tier1-foundation-mobile.png') !important; }
+  img[src="/tier1-ground.png"] { content: url('/tier1-ground-mobile.png') !important; }
+
+  /* 7. Hide Desktop CTA */
+  div.absolute.top-\[58\%\].left-\[69\%\] {
+    display: none !important;
+  }
+}
+
+/* ============================================================ */
+/* TIER 2 MOBILE SPECIFIC REFINEMENTS            
+/* ============================================================ */
+@media (max-width: 768px) {
+  /* Targets Tier 2 flex container */
+  div.flex.w-full.h-screen:has(img[src="/tier2-bg.png"]) {
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Suppress Tier 2 Left Block */
+  div.flex:has(img[src="/tier2-bg.png"]) div.relative.w-\[52\%\]:first-child {
+    display: none !important;
+  }
+
+  /* Expand Tier 2 Right Block */
+  div.flex:has(img[src="/tier2-bg.png"]) div.relative.w-\[52\%\]:last-child {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100vh !important;
+    display: block !important;
+  }
+
+  /* Force Tier 2 Images to Cover Gap */
+  div.flex:has(img[src="/tier2-bg.png"]) div.relative.w-\[52\%\]:last-child img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* Mobile-Only Return Button Positioning (Tier 2) */
+  .mobile-only-return-t2 {
+    display: block !important;
+    position: fixed !important;
+    bottom: 240px !important;
+    left: 15px !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Tier 2 Asset Remapping */
+  img[src="/tier2-bg.png"] { content: url('/tier2-bg-mobile.png') !important; }
+  img[src="/tier2-environment.png"] { content: url('/tier2-environment-mobile.png') !important; }
+  img[src="/tier2-front-door.png"] { content: url('/tier2-front-door-mobile.png') !important; }
+
+  /* Hide Tier 2 CTA */
+  div.flex:has(img[src="/tier2-bg.png"]) div.absolute.top-\[58\%\].left-\[69\%\] {
+    display: none !important;
+  }
+}
+
+/* ============================================================ */
+/* TIER 3 MOBILE SPECIFIC REFINEMENTS (CUTOFF FIX)            
+/* ============================================================ */
+@media (max-width: 768px) {
+  /* 1. Force the Parent Flex Container to full width */
+  div.flex.w-full.h-screen:has(img[src="/tier3-environment.png"]) {
+    flex-direction: column !important;
+    width: 100vw !important;
+    overflow: hidden !important;
+  }
+  
+  /* 2. Remove the Left Column (Spec Block) */
+  div.flex:has(img[src="/tier3-environment.png"]) div.relative.w-\[52\%\]:first-child {
+    display: none !important;
+  }
+
+  /* 3. FORCE RIGHT BLOCK TO FULL VIEWPORT (FIXES CUTOFF) */
+  div.flex:has(img[src="/tier3-environment.png"]) div.relative.w-\[52\%\]:last-child {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100vh !important;
+    display: block !important;
+    position: relative !important;
+    left: 0 !important;
+  }
+
+  /* 4. FORCE ALL LAYERS TO COVER THE FULL WIDTH */
+  div.flex:has(img[src="/tier3-environment.png"]) div.relative.w-\[52\%\]:last-child img {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important; /* This ensures no black bars on sides */
+    object-position: center !important;
+  }
+
+  /* 5. Mobile-Only Return Button Positioning */
+  .mobile-only-return-t3 {
+    display: block !important;
+    position: fixed !important;
+    bottom: 465px !important;
+    left: 2px !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+
+  @media (max-height: 670px) {
+    .mobile-only-return-t3 {
+      bottom: 15px !important; /* Move it closer to the edge to save space */
+      left: 15px !important;
+    }
+
+  .mobile-only-return-t3 {
+    display: block !important;
+    position: fixed !important;
+    bottom: 320px !important;
+    left: 1px !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+
+    /* Optional: If images are cutting off too much on short screens */
+    .tier3-visual-container img {
+      object-position: top center !important; 
+    }
+  }
+
+
+  /* 6. Comprehensive Asset Remapping */
+  img[src="/tier3-bg.png"] { content: url('/tier3-bg-mobile.png') !important; }
+  img[src="/tier3-environment.png"] { content: url('/tier3-environment-mobile.png') !important; }
+  img[src="/tier3-black-back-left.png"] { content: url('/tier3-black-back-left-mobile.png') !important; }
+  img[src="/tier3-black-back-right.png"] { content: url('/tier3-black-back-right-mobile.png') !important; }
+  img[src="/tier3-left-wall.png"] { content: url('/tier3-left-wall-mobile.png') !important; }
+  img[src="/tier3-right-wall.png"] { content: url('/tier3-right-wall-mobile.png') !important; }
+  img[src="/tier3-top.png"] { content: url('/tier3-top-mobile.png') !important; }
+  img[src="/tier3-top-left-chunk.png"] { content: url('/tier3-top-left-chunk-mobile.png') !important; }
+  img[src="/tier3-top-right-chunk.png"] { content: url('/tier3-top-right-chunk-mobile.png') !important; }
+
+  /* 7. Hide Desktop CTA */
+  div.flex:has(img[src="/tier3-environment.png"]) div.absolute.top-\[58\%\].left-\[69\%\] {
+    display: none !important;
+  }
+}
+
+/* ============================================================ */
+/* PROJECT ARCHIVE MOBILE SPECIFIC REFINEMENTS           
+/* ============================================================ */
+@media (max-width: 1023px) {
+
+
+  /* THE "CLICK TO INSPECT" GROUP */
+  .mobile-inspect-fix {
+    display: flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    pointer-events: none !important;
+    position: absolute !important;
+  }
+}
+
+/* --- 2. IPHONE 8 (Small Display / 16:9) --- */
+@media (max-width: 375px) and (max-height: 667px) {
+  /* Manually position the Inspect Text/Icon Group */
+  .mobile-inspect-fix {
+    top: 65% !important;   /* Adjust Y coordinate */
+    left: 63% !important;  /* Adjust X coordinate */
+    transform: scale(0.75) !important; /* Scale entire group */
+  }
+
+  .mobile-inspect-fix span {
+    font-size: 14px !important;
+    letter-spacing: 0.3em !important;
+  }
+}
+
+/* --- 3. IPHONE 11 / LARGE MOBILE (Tall Display) --- */
+@media (min-width: 376px) and (max-height: 900px) {
+  /* Manually position the Inspect Text/Icon Group */
+  .mobile-inspect-fix {
+    top: 63% !important;   /* Adjust Y coordinate */
+    left: 64% !important;  /* Adjust X coordinate */
+    transform: scale(0.9) !important; /* Scale entire group */
+  }
+
+  .mobile-inspect-fix span {
+    font-size: 12px !important;
+    letter-spacing: 0.5em !important;
+  }
+}
+
+/* MOBILE VERSION LAYER END */
+
+
+
+/* ============================================================ */
+/* ARCHIVE CATALOGUE MOBILE SPECIFIC REFINEMENTS           
+/* ============================================================ */
+@media (max-width: 1023px) {
+    /* 1. TARGET ONLY THE ARCHIVE NAV, NOT THE GLOBAL MENU */
+    .archive-nav-scroller {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch;
+      
+      /* FIX FOR BRIGHT SPOT: 
+         Use padding instead of negative margins to keep the 
+         scroller contained within the header's black overlay. */
+      width: 100% !important; 
+      margin-left: 0 !important; 
+      padding-right: 2rem !important; 
+      
+      gap: 2rem !important;
+      scrollbar-width: none;
+    }
+
+    .archive-nav-scroller::-webkit-scrollbar { 
+      display: none; 
+    }
+
+    .archive-nav-scroller button {
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
+    }
+
+    /* 2. RE-CENTER THE GLOBAL LAYOUT MENU (Safety Overrides) */
+    header .flex-col.pointer-events-auto {
+      width: auto !important;
+      margin: 0 !important;
+    }
+}
+
+
+@keyframes textOnlyPulse {
+  0% { color: rgba(255, 255, 255, 1); }
+  50% { color: rgba(170, 170, 170, 0.2); } /* Text dims, background stays solid */
+  100% { color: rgba(255, 255, 255, 1); }
+}
+
+  @media (max-width: 1023px) {
+    /* 1. Force a heavy black blur over the modal content area */
+    .fixed.inset-0.z-50 .relative.w-full.max-w-\[95vw\]::after {
+      content: "TO PRESERVE DETAIL, PROJECTS ARE ONLY VIEWABLE ON DESKTOP.\A\A\A // TAP OUTSIDE MODAL TO EXIT ";
+      white-space: pre-wrap;
+      line-height: 2 !important;
+      animation: textOnlyPulse 3s ease-in-out infinite;
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: 'brand-secondary-thin', sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      z-index: 100;
+      text-align: center;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+
+  }
+
+  @media (max-width: 1023px) {
+    /* 1. Remove the 'X' Close Button completely on mobile */
+    .fixed.inset-0.z-50 button.absolute.top-6.right-6 {
+      display: none !important;
+    }
+
+    /* 2. Finalized Mobile Modal Height adjustment */
+    .fixed.inset-0.z-50 .relative.w-full.max-w-\[95vw\] {
+      height: 68vh !important; /* Slightly increased for better text visibility */
+      margin-top: auto !important;
+      margin-bottom: 6vh !important;
+    }
+
+    /* 3. Maintain Backdrop functionality */
+    /* Ensure the backdrop remains the primary method for closing the modal */
+    .fixed.inset-0.z-50 .absolute.inset-0.bg-black\/60 {
+      cursor: pointer;
+    }
+  }
+
+
+/* ============================================================ */
+/* CONTACT MOBILE SPECIFIC REFINEMENTS (iPhone 8 & 11)          */
+/* ============================================================ */
+@media (max-width: 1023px) {
+
+  /* PINNED FORM POSITIONING ON THE 250vw CANVAS */
+  .contact-form-mobile-pinned {
+    width: 200vw !important; /* Form width relative to viewport */
+    max-width: 500px !important;
+    
+  }
+
+  /* NAVIGATION PINNED TO FAR LEFT */
+  .contact-floor-nav-mobile {
+    bottom: 50px !important;
+    left: 30px !important;
+  }
+
+  /* --- IPHONE 8 / SMALL (max-height: 699px) --- */
+  @media (max-height: 699px) {
+    .contact-form-mobile-pinned {
+      top: 14% !important;
+      left: 106vw !important; /* Pinned horizontally on the sheet */
+      transform: scale(0.65) !important;
+    }
+    .contact-floor-nav-mobile { transform: scale(0.8); }
+  }
+
+  /* --- IPHONE 11 / TALL (min-height: 700px) --- */
+  @media (min-height: 700px) {
+    .contact-form-mobile-pinned {
+      top: 20% !important;
+      left: 120vw !important; /* Slightly different horizontal pin for tall aspect */
+      transform: scale(0.80) !important;
+    }
+  }
+}
+
+@media (max-width: 1023px) {
+  
+  /* BASE MOBILE HITBOX BEHAVIOR */
+  .insta-hitbox-mobile, 
+  .linkedin-hitbox-mobile, 
+  .email-hitbox-mobile {
+    position: absolute !important;
+    z-index: 100 !important;
+    display: block !important;
+  }
+
+  /* --- GROUP 1: IPHONE 8 / LEGACY SHORT (max-height: 699px) --- */
+  @media (max-height: 699px) {
+    /* Pinned to the LinkedIn icon in the bottom left cluster */
+    .linkedin-hitbox-mobile {
+      width: 40px !important;
+      height: 45px !important;
+      top: 64% !important;
+      left: 87vw !important; /* Positioned on the 250vw sheet */
+    }
+
+    /* Pinned to the Instagram icon */
+    .insta-hitbox-mobile {
+      width: 40px !important;
+      height: 45px !important;
+      top: 64% !important;
+      left: 98vw !important;
+    }
+
+    /* Pinned to the email text "EXTRACTION@JUDAION.COM" */
+    .email-hitbox-mobile {
+      width: 80px !important;
+      height: 14px !important;
+      top: 66% !important;
+      left: 30vw !important;
+    }
+  }
+
+  /* --- GROUP 2: IPHONE 11 / MODERN TALL (min-height: 700px) --- */
+  @media (min-height: 700px) {
+    .linkedin-hitbox-mobile {
+      width: 50px !important;
+      height: 50px !important;
+      top: 64% !important;
+      left: 81vw !important;
+    }
+
+    .insta-hitbox-mobile {
+      width: 50px !important;
+      height: 50px !important;
+      top: 64% !important;
+      left: 94vw !important;
+    }
+
+    .email-hitbox-mobile {
+      width: 98px !important;
+      height: 20px !important;
+      top: 66% !important;
+      left: 16vw !important;
+    }
+  }
+}
+
+
+/* ============================================================ */
+/* ABOUT US MOBILE SPECIFIC REFINEMENTS           
+/* ============================================================ */
+
+@media (max-width: 1023px) {
+
+  /* INCREASE SPECIFICITY: Using class names to override 
+     the inline Tailwind [vw] sizing tags on mobile only. 
+  */
+
+  .hero-secondary-text-top {
+    /* Scaling from ~8px to 14px for authority and legibility */
+    font-size: 15px !important; 
+    letter-spacing: 0.2em !important;
+  }
+
+  .hero-secondary-text-bottom {
+    /* Scaling from ~11px to 18px */
+    font-size: 20px !important;
+    letter-spacing: 0.28em !important;
+  }
+
+  /* IPHONE 8 / SMALL REFINEMENT */
+  @media (max-height: 699px) {
+    .hero-secondary-text-top { font-size: 14px !important; }
+    .hero-secondary-text-bottom { font-size: 18px !important; }
+  }
+}
+
+@media (max-width: 1023px) {
+
+  /* ASSET REMAPPING PROTOCOL
+     Replace the desktop scroll-up asset with the new swipe-up asset
+     Target the image exactly via its source for minimum cascade leakage
+  */
+  img[src="/scroll-up.png"] {
+    content: url('/swipe-up-icon.png') !important; /* The new asset provided in image_0.png */
+    /* Maintain positioning logic; Tailwind classes absolute bottom-5 right-1 already provide good ergonomics on mobile */
+  }
+
+}
+
+@media (max-width: 1023px) {
+
+  /* Identity Section Title Optimization */
+  .about-main-title {
+    /* Stabilizing the 10vw for mobile viewports */
+    font-size: 40px !important; 
+    line-height: 0.95 !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES (max-height: 699px) --- */
+  @media (max-height: 699px) {
+    .about-main-title {
+      font-size: 38px !important;
+      letter-spacing: 0.1em !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (iPhone 14/15 Plus/Max) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .about-main-title {
+      font-size: 40px !important;
+    }
+  }
+
+}
+
+  /* --- IPHONE 8 / SMALL DEVICES (max-height: 699px) --- */
+  @media (max-height: 699px) {
+    .classification-text {
+      font-size: 10px !important;
+      letter-spacing: 0.5em !important;
+    }
+  }
+
+  
+
+  /* --- PILLARS TEXT SIZING --- */
+  @media (max-width: 1023px) {
+
+  /* Section 3: Pillar Title Optimization */
+  .about-pillars-title {
+    font-size: 10px !important;
+    letter-spacing: 0.4em !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Section 3: Date/Establishment Tag Optimization */
+  .about-pillars-date {
+    font-size: 5px !important;
+    letter-spacing: 0.5em !important; /* Slightly tighter for mobile readability */
+    white-space: nowrap;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .about-pillars-title {
+      font-size: 7px !important;
+    }
+    .about-pillars-date {
+      font-size: 6px !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .about-pillars-title {
+      font-size: 8px !important;
+    }
+  }
+}
+
+
+/* VISION */
+@media (max-width: 1023px) {
+
+  /* Section 3: Individual Pillar Titles (VISION, STRUCTURE, IDENTITY) */
+  .pillar-item-title {
+    font-size: 28px !important;
+    letter-spacing: 0.3em !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .pillar-item-title {
+      font-size: 46px !important;
+      letter-spacing: 0.4em !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .pillar-item-title {
+      font-size: 43px !important;
+    }
+  }
+
+}
+
+/* STRUCTURE */
+@media (max-width: 1023px) {
+
+  /* Section 3: Individual Pillar Titles (VISION, STRUCTURE, IDENTITY) */
+  .pillar-item-title2 {
+    font-size: 28px !important;
+    letter-spacing: 0.3em !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .pillar-item-title2 {
+      font-size: 46px !important;
+      letter-spacing: 0.2em !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .pillar-item-title2 {
+      font-size: 43px !important;
+    }
+  }
+
+}
+
+
+/* IDENTITY */
+@media (max-width: 1023px) {
+
+  /* Section 3: Individual Pillar Titles (VISION, STRUCTURE, IDENTITY) */
+  .pillar-item-title3 {
+    font-size: 28px !important;
+    letter-spacing: 0.3em !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .pillar-item-title3 {
+      font-size: 46px !important;
+      letter-spacing: 0.2em !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .pillar-item-title3 {
+      font-size: 43px !important;
+    }
+  }
+
+}
+
+
+/* Section 4 corner tags */
+@media (max-width: 1023px) {
+
+  /* Section 4: Main Header (STUDIO FEED) */
+  .studio-feed-title {
+    font-size: 34px !important;
+    letter-spacing: 0.25em !important;
+    line-height: 1 !important;
+  }
+
+  /* Section 4: Status Tags (Live Session Log / Session Log) */
+.archive-status-tag {
+    display: none !important;
+  }
+
+  /* Section 4: Pulsing Asset Scaling */
+  .archive-pulse-icon {
+    width: 6px !important;
+    height: 6px !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .studio-feed-title {
+      font-size: 8px !important;
+    }
+.archive-status-tag {
+    display: none !important;
+  }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .studio-feed-title {
+      font-size: 9px !important;
+    }
+  }
+}
+
+
+/* COMMITMENT TEXT */
+@media (max-width: 1023px) {
+
+  /* Section 4: Technical Sub-Heading */
+  .commitment-heading {
+    font-size: 25px !important;
+    letter-spacing: 0.2em !important;
+    line-height: 1.4 !important;
+    margin-bottom: 2rem !important;
+  }
+
+  /* Section 4: Technical Body Text */
+  .commitment-body-text {
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.15em !important;
+    max-width: 70% !important; /* Allow text to fill mobile width */
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .commitment-heading {
+      font-size: 25px !important;
+    }
+    .commitment-body-text {
+      font-size: 12px !important;
+      line-height: 1.6 !important;
+    }
+  }
+}
+
+
+
+/* NAME AND TITLE */
+@media (max-width: 1023px) {
+
+  /* Section 5: Architect Name Optimization */
+  .architect-signature-name {
+    font-size: 28px !important;
+    letter-spacing: 0.3em !important;
+    line-height: 1.2 !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Section 5: Architect Title (Role) Optimization */
+  .architect-signature-title {
+    font-size: 19px !important;
+    letter-spacing: 0.2em !important;
+    display: block !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .architect-signature-name {
+      font-size: 21px !important;
+    }
+    .architect-signature-title {
+      font-size: 20px !important;
+      letter-spacing: 0.19em !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .architect-signature-name {
+      font-size: 21px !important;
+    }
+  }
+}
+
+
+
+/* NAME AND TITLE */
+@media (max-width: 1023px) {
+
+  /* Section 5: Architect Name Optimization */
+  .operational-lead {
+    font-size: 28px !important;
+    letter-spacing: 0.3em !important;
+    line-height: 1.1 !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .operational-lead {
+      font-size: 7px !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .operational-lead {
+      font-size: 7px !important;
+    }
+  }
+}
+
+
+/* CTA TEXT */
+@media (max-width: 1023px) {
+
+  /* Section 6: Meta Tag (Next Floor) */
+  .cta-meta-tag {
+    font-size: 8px !important;
+    letter-spacing: 0.6em !important; /* Slightly reduced for mobile width constraints */
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Section 6: Main Title (BUILD YOUR) */
+  .cta-main-title {
+    font-size: 32px !important;
+    letter-spacing: 0.25em !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Section 6: Accent Title (AUTHORITY) */
+  .cta-accent-title {
+    font-size: 58px !important; /* Reduced from 90px to prevent overflow */
+    display: block !important;
+    margin-top: 0.2rem !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .cta-main-title {
+      font-size: 28px !important;
+    }
+    .cta-accent-title {
+      font-size: 50px !important;
+    }
+  }
+
+  /* --- LARGE MOBILE (Pro Max / Plus) --- */
+  @media (min-width: 400px) and (max-width: 1023px) {
+    .cta-accent-title {
+      font-size: 65px !important;
+    }
+  }
+}
+
+
+/* CTA POSITIONING */
+@media (max-width: 1023px) {
+
+  /* Section 6: Layout Re-Engineering for Centering */
+  .about-cta-section {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important; /* Centers the stack vertically in the 70vh container */
+    align-items: center !important;    /* Centers the stack horizontally */
+    text-align: center !important;      /* Aligns the text internally */
+    padding-top: 0 !important;          /* Removes any top-heavy padding */
+    gap: 3rem !important;               /* Creates disciplined space between text and image */
+  }
+
+  /* Ensuring the text stack items center themselves within the flex-col */
+  .about-cta-section div.flex-col {
+    align-items: center !important;
+  }
+
+  /* --- IPHONE 8 / SMALL DEVICES --- */
+  @media (max-height: 699px) {
+    .about-cta-section {
+      gap: 2rem !important; /* Tighter gap for smaller screens */
+      height: 80vh !important; /* Slightly more height to prevent cramping on short screens */
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
+
+
+
+/* MOBILE VERSION LAYER START */
+/* MANUAL GOOGLE APP POSITIONING OVERRIDE */
+
+@media (max-width: 1023px) {
+  
+  /* TRIGGER: Applies ONLY to non-Safari browsers (Google App/Chrome on iOS) */
+  @supports not (background: -webkit-named-image(apple-pay-logo-white)) {
+    
+    /* --- IPHONE 11 / TALL (min-height: 700px) --- */
+    @media (min-height: 700px) {
+      .contact-form-mobile-pinned {
+        /* MANUALLY ADJUST THESE THREE VALUES FOR GOOGLE APP */
+        top: 22% !important;        /* Moves form up/down */
+        left: 115vw !important;     /* Moves form left/right on your 250vw sheet */
+        transform: scale(0.75) !important; /* Adjusts the 'bigness' */
+        
+        -webkit-text-size-adjust: 100% !important; /* Prevents auto-enlarging */
+      }
+    }
+
+    /* --- IPHONE 8 / SMALL (max-height: 699px) --- */
+    @media (max-height: 699px) {
+      .contact-form-mobile-pinned {
+        /* MANUALLY ADJUST THESE THREE VALUES FOR GOOGLE APP */
+        top: 16% !important; 
+        left: 102vw !important; 
+        transform: scale(0.60) !important;
+        
+        -webkit-text-size-adjust: 100% !important;
+      }
+    }
+  }
+}
+/* MOBILE VERSION LAYER END */
