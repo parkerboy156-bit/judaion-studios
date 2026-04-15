@@ -9,6 +9,24 @@ export const metadata: Metadata = {
   description: "Operating at the intersection of strategic logic and cinematic soul.",
 };
 
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organisation",
+      "name": "JUDAION",
+      "url": "https://www.judaion.com",
+      "logo": "https://www.judaion.com/j-logo.svg",
+      "sameAs": [
+        "https://www.linkedin.com/company/judaion",
+        "https://www.instagram.com/judaion"
+      ]
+    }),
+  }}
+/>
+
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
