@@ -1398,7 +1398,7 @@
     display: none; 
     position: absolute !important;
     top: 50dvh !important;
-    left: 145vw !important; /* Pinned to your Contact sheet position */
+    left: 160vw !important; /* Pinned to your Contact sheet position */
     transform: translate(-50%, -50%) !important;
     width: 65% !important;
     max-width: 240px !important;
