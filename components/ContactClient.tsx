@@ -148,7 +148,7 @@ const sendEmail = (e: React.FormEvent) => {
         </label>
         <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
           <input name="tier" value="Digital Authority" type="checkbox" className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow" />
-          Digital Authority // T 2
+          change test // T 2
         </label>
         <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
           <input name="tier" value="Scale Partner" type="checkbox" className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow" />
