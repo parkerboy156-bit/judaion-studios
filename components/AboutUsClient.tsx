@@ -225,7 +225,7 @@ export default function AboutTemplate() {
        BORN FROM THE CONVERGENCE OF TWO NAMES -ZION // JUDAH- THE BRAND ORIGINATED AS A PERSONAL REFORMATION. IT WAS SHIFTED TOWARDS RIGID DISCIPLINE AND "HACKING AWAY AT THE UNESSENTIAL."
       </p>
             <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-       BEFORE IT BUILT IDENTITIES FOR OTHERS, <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">JUDAION</span> WAS THE FRAMEWORK USED TO BUILD THE <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">ARCHITECT.</span> 
+       BEFORE IT BUILT INDENTITIES FOR OTHERS, <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">JUDAION</span> WAS THE FRAMEWORK USED TO BUILD THE <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">ARCHITECT.</span> 
       </p>
     </div>
 
