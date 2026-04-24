@@ -170,7 +170,7 @@ export default function AboutTemplate() {
 
     {/* LINE 4: *PERMANANCE */}
     <span className="text-[13vw] tracking-[0.13em] text-white font-brand-other ml-[-25px]">
-      <span className="text-orange-600 font-brand-cn">*</span>PERMANANCE
+      <span className="text-orange-600 font-brand-cn">*</span>PERMANENCE
     </span>
 
   </h1>
