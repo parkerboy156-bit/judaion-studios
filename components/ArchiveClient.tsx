@@ -87,12 +87,19 @@ export default function ArchiveCatalogue() {
     return ['mp4', 'webm', 'ogg'].includes(ext || '');
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = ((e.pageX - left) / width) * 100;
-    const y = ((e.pageY - top) / height) * 100;
-    setZoomPos({ x, y });
-  };
+const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  
+  // Calculate mouse position as a percentage of the container
+  let x = ((e.clientX - rect.left) / rect.width) * 100;
+  let y = ((e.clientY - rect.top) / rect.height) * 100;
+
+  // Clamp values between 5% and 95% to prevent showing the "void" edges
+  x = Math.max(5, Math.min(95, x));
+  y = Math.max(5, Math.min(95, y));
+
+  setZoomPos({ x, y });
+};;
 
   const renderPreview = (url: string) => {
     if (!url) return <div className="flex items-center justify-center h-full text-[10px] uppercase opacity-20 italic">No Asset Loaded</div>;
@@ -119,27 +126,32 @@ export default function ArchiveCatalogue() {
     }
 
     // 3. IMAGE HANDLING
-    return (
-      <div 
-        className="w-full h-full overflow-hidden cursor-zoom-in relative"
-        onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
+return (
+  <div 
+    className="w-full h-full overflow-hidden cursor-zoom-in relative flex items-center justify-center bg-black"
+    onMouseEnter={() => setIsHovering(true)}
+    onMouseLeave={() => setIsHovering(false)}
+    onMouseMove={handleMouseMove}
+  >
+    {/* ATMOSPHERIC BACKGROUND FILL */}
         <img 
-          key={url}
-          src={url} 
-          className="w-full h-full object-contain transition-transform"
-          style={{
-            transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-            transform: isHovering ? 'scale(2.2)' : 'scale(1)',
-            transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
-          }}
-          alt="Asset Preview" 
-          loading="eager"
+          src={url}
+          className="absolute inset-0 w-full h-full object-cover blur-[10px] opacity-30 grayscale"
+          alt=""
         />
-      </div>
-    );
+    <img 
+      key={url}
+      src={url} 
+      className="w-full h-full object-contain transition-transform duration-500 ease-out"
+      style={{
+        transform: isHovering ? `scale(2.0) translate(${(zoomPos.x - 50) * -0.5}%, ${(zoomPos.y - 50) * -0.5}%)` : 'scale(1) translate(0, 0)',
+        willChange: 'transform'
+      }}
+      alt="Asset Preview" 
+      loading="eager"
+    />
+  </div>
+);
   };
 
   if (loading) return (
@@ -274,7 +286,9 @@ export default function ArchiveCatalogue() {
 
       {selectedProject && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pb-12 px-10">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer" onClick={() => setSelectedProject(null)} />
+          
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md cursor-pointer" onClick={() => setSelectedProject(null)} />
+          
           <div className="relative w-full max-w-[95vw] h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-none overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-in slide-in-from-bottom-8 duration-500">
             
             <div className="lg:w-2/3 h-1/2 lg:h-auto bg-black border-r border-white/0 relative group ">
