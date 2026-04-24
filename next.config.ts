@@ -3,10 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
-    // This automatically compresses your local /public images 
-    // into the best format the user's browser supports.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'objectstorage.af-johannesburg-1.oraclecloud.com',
+        port: '',
+        pathname: '/n/axqupand75tw/b/archive/o/**',
+      },
+    ],
   },
-  trailingSlash: true, // or false, but be consistent
+  trailingSlash: true,
 };
 
 export default nextConfig;

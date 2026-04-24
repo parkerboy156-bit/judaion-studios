@@ -17,6 +17,9 @@ export default function ArchiveCatalogue() {
   const [isHovering, setIsHovering] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
+  const [modalAspectRatio, setModalAspectRatio] = useState<number | null>(null);
+  const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
+
 
   useEffect(() => {
     if (isMobile && scrollRef.current) {
@@ -129,9 +132,10 @@ export default function ArchiveCatalogue() {
         <img 
           key={url}
           src={url} 
+          onLoad={() => setIsPreviewLoaded(true)}
           className="w-full h-full object-contain transition-transform"
           style={{
-            transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'transform 2s cubic-bezier(0.20, 1, 0.5, 1)',
             transform: isHovering ? 'scale(2.2)' : 'scale(1)',
             transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
           }}
@@ -252,12 +256,31 @@ export default function ArchiveCatalogue() {
               <div 
                 key={item.id} 
                 className="group cursor-pointer"
-                onClick={() => {
-                  setSelectedProject(item);
-                  setIsPlaying(false);
-                  setCurrentAssetIndex(0);
-                }}
-              >
+onClick={() => {
+          setIsPreviewLoaded(false); // Reset load state
+          setSelectedProject(item);
+          setIsPlaying(false);
+          setCurrentAssetIndex(0);
+        
+          const assetUrl = Array.isArray(item.file_url) ? item.file_url[0] : item.file_url;
+          if (assetUrl) {
+            const extension = assetUrl.split('.').pop()?.toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(extension || '');
+
+            if (isImage) {
+              const img = new Image();
+              img.src = assetUrl;
+              img.onload = () => {
+                const ratio = img.naturalWidth / img.naturalHeight;
+                console.log(`Dynamic Ratio [${item.title}]: ${ratio}`);
+                setModalAspectRatio(ratio);
+              };
+            } else {
+              setModalAspectRatio(null); // Fallback for video/PDF
+            }
+          }
+        }}
+      >
                 <div className="aspect-[4/5] overflow-hidden bg-white/5 backdrop-blur-md border border-white/0 shadow-xl mb-4 relative rounded-none">
                   <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out" />
                   <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
@@ -275,7 +298,13 @@ export default function ArchiveCatalogue() {
       {selectedProject && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pb-12 px-10">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer" onClick={() => setSelectedProject(null)} />
-          <div className="relative w-full max-w-[95vw] h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-none overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-in slide-in-from-bottom-8 duration-500">
+          <div 
+          className="relative w-full max-w-[95vw] h-full max-h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-none overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-in slide-in-from-bottom-8 duration-500"
+          style={{
+            // If an image ratio exists, use it. Otherwise use the default 4:3 (or 1:1)
+            aspectRatio: modalAspectRatio ? `${modalAspectRatio}` : '1.33 / 1', 
+          }}
+        >
             
             <div className="lg:w-2/3 h-1/2 lg:h-auto bg-black border-r border-white/0 relative group ">
                 {isVideo(selectedProject.file_url) && !isPlaying && (

@@ -1,17 +1,7 @@
 "use client";
 
-/**
- * MIGRATION STATUS: STAGE 4
- * SOURCE: AdminPortal.tsx (CRA/Vite)
- * TARGET: app/adminportal/page.tsx (Next.js App Router)
- * CHANGE LOG: 
- * - Added "use client" directive.
- * - Adjusted supabase import path to relative structure (lib/supabase).
- * - Logic, UI, and File Stacking: 100% PRESERVED.
- */
-
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Path adjusted per project tree
+import { supabase } from '@/lib/supabase'; 
 
 interface ArchiveItem {
   id: number;
@@ -45,6 +35,7 @@ export default function AdminPortal() {
     thumb: null,
     assets: []
   });
+
 
   useEffect(() => {
     fetchData();
@@ -106,35 +97,30 @@ export default function AdminPortal() {
       const folderName = formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const categoryName = formData.category.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
-      if (files.thumb) {
-        const thumbExt = files.thumb.name.split('.').pop();
-        const thumbPath = `${categoryName}/${folderName}/thumb_${Date.now()}.${thumbExt}`;
-        const { error: thumbError } = await supabase.storage
-          .from('archive_assets')
-          .upload(thumbPath, files.thumb);
-        if (thumbError) throw thumbError;
-        finalThumbUrl = supabase.storage.from('archive_assets').getPublicUrl(thumbPath).data.publicUrl;
-      }
+const uploadFile = async (file: File, path: string) => {
+  const data = new FormData();
+  data.append('file', file);
+  data.append('path', path);
+  const res = await fetch('/api/upload', { method: 'POST', body: data });
+  const result = await res.json();
+  if (result.error) throw new Error(result.error);
+  return result.url;
+};
 
-      if (files.assets.length > 0) {
-        const assetUrls: string[] = [];
-        for (let i = 0; i < files.assets.length; i++) {
-          const file = files.assets[i];
-          const assetExt = file.name.split('.').pop();
-          const assetPath = `${categoryName}/${folderName}/asset_${i}_${Date.now()}.${assetExt}`;
-          
-          const { error: assetError } = await supabase.storage
-            .from('archive_assets')
-            .upload(assetPath, file);
-          if (assetError) throw assetError;
-          
-          const { data } = supabase.storage.from('archive_assets').getPublicUrl(assetPath);
-          assetUrls.push(data.publicUrl);
-        }
-        finalAssetUrls = assetUrls; 
-      }
+if (files.thumb) {
+  const thumbPath = `${categoryName}/${folderName}/thumb_${Date.now()}.${files.thumb.name.split('.').pop()}`;
+  finalThumbUrl = await uploadFile(files.thumb, thumbPath);
+}
 
-      setUploadProgress(90);
+if (files.assets.length > 0) {
+  const assetUrls = [];
+  for (let i = 0; i < files.assets.length; i++) {
+    const path = `${categoryName}/${folderName}/asset_${i}_${Date.now()}.${files.assets[i].name.split('.').pop()}`;
+    const url = await uploadFile(files.assets[i], path);
+    assetUrls.push(url);
+  }
+  finalAssetUrls = assetUrls;
+}
 
       const payload = { ...formData, thumbnail_url: finalThumbUrl, file_url: finalAssetUrls };
 
