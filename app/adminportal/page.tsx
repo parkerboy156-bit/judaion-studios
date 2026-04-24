@@ -98,13 +98,27 @@ export default function AdminPortal() {
       const categoryName = formData.category.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
 const uploadFile = async (file: File, path: string) => {
-  const data = new FormData();
-  data.append('file', file);
-  data.append('path', path);
-  const res = await fetch('/api/upload', { method: 'POST', body: data });
-  const result = await res.json();
-  if (result.error) throw new Error(result.error);
-  return result.url;
+  // Step 1: Ask your API for a secure direct-upload link
+  const res = await fetch('/api/upload', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, contentType: file.type }) 
+  });
+  
+  const { signedUrl, publicUrl, error } = await res.json();
+  if (error) throw new Error(error);
+
+  // Step 2: Upload the file DIRECTLY to Oracle Cloud using the signed link
+  // This bypasses Vercel's 4.5MB limit
+  const uploadRes = await fetch(signedUrl, {
+    method: 'PUT', // Direct S3 uploads use PUT
+    body: file,
+    headers: { 'Content-Type': file.type }
+  });
+
+  if (!uploadRes.ok) throw new Error("Direct upload to Oracle failed.");
+  
+  return publicUrl;
 };
 
 if (files.thumb) {
