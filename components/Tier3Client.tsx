@@ -10,7 +10,7 @@ export default function Tier3() {
     "Ongoing <span>Creative Support</span>",
     "CONVERSION-Optimised <span>Ad Creative</span>",
     "MONTHLY <span>PERFORMANCE SYNC</span>",
-    "<span>BRAND</span> COLLATERAL <span>UPDATES</span> // 6 MONTH INT. ",
+    "BRAND <span>UPDATES</span> // 6 MONTH INT. ",
   ];
 
   return (
