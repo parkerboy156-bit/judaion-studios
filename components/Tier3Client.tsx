@@ -9,9 +9,8 @@ export default function Tier3() {
   const specs = [
     "Ongoing <span>Creative Support</span>",
     "CONVERSION-Optimised <span>Ad Creative</span>",
-    "PROACTIVE <span>WEBSITE MAINTENANCE</span>",
     "MONTHLY <span>PERFORMANCE SYNC</span>",
-    "<span>BRAND</span> COLLATERAL <span>UPDATES</span> // 6 MONTHS ",
+    "<span>BRAND</span> COLLATERAL <span>UPDATES</span> // 6 MONTH INTERVAL ",
   ];
 
   return (
