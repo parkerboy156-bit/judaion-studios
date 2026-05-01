@@ -142,9 +142,9 @@ export default function MethodologyPage() {
             whileTap={isZoomed ? { scale: 0.95 } : {}}
           >
             <img 
-              src="/j-method.png" 
+              src="/j-method-v2.0.png" 
               alt="Brand Mark" 
-              className="w-46 h-auto opacity-80 object-contain filter brightness-110" 
+              className="w-46 h-auto object-contain filter brightness-90" 
             />
           </motion.div>
         </motion.div>
@@ -178,9 +178,9 @@ export default function MethodologyPage() {
               >
                 {[
                   { id: "01", title: "Extraction", text: "We deep-dive into your business via our strategic questionnaire to extract your core DNA.", bg: "/extraction.png" },
-                  { id: "02", title: "Blueprint", text: "We translate data into a strategic anchor, defining your audience, tone of voice and visual logic.", bg: "/blue-print.png" },
-                  { id: "03", title: "Execution", text: "We build your Identity Launchpad, a cohesive system (Logo, Type, Colour) designed for total consistency across every touchpoint.", bg: "/execution.png" },
-                  { id: "04", title: "Integration", text: "We deploy your brand through Digital Authority websites + high performance visual assets ensuring consistency.", bg: "/integration.png" },
+                  { id: "02", title: "Blueprint", text: "We translate the raw data into a strategic visual anchor, used to guide the execution phase.", bg: "/blue-print.png" },
+                  { id: "03", title: "Execution", text: "The development cycle, constant internal review against original objectives and presentation of logic-backed designs.", bg: "/execution.png" },
+                  { id: "04", title: "Handover", text: "The structural signature is locked. Assets are released for deployment following the final clearnace of the balance.", bg: "/handover.png" },
                   { id: "CTA", isCTA: true }
                 ].map((step) => (
                   <div 
@@ -201,7 +201,7 @@ export default function MethodologyPage() {
                         />
                         <div className="relative z-10 flex flex-col justify-end h-full p-8">
                           <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
-                            <span className="text-orange-700 font-brand-cn text-[80px] mr-1 leading-none">*</span>
+                            
                             {step.title}
                           </h3>
                           <p className="text-white/50 text-[19px] tracking-[0.1em] leading-relaxed uppercase font-brand-cn">{step.text}</p>
