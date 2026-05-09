@@ -246,7 +246,7 @@ export default function ArchiveCatalogue() {
           {imageLoading && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/80 pointer-events-none">
               <div className="w-8 h-8 border-2 border-white/10 border-t-orange-600 rounded-full animate-spin" />
-              <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/30">
+              <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/60">
                 Loading Asset
               </span>
             </div>
