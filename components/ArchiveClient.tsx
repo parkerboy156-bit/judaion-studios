@@ -15,6 +15,7 @@ export default function ArchiveCatalogue() {
   const [currentAssetIndex, setCurrentAssetIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
+  const [imageLoading, setImageLoading] = useState(true);
 
   // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -241,12 +242,22 @@ export default function ArchiveCatalogue() {
             className="absolute inset-0 w-full h-full object-cover blur-[10px] opacity-30 grayscale"
             alt=""
           />
+          {/* LOADING STATE — shows while image fetches */}
+          {imageLoading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/80 pointer-events-none">
+              <div className="w-8 h-8 border-2 border-white/10 border-t-orange-600 rounded-full animate-spin" />
+              <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/30">
+                Loading Asset
+              </span>
+            </div>
+          )}
           <img
             key={url}
             src={url}
             className="relative w-full h-full object-contain"
             alt="Asset Preview"
             loading="eager"
+            onLoad={() => setImageLoading(false)}
           />
           {/* Click hint — persistent gradient bar, always legible */}
           <div
@@ -529,6 +540,7 @@ export default function ArchiveCatalogue() {
                     setSelectedProject(item);
                     setIsPlaying(false);
                     setCurrentAssetIndex(0);
+                    setImageLoading(true);
                   }}
                 >
                   <div className="aspect-[4/5] overflow-hidden bg-white/5 backdrop-blur-md border border-white/0 shadow-xl mb-4 relative rounded-none">
@@ -605,6 +617,7 @@ export default function ArchiveCatalogue() {
                             e.stopPropagation();
                             setCurrentAssetIndex((prev) => prev - 1);
                             closeLightbox();
+                            setImageLoading(true);
                           }}
                           className="p-2 bg-black/50 hover:bg-orange-800 text-white transition-all pointer-events-auto cursor-pointer"
                         >
@@ -630,6 +643,7 @@ export default function ArchiveCatalogue() {
                             e.stopPropagation();
                             setCurrentAssetIndex((prev) => prev + 1);
                             closeLightbox();
+                            setImageLoading(true);
                           }}
                           className="p-2 bg-black/50 hover:bg-orange-800 text-white transition-all pointer-events-auto cursor-pointer"
                         >
@@ -659,6 +673,13 @@ export default function ArchiveCatalogue() {
 
               <div className="flex-1 flex flex-col bg-[#0000]">
                 <div className="h-40 shrink-0 relative overflow-hidden border-b border-white/0">
+                  <div
+                    className="absolute inset-0 z-10 pointer-events-none"
+                    style={{
+                      background:
+                        "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, transparent 100%)",
+                    }}
+                  />
                   <img
                     src={selectedProject.thumbnail_url}
                     className="w-full h-full object-cover grayscale-26 opacity-100"
@@ -666,7 +687,7 @@ export default function ArchiveCatalogue() {
                   />
                   <button
                     onClick={() => setSelectedProject(null)}
-                    className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors z-30 cursor-pointer"
+                    className="absolute top-6 right-6 text-white/80 hover:text-white transition-colors z-30 cursor-pointer"
                   >
                     <svg
                       width="24"
@@ -684,18 +705,27 @@ export default function ArchiveCatalogue() {
                 <div className="flex-1 p-8 lg:p-10 overflow-y-auto space-y-8 custom-scrollbar">
                   <div>
                     <div className="space-y-8 mb-6">
-                      <span className="px-3 py-1.5 border border-orange-600/60 text-[10px] uppercase text-orange-600 inline-block animate-pulse">
+                      <span className="px-3 py-1.5 border border-orange-600/60 bg-orange-700/20 text-[10px] uppercase text-orange-600 inline-block animate-pulse">
                         JDS Archive // {selectedProject.category} -{" "}
                         {selectedProject.resource_type}
                       </span>
-                      <h2 className="text-4xl lg:text-5xl font-brand-other uppercase tracking-[0.2em] leading-[1] text-white ">
+                      <h2 className="text-4xl lg:text-4xl font-brand-other uppercase tracking-[0.2em] leading-[1] text-white ">
                         {selectedProject.title}
                       </h2>
                     </div>
                   </div>
 
-                  <div className="space-y-4 border-t border-white/30 pt-8">
-                    <p className="text-[14px] leading-relaxed text-white/60 font-medium uppercase font-brand-secondary-thin whitespace-pre-wrap">
+                  <div className="space-y-6 border-t border-white/10 pt-8">
+                    {/* Section label */}
+                    <div className="flex items-center gap-3">
+                      <span className="font-brand-secondary-heavy text-[9px] uppercase tracking-[0.4em] text-orange-600/70">
+                        // Project Brief
+                      </span>
+                      <div className="flex-1 h-[1px] bg-white/10" />
+                    </div>
+
+                    {/* Description text */}
+                    <p className="text-[13px] leading-[1.9] text-white/50 font-brand-secondary-thin whitespace-pre-wrap tracking-wide">
                       {selectedProject.content}
                     </p>
                   </div>

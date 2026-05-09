@@ -304,7 +304,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px]  uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
                     placeholder="TITLE"
                     required
                   />
@@ -479,7 +479,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, content: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 h-24 text-[12px] font-medium uppercase font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 h-24 text-[12px] font-medium font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
                   />
                 </div>
 
