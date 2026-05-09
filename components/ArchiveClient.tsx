@@ -85,8 +85,23 @@ export default function ArchiveCatalogue() {
         timer,
       ]);
 
-      setProjects(projectsRes.data || []);
+      const projectData = projectsRes.data || [];
+      setProjects(projectData);
       setCategories([{ name: "All" }, ...(categoriesRes.data || [])]);
+
+      projectData.forEach((project: any) => {
+        const urls = Array.isArray(project.file_url)
+          ? project.file_url
+          : [project.file_url];
+        urls.forEach((url: string) => {
+          if (!url) return;
+          const ext = url.split(".").pop()?.toLowerCase();
+          if (["jpg", "jpeg", "png", "webp", "avif"].includes(ext || "")) {
+            const img = new Image();
+            img.src = url;
+          }
+        });
+      });
     } catch (err) {
       console.error("System Fetch Error:", err);
     } finally {
@@ -214,6 +229,12 @@ export default function ArchiveCatalogue() {
           className="w-full h-full overflow-hidden cursor-pointer relative flex items-center justify-center bg-black group/img"
           onClick={() => openLightbox(url)}
         >
+          {/* THUMBNAIL PLACEHOLDER — already cached, fills instantly while full asset loads */}
+          <img
+            src={selectedProject?.thumbnail_url}
+            className="absolute inset-0 w-full h-full object-cover blur-xl opacity-60 scale-110 pointer-events-none"
+            alt=""
+          />
           {/* ATMOSPHERIC BACKGROUND FILL */}
           <img
             src={url}
@@ -514,6 +535,7 @@ export default function ArchiveCatalogue() {
                     <img
                       src={item.thumbnail_url}
                       alt={item.title}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
                     />
                     <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
