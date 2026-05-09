@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       Bucket: process.env.OCI_BUCKET_NAME,
       Key: path,
       ContentType: contentType,
+      CacheControl: "public, max-age=31536000",
     });
 
     // Generate a URL valid for 60 seconds

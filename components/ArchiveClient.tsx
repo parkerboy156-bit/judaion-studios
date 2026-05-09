@@ -232,7 +232,7 @@ export default function ArchiveCatalogue() {
           {/* THUMBNAIL PLACEHOLDER — already cached, fills instantly while full asset loads */}
           <img
             src={selectedProject?.thumbnail_url}
-            className="absolute inset-0 w-full h-full object-cover blur-xl opacity-60 scale-110 pointer-events-none"
+            className="absolute inset-0 w-full h-full object-cover blur-xl opacity-10 scale-110 pointer-events-none grayscale"
             alt=""
           />
           {/* ATMOSPHERIC BACKGROUND FILL */}
