@@ -227,7 +227,13 @@ export default function MethodologyPage() {
 
                 <motion.div
                   drag="x"
-                  dragConstraints={{ left: -1800, right: 0 }}
+                  dragConstraints={{ left: -1050, right: 0 }}
+                  dragTransition={{
+                    power: 0.1,
+                    timeConstant: 350,
+                    modifyTarget: (target) => Math.round(target),
+                  }}
+                  dragElastic={0.05}
                   className="relative z-10 flex space-x-6 px-12 cursor-grab active:cursor-grabbing mb-12"
                 >
                   {[
@@ -255,57 +261,29 @@ export default function MethodologyPage() {
                       text: "The structural signature is locked. Assets are released for deployment following the final clearnace of the balance.",
                       bg: "/handover.png",
                     },
-                    { id: "CTA", isCTA: true },
                   ].map((step) => (
                     <div
                       key={step.id}
-                      className={`min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative ${
-                        step.isCTA
-                          ? "border-none"
-                          : "border border-white/10 hover:border-white/40"
-                      }`}
+                      className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/10 hover:border-white/40"
                     >
-                      {!step.isCTA && (
-                        <>
-                          <div
-                            className="absolute inset-0 z-0"
-                            style={{
-                              backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%), url(${step.bg})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                            }}
-                          />
-                          <div className="relative z-10 flex flex-col justify-end h-full p-8">
-                            <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
-                              {step.title}
-                            </h3>
-                            <p className="text-white/50 text-[19px] tracking-[0.1em] leading-relaxed uppercase font-brand-cn">
-                              {step.text}
-                            </p>
-                          </div>
-                        </>
-                      )}
-
-                      {step.isCTA && (
-                        <div className="relative z-10 flex flex-col h-full justify-center items-center p-18 pointer-events-auto">
-                          <div className="flex flex-col ">
-                            <span className="text-[38px] tracking-[0.3em] text-white/ uppercase font-brand-other ">
-                              <span className="font-brand-cn">Build your</span>{" "}
-                              AUTHORITY
-                            </span>
-                            <Link
-                              href="/contact"
-                              className="block cursor-pointer bg-transparent border-none p-0"
-                            >
-                              <img
-                                src="/CTA.png"
-                                alt="Build Your Authority"
-                                className="w-full max-w-[5500px] h-auto object-contain select-none"
-                              />
-                            </Link>
-                          </div>
+                      <>
+                        <div
+                          className="absolute inset-0 z-0"
+                          style={{
+                            backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%), url(${step.bg})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }}
+                        />
+                        <div className="relative z-10 flex flex-col justify-end h-full p-8">
+                          <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
+                            {step.title}
+                          </h3>
+                          <p className="text-white/50 text-[19px] tracking-[0.1em] leading-relaxed uppercase font-brand-cn">
+                            {step.text}
+                          </p>
                         </div>
-                      )}
+                      </>
                     </div>
                   ))}
                 </motion.div>
