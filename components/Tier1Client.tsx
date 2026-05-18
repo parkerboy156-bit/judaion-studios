@@ -9,7 +9,7 @@ export default function Tier1() {
   const specs = [
     "BRAND <span>BLUE-PRINT</span>",
     "PRIMARY <span>LOGO</span>",
-    "SECONDARY // ALT <span>LOGO</span>",
+    "SECONDARY / ALT <span>LOGO</span>",
     "BRAND <span>ICON</span>",
     "THE <span>COLOUR SYSTEM</span>",
     "<span>TYPOGRAPHY</span> SUITE",

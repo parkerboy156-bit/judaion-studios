@@ -207,7 +207,7 @@ export default function AboutTemplate() {
             <div className="flex flex-col justify-center p-10 lg:p-32 space-y-12 ">
               {/* TOP LABEL / INDEX */}
               <span className="classification-text text-[11px] tracking-[0.5em] uppercase text-white/30 font-brand-secondary-thin">
-                [classification: About us]
+                Classification | About us
               </span>
 
               <div className="space-y-9">
@@ -317,10 +317,10 @@ export default function AboutTemplate() {
             {/* HEADER LABEL */}
             <div className="flex justify-between items-end mb-20 border-b border-white/90 pb-10">
               <h3 className="about-pillars-title text-[11px] uppercase tracking-[0.5em] font-brand-secondary-heavy text-white/90">
-                JUDAION CORE PILLARS // 01 — 03
+                JUDAION CORE PILLARS | 01 — 03
               </h3>
               <span className="about-pillars-date text-[10px] font-brand-secondary-thin text-white/90 tracking-[0.2em] uppercase">
-                EST.2026-01
+                EST.2025
               </span>
             </div>
 
@@ -452,7 +452,7 @@ export default function AboutTemplate() {
                 {/* LIVE TEXT LABELS */}
                 <div className="flex flex-col">
                   <span className="studio-feed-title text-[11px] tracking-[0.4em] uppercase text-white/90 font-brand-secondary-heavy">
-                    Studio // Feed
+                    Studio Feed 
                   </span>
                   <span className="archive-status-tag text-[9px] tracking-[0.2em] text-white/30 uppercase font-brand-secondary-thin">
                     SESSION-LOG: [06/04/25]
@@ -506,7 +506,7 @@ export default function AboutTemplate() {
                 {/* TOP LEFT: OPERATIONAL STATUS */}
                 <div className="flex flex-col space-y-2">
                   <span className="operational-lead text-[10px] tracking-[0.8em] uppercase text-white/30 font-brand-secondary-thin">
-                    Operational Lead //
+                    Operational Lead
                   </span>
                 </div>
 
@@ -555,7 +555,7 @@ export default function AboutTemplate() {
               {/* BOTTOM ANCHOR: SIGNATURE / INDEX */}
               <div className="pt-8 border-t border-white/20">
                 <span className="operational-lead text-[10px] tracking-[0.3em] uppercase text-white/30 font-brand-secondary-thin">
-                  Protocol: Lead Architect // Framework 5.0
+                  Protocol: Lead Architect | Framework 5.0
                 </span>
               </div>
             </div>
@@ -566,7 +566,7 @@ export default function AboutTemplate() {
             {/* LEFT: TEXT STACK */}
             <div className="flex flex-col items-start space-y-4">
               <span className="cta-meta-tag text-[10px] uppercase tracking-[1em] text-white/40 font-brand-secondary-thin">
-                NEXT FLOOR // CONTACT US
+                NEXT FLOOR | CONTACT US
               </span>
               <h2 className="cta-main-title text-4xl lg:text-6xl font-brand-cn tracking-[0.3em] uppercase text-white leading-tight">
                 BUILD YOUR <br />

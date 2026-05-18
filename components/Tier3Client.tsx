@@ -11,7 +11,7 @@ export default function Tier3() {
     "CONVERSION-Optimised <span>Ad Creative</span>",
     "MONTHLY <span>PERFORMANCE SYNC</span>",
     "PROACTIVE <span>WEBSITE MAINTENANCE</span>",
-    "BRAND <span>UPDATES</span> // 6 MONTH INT. ",
+    "BRAND <span>UPDATES</span> / 6 MONTH INT. ",
   ];
 
   return (

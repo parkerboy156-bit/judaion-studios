@@ -188,7 +188,7 @@ export default function Contact() {
                       type="checkbox"
                       className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow"
                     />
-                    The Foundation // T 1
+                    The Foundation | T 1
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
                     <input
@@ -197,7 +197,7 @@ export default function Contact() {
                       type="checkbox"
                       className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow"
                     />
-                    Digital Authority // T 2
+                    Digital Authority | T 2
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-all group">
                     <input
@@ -206,7 +206,7 @@ export default function Contact() {
                       type="checkbox"
                       className="custom-form-checkbox group-hover:shadow-[0_0_10px_rgba(249,115,22,0.8)] transition-shadow"
                     />
-                    The Scale Partner // T 3
+                    The Scale Partner | T 3
                   </label>
                 </div>
               </div>

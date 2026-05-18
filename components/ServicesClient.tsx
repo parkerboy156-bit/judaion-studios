@@ -132,9 +132,9 @@ export default function ServicesHome() {
                 </span>{" "}
                 for all tiers in the JDS{" "}
                 <span className="text-[13px] tracking-[0.4em] uppercase text-white font-brand-secondary-heavy italic whitespace-nowrap">
-                  "Project archive"{" "}
+                  "Project archive" {" "}
                 </span>{" "}
-                // Next floor
+                 | Next floor
               </span>
             </div>
           </motion.div>

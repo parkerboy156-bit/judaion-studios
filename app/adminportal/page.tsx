@@ -285,7 +285,7 @@ export default function AdminPortal() {
             <div className="border border-white/10 bg-black/30 backdrop-blur-sm p-8 space-y-8">
               <div>
                 <div className="font-brand-secondary-thin text-[10px] tracking-[0.3em] text-orange-600 uppercase mb-2">
-                  // Asset Manager
+                   Asset Manager
                 </div>
                 <div className="font-brand-other text-white text-[28px] leading-none tracking-wide uppercase">
                   {editingId ? "Edit Project" : "New Project"}
@@ -513,7 +513,7 @@ export default function AdminPortal() {
             <div className="border border-white/10 bg-black/30 backdrop-blur-sm p-8 space-y-8">
               <div>
                 <div className="font-brand-secondary-thin text-[10px] tracking-[0.3em] text-orange-600 uppercase mb-2">
-                  // Meta Manager
+                  Meta Manager
                 </div>
                 <div className="font-brand-other text-white text-[28px] leading-none tracking-wide uppercase">
                   Tags & Types
@@ -614,7 +614,7 @@ export default function AdminPortal() {
                     <div className="flex items-center gap-6">
                       <div>
                         <span className="font-brand-secondary-thin text-[10px] tracking-[0.3em] text-orange-600 uppercase">
-                          // {catName}
+                          {catName}
                         </span>
                       </div>
                       <div className="h-[1px] flex-1 bg-white/10"></div>

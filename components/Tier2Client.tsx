@@ -9,7 +9,7 @@ export default function Tier2() {
 
   const specs = [
     "<span>STRATEGIC</span> 5 PAGE <span>WEBSITE</span>",
-    "<span>UX // UI</span> DESIGN ARCHITECTURE",
+    "<span>UX / UI</span> DESIGN ARCHITECTURE",
     "<span>MOBILE</span> RESPONSIVENESS <span>ENGINEERING</span>",
     "ON-PAGE <span>SEO FOUNDATION</span>",
     "BASIC <span>COPYWRITING</sapn> INTEGRATION",

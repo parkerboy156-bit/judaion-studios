@@ -706,7 +706,7 @@ export default function ArchiveCatalogue() {
                   <div>
                     <div className="space-y-8 mb-6">
                       <span className="px-3 py-1.5 border border-orange-600/60 bg-orange-700/20 text-[10px] uppercase text-orange-600 inline-block animate-pulse">
-                        JDS Archive // {selectedProject.category} -{" "}
+                        JDS Archive | {selectedProject.category} -{" "}
                         {selectedProject.resource_type}
                       </span>
                       <h2 className="text-4xl lg:text-4xl font-brand-other uppercase tracking-[0.2em] leading-[1] text-white ">
@@ -719,7 +719,7 @@ export default function ArchiveCatalogue() {
                     {/* Section label */}
                     <div className="flex items-center gap-3">
                       <span className="font-brand-secondary-heavy text-[9px] uppercase tracking-[0.4em] text-orange-600/70">
-                        // Project Brief
+                        | Project Brief
                       </span>
                       <div className="flex-1 h-[1px] bg-white/10" />
                     </div>
@@ -731,15 +731,12 @@ export default function ArchiveCatalogue() {
                   </div>
                 </div>
 
-                <div className="p-8 border-t border-white/0 bg-black/40 flex items-center justify-center space-x-4">
+                <div className="bg-[linear-gradient(to_top,rgba(0,0,0,0.8),rgba(0,0,0,0)),url('/archive-header.avif')] bg-cover bg-center p-8 border-t border-white/10 bg-black/29 flex items-center justify-center space-x-4">
                   <img
                     src="/judaion-logo-white.svg"
                     alt="Judaion"
-                    className="h-8 w-auto opacity-20"
+                    className="h-10 w-auto opacity-50"
                   />
-                  <span className="text-white/20 text-[13px] font-brand-med-italic-cn uppercase tracking-[0.5em] leading-none pt-1">
-                    // Proj.ARCHIVE
-                  </span>
                 </div>
               </div>
             </div>

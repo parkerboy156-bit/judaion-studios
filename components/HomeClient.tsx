@@ -1,9 +1,8 @@
-"use client"; // Mandatory for Framer Motion, State, and Navigation
+"use client"; 
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useLoading } from "@/components/ClientShell";
 import Link from "next/link";
 import homeBgAvif from "@/public/home-bg.avif";
 import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
@@ -14,13 +13,6 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [hasSensorPermission, setHasSensorPermission] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  if (!isLoaded) return null;
 
   // Detect if the user is on mobile/tablet
   useEffect(() => {
@@ -124,7 +116,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
           >
             <div className="flex flex-col space-y-1 mt-2">
               <span className="text-[7px] tracking-[0.4em] uppercase text-white/30 font-brand-secondary-thin">
-                Protocol 01 // JDS{" "}
+                Protocol 01 / JDS{" "}
               </span>
             </div>
             <div className="flex flex-col items-end space-y-1 mt-1">
@@ -386,7 +378,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               animate={{ opacity: hoveredIndex !== null ? 1 : 0 }}
               className="flex items-center space-x-1 pb-1"
             >
-              {["// JUDAION IS YOUR CREATIVE STRATEGIC PARTNER."].map(
+              {["| JUDAION IS YOUR CREATIVE STRATEGIC PARTNER |"].map(
                 (item, index) => (
                   <React.Fragment key={item}>
                     <span className="text-[10px] tracking-[0.7em] uppercase text-white/80 font-light font-brand-secondary-thin">

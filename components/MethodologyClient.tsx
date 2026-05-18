@@ -218,9 +218,9 @@ export default function MethodologyPage() {
 
                 <div className="relative z-10 px-12 mb-8 flex justify-between items-end pointer-events-none">
                   <span className="text-[12px] tracking-[0.6em] text-white/80 uppercase font-brand-secondary-thin">
-                    JUDAION METHODOLOGY // EST. 2026-01
+                    JUDAION METHODOLOGY | EST. 2025
                   </span>
-                  <span className="text-white/80 text-[12px] tracking-[0.5em] uppercase font-brand-secondary-thin">
+                  <span className="text-white/90 text-[12px] tracking-[0.5em] uppercase font-brand-secondary-thin">
                     Click above to close
                   </span>
                 </div>
