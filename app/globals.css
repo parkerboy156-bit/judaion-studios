@@ -1290,8 +1290,11 @@
 }
 
 /* Webkit scrollbar styling (Chrome, Safari, Edge) */
+/* display:block re-enables the bar hidden by the global *::-webkit-scrollbar rule */
 .desc-scroll::-webkit-scrollbar {
+  display: block !important;
   width: 6px !important;
+  -webkit-appearance: none !important;
 }
 
 /* Remove the up/down arrow buttons */
@@ -1302,12 +1305,14 @@
 }
 
 .desc-scroll::-webkit-scrollbar-track {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 3px !important;
 }
 
 .desc-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3) !important;
   border-radius: 3px !important;
+  min-height: 40px !important;
   cursor: pointer !important;
   transition: background 0.4s ease !important;
 }

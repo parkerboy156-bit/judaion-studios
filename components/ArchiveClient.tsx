@@ -304,16 +304,17 @@ export default function ArchiveCatalogue() {
               transition={{ duration: 0.4, ease: "easeOut" }}
               className="fixed inset-0 z-[100] flex items-center justify-center"
             >
-              {/* Blurred dark backdrop */}
+              {/* Blurred dark backdrop — click to close */}
               <div
-                className="absolute inset-0"
+                onClick={() => setSelectedProject(null)}
+                className="absolute inset-0 cursor-pointer"
                 style={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", background: "rgba(0,0,0,0.90)" }}
               />
 
               {/* X close — absolute top-left of screen */}
               <button
                 onClick={() => setSelectedProject(null)}
-                className="absolute top-6 left-6 z-30 flex items-center justify-center text-white/40 hover:text-white transition-colors duration-200 cursor-pointer"
+                className="absolute top-6 left-6 z-[110] flex items-center justify-center text-white/40 hover:text-white transition-colors duration-200 cursor-pointer"
               >
                 <svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
                   <path d="M18 6L6 18M6 6l12 12" />

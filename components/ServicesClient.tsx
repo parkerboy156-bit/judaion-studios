@@ -99,18 +99,18 @@ export default function ServicesHome() {
             <div
               className={`absolute top-[06%] left-1/2 -translate-x-1/2 flex items-center space-x-6 opacity-80 ${isMobile ? "mobile-inspect-fix-services" : ""}`}
             >
-              <img
-                src={isMobile ? "/tap-icon.png" : "/right-click.png"}
-                alt="Inspect Icon"
-                className={
-                  isMobile
-                    ? "w-12 h-auto filter brightness-110"
-                    : "w-17 h-auto filter brightness-110"
-                }
-              />
+              {!isMobile && (
+                <img
+                  src="/right-click.png"
+                  alt="Inspect Icon"
+                  className="w-17 h-auto filter brightness-110"
+                />
+              )}
 
               <span className="text-[15px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile ? "TAP ITEMS TO INSPECT" : "CLICK ITEMS TO INSPECT"}
+                {isMobile
+                  ? "SERVICES ONLY VIEWABLE ON DESKTOP"
+                  : "CLICK ITEMS TO INSPECT"}
               </span>
             </div>
 
@@ -139,34 +139,20 @@ export default function ServicesHome() {
             </div>
           </motion.div>
 
-          {/* --- INVISIBLE CLICKABLE HIT BOXES (PRESERVED LOGIC) --- */}
-          <div
-            className={
-              isMobile
-                ? "absolute inset-0 z-20 w-[300vw] h-full"
-                : "absolute inset-0 z-20 flex items-center justify-center px-20"
-            }
-          >
-            <div
-              className={
-                isMobile
-                  ? "relative w-full h-full"
-                  : "w-full max-w-[1400px] h-[650px] flex justify-between relative"
-              }
-            >
-              {serviceTiers.map((tier, index) => (
-                <Link
-                  key={`${tier.id}-hitbox`}
-                  href={`/tier-${index + 1}`}
-                  className={`cursor-pointer block ${
-                    isMobile
-                      ? `w-[80vw] h-[70vh] tier-0${index + 1}-mobile`
-                      : "w-[30%] h-full"
-                  }`}
-                ></Link>
-              ))}
+          {/* --- INVISIBLE CLICKABLE HIT BOXES (DESKTOP ONLY) --- */}
+          {!isMobile && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center px-20">
+              <div className="w-full max-w-[1400px] h-[650px] flex justify-between relative">
+                {serviceTiers.map((tier, index) => (
+                  <Link
+                    key={`${tier.id}-hitbox`}
+                    href={`/tier-${index + 1}`}
+                    className="cursor-pointer block w-[30%] h-full"
+                  ></Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* --- FLOOR NAVIGATION (PRESERVED) --- */}
 
