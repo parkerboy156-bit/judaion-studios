@@ -321,10 +321,10 @@ export default function ArchiveCatalogue() {
               </button>
 
               {/* ── MASTER LAYOUT WRAPPER ── */}
-              <div className="flex flex-row items-center justify-center gap-15 w-full max-w-[95vw] mx-auto h-screen relative z-50">
+              <div className="flex flex-col lg:flex-row items-center justify-start lg:justify-center gap-6 lg:gap-15 w-full max-w-[95vw] mx-auto h-screen overflow-y-auto lg:overflow-visible py-20 lg:py-0 relative z-50">
 
                 {/* ── LEFT PANEL — project info ── */}
-                <div className="flex flex-col justify-between h-[78vh] w-[600px] shrink-0">
+                <div className="flex flex-col justify-between h-auto lg:h-[78vh] w-full lg:w-[600px] shrink-0 order-3 lg:order-none">
 
                   <div>
                     {/* Tag label */}
@@ -364,7 +364,7 @@ export default function ArchiveCatalogue() {
                 </div>
 
                 {/* ── CENTRE CONTAINER — main asset ── */}
-                <div className="relative flex items-center justify-center h-[85vh] max-w-[55vw]">
+                <div className="relative flex items-center justify-center h-[50vh] lg:h-[85vh] w-full lg:w-auto max-w-full lg:max-w-[55vw] shrink-0 order-1 lg:order-none">
                   {(() => {
                     const url = Array.isArray(selectedProject.file_url)
                       ? selectedProject.file_url[currentAssetIndex]
@@ -395,7 +395,7 @@ export default function ArchiveCatalogue() {
                 {/* ── RIGHT CONTAINER — thumbnails ── */}
                 {Array.isArray(selectedProject.file_url) && selectedProject.file_url.length > 1 && (
                   <div
-                    className="flex flex-col gap-4 shrink-0 overflow-y-auto max-h-[85vh]"
+                    className="flex flex-row lg:flex-col gap-4 shrink-0 overflow-x-auto lg:overflow-x-visible overflow-y-visible lg:overflow-y-auto w-full lg:w-auto max-w-full lg:max-w-none max-h-none lg:max-h-[85vh] order-2 lg:order-none"
                     style={{ scrollbarWidth: "none" }}
                   >
                     {selectedProject.file_url.map((url: string, idx: number) => {

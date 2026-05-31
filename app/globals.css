@@ -715,64 +715,6 @@
   }
 }
 
-@keyframes textOnlyPulse {
-  0% {
-    color: rgba(255, 255, 255, 1);
-  }
-  50% {
-    color: rgba(170, 170, 170, 0.2);
-  } /* Text dims, background stays solid */
-  100% {
-    color: rgba(255, 255, 255, 1);
-  }
-}
-
-@media (max-width: 1023px) {
-  /* 1. Force a heavy black blur over the modal content area */
-  .fixed.inset-0.z-50 .relative.w-full.max-w-\[95vw\]::after {
-    content: "TO PRESERVE DETAIL, PROJECTS ARE ONLY VIEWABLE ON DESKTOP.\A\A\A // TAP OUTSIDE MODAL TO EXIT ";
-    white-space: pre-wrap;
-    line-height: 2 !important;
-    animation: textOnlyPulse 3s ease-in-out infinite;
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(6px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-family: "brand-secondary-thin", sans-serif;
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    z-index: 100;
-    text-align: center;
-    padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-}
-
-@media (max-width: 1023px) {
-  /* 1. Remove the 'X' Close Button completely on mobile */
-  .fixed.inset-0.z-50 button.absolute.top-6.right-6 {
-    display: none !important;
-  }
-
-  /* 2. Finalized Mobile Modal Height adjustment */
-  .fixed.inset-0.z-50 .relative.w-full.max-w-\[95vw\] {
-    height: 68vh !important; /* Slightly increased for better text visibility */
-    margin-top: auto !important;
-    margin-bottom: 6vh !important;
-  }
-
-  /* 3. Maintain Backdrop functionality */
-  /* Ensure the backdrop remains the primary method for closing the modal */
-  .fixed.inset-0.z-50 .absolute.inset-0.bg-black\/60 {
-    cursor: pointer;
-  }
-}
-
 /* ============================================================ */
 /* CONTACT MOBILE SPECIFIC REFINEMENTS (iPhone 8 & 11)          */
 /* ============================================================ */
