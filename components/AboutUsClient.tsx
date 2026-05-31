@@ -328,6 +328,7 @@ export default function AboutTemplate() {
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
                   src="/vision.webp"
+                  loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-5">
@@ -352,6 +353,7 @@ export default function AboutTemplate() {
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
                   src="/structure.webp"
+                  loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-80">
@@ -376,6 +378,7 @@ export default function AboutTemplate() {
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
                   src="/identity.webp"
+                  loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-4">
@@ -471,6 +474,7 @@ export default function AboutTemplate() {
               <img
                 src="/ZJ-1.webp"
                 alt="Lead Architect - State A"
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out group-hover:opacity-0"
               />
 
@@ -478,6 +482,7 @@ export default function AboutTemplate() {
               <img
                 src="/ZJ-2.webp"
                 alt="Lead Architect - State B"
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-90 group-hover:scale-100"
               />
             </div>
@@ -583,6 +588,7 @@ export default function AboutTemplate() {
                 <img
                   src="/CTA.webp"
                   alt="Execute Protocol"
+                  loading="lazy"
                   className="w-64 lg:w-150 h-auto "
                 />
               </Link>
