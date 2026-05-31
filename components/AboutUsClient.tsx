@@ -469,7 +469,7 @@ export default function AboutTemplate() {
             <div className="absolute inset-0  bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
             {/* LEFT BLOCK: DYNAMIC IMAGE SWITCH */}
-            <div className="relative h-[70vh] lg:h-screen border-r border-white/10 overflow-hidden group cursor-pointer">
+            <div className="relative z-10 h-[70vh] lg:h-screen border-r border-white/10 overflow-hidden group cursor-pointer">
               {/* IMAGE 01: INITIAL STATE (Arms Crossed) */}
               <img
                 src="/ZJ-1.webp"
@@ -488,7 +488,7 @@ export default function AboutTemplate() {
             </div>
 
             {/* RIGHT BLOCK: NAME & BIO */}
-            <div className="flex flex-col justify-between p-12 lg:p-32 h-full backdrop-blur-sm bg-cover bg-center bg-no-repeat">
+            <div className="relative overflow-hidden flex flex-col justify-between p-12 lg:p-32 h-full backdrop-blur-sm bg-cover bg-center bg-no-repeat">
               <picture>
                 <source srcSet={archiveheaderAvif.src} type="image/avif" />
                 <img
