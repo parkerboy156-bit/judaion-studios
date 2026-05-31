@@ -329,7 +329,7 @@ export default function ArchiveCatalogue() {
 
                   <div>
                     {/* Tag label */}
-                    <div className="font-brand-cn border border-white/20 px-3 py-1.5 w-fit uppercase tracking-widest text-xs text-white/70">
+                    <div className="font-brand-cn border border-white/40 px-3 py-1.5 w-fit uppercase tracking-widest text-xs text-white/70 rounded-sm bg-black">
                       JDS Archive &nbsp;|&nbsp; {selectedProject.category}
                     </div>
 
@@ -377,7 +377,7 @@ export default function ArchiveCatalogue() {
                           key={url}
                           src={url}
                           controls
-                          className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl"
+                          className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl rounded-lg overflow-hidden"
                           preload="auto"
                         />
                       );
@@ -387,7 +387,7 @@ export default function ArchiveCatalogue() {
                         key={url}
                         src={url}
                         alt={selectedProject.title}
-                        className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl"
+                        className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl rounded-lg overflow-hidden"
                       />
                     );
                   })()}
