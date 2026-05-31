@@ -12,7 +12,7 @@ import homeBgMobilePng from "@/public/home-bg-mobile.png";
 export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [hasSensorPermission, setHasSensorPermission] = useState(false);
+  const [hasSensorPermission] = useState(false);
 
   // Detect if the user is on mobile/tablet
   useEffect(() => {
@@ -379,7 +379,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               className="flex items-center space-x-1 pb-1"
             >
               {["| JUDAION IS YOUR CREATIVE STRATEGIC PARTNER |"].map(
-                (item, index) => (
+                (item) => (
                   <React.Fragment key={item}>
                     <span className="text-[10px] tracking-[0.7em] uppercase text-white/80 font-light font-brand-secondary-thin">
                       {item}

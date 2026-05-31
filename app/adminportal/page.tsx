@@ -9,7 +9,6 @@ interface ArchiveItem {
   category: string;
   resource_type: string;
   content: string;
-  thumbnail_url: string;
   file_url: string[];
   created_at?: string;
 }
@@ -34,8 +33,7 @@ export default function AdminPortal() {
     resource_type: "",
     content: "",
   });
-  const [files, setFiles] = useState<{ thumb: File | null; assets: File[] }>({
-    thumb: null,
+  const [files, setFiles] = useState<{ assets: File[] }>({
     assets: [],
   });
 
@@ -86,7 +84,7 @@ export default function AdminPortal() {
 
   const resetForm = () => {
     setFormData({ title: "", category: "", resource_type: "", content: "" });
-    setFiles({ thumb: null, assets: [] });
+    setFiles({ assets: [] });
     setEditingId(null);
   };
 
@@ -97,10 +95,8 @@ export default function AdminPortal() {
       ? archive.find((item) => item.id === editingId)
       : null;
 
-    if (!editingId && (!files.thumb || files.assets.length === 0)) {
-      alert(
-        "Please select a thumbnail and at least one asset for a new project.",
-      );
+    if (!editingId && files.assets.length === 0) {
+      alert("Please select at least one asset for a new project.");
       return;
     }
 
@@ -108,7 +104,6 @@ export default function AdminPortal() {
       setUploading(true);
       setUploadProgress(10);
 
-      let finalThumbUrl = existingProject?.thumbnail_url || "";
       let finalAssetUrls = existingProject?.file_url || [];
 
       const folderName = formData.title
@@ -142,11 +137,6 @@ export default function AdminPortal() {
         return publicUrl;
       };
 
-      if (files.thumb) {
-        const thumbPath = `${categoryName}/${folderName}/thumb_${Date.now()}.${files.thumb.name.split(".").pop()}`;
-        finalThumbUrl = await uploadFile(files.thumb, thumbPath);
-      }
-
       if (files.assets.length > 0) {
         const assetUrls = [];
         for (let i = 0; i < files.assets.length; i++) {
@@ -159,7 +149,6 @@ export default function AdminPortal() {
 
       const payload = {
         ...formData,
-        thumbnail_url: finalThumbUrl,
         file_url: finalAssetUrls,
       };
 
@@ -356,51 +345,7 @@ export default function AdminPortal() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                      Thumbnail [+]
-                    </label>
-                    <label className="group cursor-pointer flex flex-col items-center justify-center border border-white/10 bg-black/20 hover:border-orange-600 aspect-square transition-all relative overflow-hidden text-center">
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setFiles({
-                            ...files,
-                            thumb: e.target.files ? e.target.files[0] : null,
-                          })
-                        }
-                      />
-                      {files.thumb ? (
-                        <span className="text-[10px] font-black text-white/50 px-4 uppercase truncate max-w-full">
-                          {files.thumb.name}
-                        </span>
-                      ) : editingId ? (
-                        archive.find((item) => item.id === editingId)
-                          ?.thumbnail_url ? (
-                          <img
-                            src={
-                              archive.find((item) => item.id === editingId)
-                                ?.thumbnail_url
-                            }
-                            className="w-full h-full object-cover grayscale opacity-60 hover:opacity-100 transition-opacity"
-                            alt="Current Thumbnail"
-                          />
-                        ) : (
-                          <span className="text-[10px] font-black px-4 uppercase truncate max-w-full">
-                            +
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-[10px] font-black px-4 uppercase truncate max-w-full">
-                          +
-                        </span>
-                      )}
-                    </label>
-                  </div>
-
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
                       Assets [+]
@@ -627,11 +572,9 @@ export default function AdminPortal() {
                           className="group border border-white/10 bg-black/30 backdrop-blur-sm p-3 transition-all hover:border-white/20"
                         >
                           <div className="aspect-[4/5] overflow-hidden bg-black mb-3 relative">
-                            <img
-                              src={item.thumbnail_url}
-                              className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity duration-700"
-                              alt=""
-                            />
+                            <div className="w-full h-full opacity-50 group-hover:opacity-100 transition-opacity duration-700">
+                              {renderAssetPreview(item.file_url?.[0] || "")}
+                            </div>
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => {

@@ -122,26 +122,23 @@ export default function MethodologyPage() {
 
             {/* --- TOP LEFT TEXT BLOCK --- */}
             <div className="absolute method-text-block-mobile top-[42%] left-[53.5%] flex flex-col items-start max-w-[320px]">
-              <h2 className="text-[16px] tracking-[0.23em] uppercase text-white/90 leading-tight font-brand-compressed text-left ">
+              <h2 className="text-[16px] tracking-[0.20em] uppercase text-white/90 leading-tight font-brand-other text-left ">
                 YOUR CREATIVE STRATEGIC PARTNER
               </h2>
-              <div className="w-78 h-[1px] bg-white mt-[2px]" />
+              <div className="w-76 h-[1px] bg-white mt-[2px]" />
 
               <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  JUDAION STUDIOS
-                </span>{" "}
-                is a Graphic Design Studio that operates at the intersection of{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Business vision and Cinematic rigour.
-                </span>
-                We bridge the gap between business{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Vision
-                </span>{" "}
-                and{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Identity.
+                <span className="font-brand-cn text-white/60">
+                  JUDAION STUDIOS is a Graphic Design Studio that operates at
+                  the intersection of Business vision and Cinematic rigour. We
+                  bridge the gap between{" "}
+                  <span className="font-brand-xbold-italic-cn text-white/90">
+                    Business Vision
+                  </span>{" "}
+                  and{" "}
+                  <span className="font-brand-xbold-italic-cn text-white/90">
+                    Identity.
+                  </span>{" "}
                 </span>
               </p>
               <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
@@ -149,36 +146,14 @@ export default function MethodologyPage() {
                 <span className="font-brand-xbold-italic-cn text-white/90">
                   Strategic Architect,
                 </span>{" "}
-                building systematic identities that provide{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Leadership,
-                </span>{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Certainty
-                </span>{" "}
-                and{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Market Authority.
-                </span>
+                building systematic identities that provide Leadership,
+                Certainty and market authority.
               </p>
               <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
-                We ensure that{" "}
+                We ensure that Your Brand Remains Consistent, Professional and{" "}
                 <span className="font-brand-xbold-italic-cn text-white/90">
-                  {" "}
-                  Your Brand
+                  High-converting.
                 </span>{" "}
-                Remains{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Consistent,
-                </span>{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Professional
-                </span>{" "}
-                and
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  {" "}
-                  High-Converting.
-                </span>
               </p>
             </div>
 

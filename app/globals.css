@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-black: #0a0a0a;
-}
-
 @layer base {
   body {
     @apply bg-brand-black text-white antialiased;
@@ -12,22 +7,10 @@
   }
 }
 
-@layer utilities {
-  .container-custom {
-    @apply mx-auto w-full max-w-[1400px] px-6;
-  }
-}
-
-/* Custom 0.5px border */
-.border-b-thin {
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.2);
-}
-
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --color-brand-black: #0a0a0a;
 
-  /* ADD THESE TWO LINES */
   --font-brand-cn: "HelveticaNowDisplay-Cn", sans-serif;
   --font-brand-bold: "HelveticaNowMicro-CnBold", sans-serif;
   --font-brand-italic-cn: "HelveticaNowDisplay-CnLtIt", sans-serif;
@@ -157,34 +140,11 @@
 /* ============================================================ */
 
 @media (max-width: 1023px) {
-  /* GLOBAL MOBILE BASES (Optimised for iPhone 8/SE styles) */
-  .vision-block-mobile {
-    left: 35vw !important;
-    top: 25vw !important;
-    display: none !important;
-  }
-  .structure-block-mobile {
-    left: 126vw !important;
-    top: 25vw !important;
-    display: none !important;
-  }
+  /* Home hero blocks are hidden on mobile */
+  .vision-block-mobile,
+  .structure-block-mobile,
   .identity-block-mobile {
-    left: 220vw !important;
-    top: 25vw !important;
     display: none !important;
-  }
-
-  /* TALL DEVICE OVERRIDE (iPhone 11, 12, 13, 14, 15, Pro, etc.)
-     Targets devices where the screen height is significantly 
-     larger than the width (Aspect Ratio > 2:1)
-  */
-  @media (min-height: 700px) {
-    .vision-block-mobile,
-    .structure-block-mobile,
-    .identity-block-mobile {
-      top: 37vw !important;
-      display: none !important;
-    }
   }
 }
 
@@ -206,9 +166,6 @@
 
   /* TALL DEVICE REFINEMENT (iPhone 11/Pro/Max) */
   @media (min-height: 700px) {
-    .mobile-nav-container {
-      gap: 4vh !important; /* Slightly more air for taller displays */
-    }
     .nav-link-mobile {
       font-size: 1.1rem !important;
     }
@@ -306,14 +263,9 @@
       width: 225px !important;
     }
 
+    /* J trigger is hidden on tall mobile */
     .method-j-trigger-mobile {
-      left: 194vw !important;
-      top: 39% !important;
       display: none !important;
-    }
-
-    .method-j-trigger-mobile img {
-      width: 120px !important;
     }
   }
 
@@ -376,53 +328,6 @@
   }
 }
 /* MOBILE VERSION LAYER END */
-
-/* ============================================================ */
-/* SERVICES MOBILE SPECIFIC REFINEMENTS            
-/* ============================================================ */
-@media (max-width: 1023px) {
-  /* Common rules for all mobile hitboxes */
-  .tier-01-mobile,
-  .tier-02-mobile,
-  .tier-03-mobile {
-    position: absolute !important; /* CRITICAL: Allows them to leave the stack */
-    display: block !important;
-    width: 70vw !important; /* Wider area for the larger screen */
-    height: 53vh !important;
-  }
-
-  /* IPHONE 11 / TALL */
-  @media (min-height: 700px) {
-    .tier-01-mobile {
-      left: 34vw !important;
-      top: 26vh !important;
-    }
-    .tier-02-mobile {
-      left: 119vw !important;
-      top: 26vh !important;
-    }
-    .tier-03-mobile {
-      left: 203vw !important;
-      top: 26vh !important;
-    }
-  }
-
-  /* IPHONE 8 / SMALL */
-  @media (max-height: 699px) {
-    .tier-01-mobile {
-      left: 34vw !important;
-      top: 26vh !important;
-    }
-    .tier-02-mobile {
-      left: 119vw !important;
-      top: 26vh !important;
-    }
-    .tier-03-mobile {
-      left: 203vw !important;
-      top: 26vh !important;
-    }
-  }
-}
 
 /* MOBILE VERSION LAYER START */
 @media (max-width: 1023px) {
@@ -674,11 +579,6 @@
   }
 
   @media (max-height: 670px) {
-    .mobile-only-return-t3 {
-      bottom: 15px !important; /* Move it closer to the edge to save space */
-      left: 15px !important;
-    }
-
     .mobile-only-return-t3 {
       display: block !important;
       position: fixed !important;
@@ -1183,9 +1083,6 @@
     .studio-feed-title {
       font-size: 8px !important;
     }
-    .archive-status-tag {
-      display: none !important;
-    }
   }
 
   /* --- LARGE MOBILE (Pro Max / Plus) --- */
@@ -1442,4 +1339,37 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Firefox scrollbar styling */
+.desc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+.desc-scroll::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+/* Remove the up/down arrow buttons */
+.desc-scroll::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.desc-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.desc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  transition: background 0.4s ease !important;
+}
+
+.desc-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55) !important;
 }

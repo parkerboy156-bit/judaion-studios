@@ -41,9 +41,7 @@ export default function AboutTemplate() {
               type="video/mp4"
             />
           </video>
-
-          {/* Cinematic Vignette Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/30 pointer-events-none" />
         </div>
 
         {/* 2. THE CONTENT LAYER (Z-index 10 to stay above video) */}
@@ -84,7 +82,7 @@ export default function AboutTemplate() {
 
             {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
             {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div className="absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none border-l-3 border-t-3 border-b-3 border-r-3 border-white">
+            <div className="absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none border-l-2 border-t-2 border-b-2 border-r-2 border-white">
               <picture>
                 {/* Primary: The modern AVIF version */}
                 <source srcSet={heroBgAvif.src} type="image/avif" />
@@ -237,7 +235,7 @@ export default function AboutTemplate() {
                     THE ARCHITECT
                   </h4>
                   <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    BORN FROM THE CONVERGENCE OF TWO NAMES -ZION // JUDAH- THE
+                    BORN FROM THE CONVERGENCE OF TWO NAMES — ZION & JUDAH. THE
                     BRAND ORIGINATED AS A PERSONAL REFORMATION. IT WAS SHIFTED
                     TOWARDS RIGID DISCIPLINE AND "HACKING AWAY AT THE
                     UNESSENTIAL."
@@ -290,7 +288,7 @@ export default function AboutTemplate() {
                     THE PRINCIPLE
                   </h4>
                   <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    MOST IDENTITIES SUFFER FROM STRUCTURAL DECAY // THE
+                    MOST IDENTITIES SUFFER FROM STRUCTURAL DECAY AND THE
                     ACCUMULATION OF VISUAL NOISE, TRENDS AND AESTHETIC VOLUME
                     DESIGNED TO "WOW" RATHER THAN TO ENDURE. WE DO NOT CREATE
                     "LOOKS" WE ARCHITECT PERMANACE.
@@ -333,8 +331,8 @@ export default function AboutTemplate() {
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-5">
-                  <h4 className="pillar-item-title text-[70px] tracking-[0.8em] font-brand-compressed uppercase text-white">
-                    Vision
+                  <h4 className="pillar-item-title text-[70px] tracking-[0.8em] font-brand-other uppercase text-white">
+                    VISION
                   </h4>
                   <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
                     IDENTIFYING THE CORE TRUTH BY HACKING AWAY AT THE
@@ -357,7 +355,7 @@ export default function AboutTemplate() {
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-80">
-                  <h4 className="pillar-item-title2 text-[70px] tracking-[0.37em] font-brand-compressed uppercase text-white">
+                  <h4 className="pillar-item-title2 text-[70px] tracking-[0.37em] font-brand-other uppercase text-white">
                     STRUCTURE
                   </h4>
                   <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
@@ -381,7 +379,7 @@ export default function AboutTemplate() {
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-4">
-                  <h4 className="pillar-item-title3 text-[70px] tracking-[0.5em] font-brand-compressed uppercase text-white">
+                  <h4 className="pillar-item-title3 text-[70px] tracking-[0.5em] font-brand-other uppercase text-white">
                     IDENTITY
                   </h4>
                   <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
@@ -432,7 +430,7 @@ export default function AboutTemplate() {
 
             <div className="absolute inset-0 z-10 p-12 pointer-events-none">
               {/* Top Right: Status Marker */}
-              <div className="absolute top-8 right-8 flex flex-col   p-4">
+              <div className="absolute top-8 right-8 flex flex-col p-4">
                 <span className="archive-status-tag text-[10px] tracking-[0.2em] uppercase text-white/30 font-brand-secondary-thin">
                   LOG-ID: ZJP-EXT-02
                 </span>
@@ -465,7 +463,7 @@ export default function AboutTemplate() {
           {/* SECTION 5: THE LEADERSHIP (SPLIT ARCHITECTURE) */}
           <section className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-transparent relative overflow-hidden">
             {/* THE GRADIENT OVERLAY */}
-            <div className="absolute inset-0  bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-0  bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
             {/* LEFT BLOCK: DYNAMIC IMAGE SWITCH */}
             <div className="relative h-[70vh] lg:h-screen border-r border-white/10 overflow-hidden group cursor-pointer">
@@ -497,7 +495,7 @@ export default function AboutTemplate() {
               </picture>
 
               <div
-                className="absolute inset-0 bg-black/75 -z-10"
+                className="absolute inset-0 bg-black/60 -z-10"
                 aria-hidden="true"
               />
 
@@ -505,7 +503,7 @@ export default function AboutTemplate() {
               <div className="flex flex-row justify-between items-start w-full">
                 {/* TOP LEFT: OPERATIONAL STATUS */}
                 <div className="flex flex-col space-y-2">
-                  <span className="operational-lead text-[10px] tracking-[0.8em] uppercase text-white/30 font-brand-secondary-thin">
+                  <span className="operational-lead text-[10px] tracking-[0.6em] uppercase text-white/30 font-brand-secondary-thin">
                     Operational Lead
                   </span>
                 </div>

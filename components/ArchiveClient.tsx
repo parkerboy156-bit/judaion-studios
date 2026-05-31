@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { supabase } from "@/lib/supabase"; // Path adjusted per project tree
-import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 export default function ArchiveCatalogue() {
@@ -11,23 +11,11 @@ export default function ArchiveCatalogue() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [, setIsPlaying] = useState(false);
   const [currentAssetIndex, setCurrentAssetIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [, setImageLoading] = useState(true);
   const scrollRef = useRef<HTMLElement>(null);
-  const [imageLoading, setImageLoading] = useState(true);
-
-  // Lightbox
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState("");
-  const [lbScale, setLbScale] = useState(1);
-  const [lbOffset, setLbOffset] = useState({ x: 0, y: 0 });
-  const isPanningRef = useRef(false);
-  const panOriginRef = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
-  const hasDraggedRef = useRef(false);
-  const LB_MIN = 1;
-  const LB_MAX = 5;
-  const LB_STEP = 0.6;
 
   useEffect(() => {
     if (isMobile && scrollRef.current) {
@@ -55,10 +43,17 @@ export default function ArchiveCatalogue() {
     fetchData();
   }, []);
 
+  // Lock page scroll while the focus view is open
+  useEffect(() => {
+    document.body.style.overflow = selectedProject ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [selectedProject]);
+
   useEffect(() => {
     if (selectedProject && Array.isArray(selectedProject.file_url)) {
       selectedProject.file_url.forEach((url: string) => {
-        // Only preload if it's an image; videos handle their own loading differently
         const extension = url.split(".").pop()?.toLowerCase();
         if (["jpg", "jpeg", "png", "webp", "avif"].includes(extension || "")) {
           const img = new Image();
@@ -79,17 +74,14 @@ export default function ArchiveCatalogue() {
       const fetchCategories = supabase
         .from("catalogue_categories")
         .select("name");
-
       const [projectsRes, categoriesRes] = await Promise.all([
         fetchProjects,
         fetchCategories,
         timer,
       ]);
-
       const projectData = projectsRes.data || [];
       setProjects(projectData);
       setCategories([{ name: "All" }, ...(categoriesRes.data || [])]);
-
       projectData.forEach((project: any) => {
         const urls = Array.isArray(project.file_url)
           ? project.file_url
@@ -114,287 +106,6 @@ export default function ArchiveCatalogue() {
     (p) => activeCategory === "All" || p.category === activeCategory,
   );
 
-  const isVideo = (url: any) => {
-    if (!url || Array.isArray(url)) return false;
-    const ext = url.split(".").pop()?.toLowerCase();
-    return ["mp4", "webm", "ogg"].includes(ext || "");
-  };
-
-  // ── Lightbox helpers ─────────────────────────────────────────────
-  const openLightbox = (url: string) => {
-    setLightboxUrl(url);
-    setLbScale(1);
-    setLbOffset({ x: 0, y: 0 });
-    isPanningRef.current = false;
-    hasDraggedRef.current = false;
-    setLightboxOpen(true);
-  };
-
-  const closeLightbox = () => {
-    setLightboxOpen(false);
-    setLbScale(1);
-    setLbOffset({ x: 0, y: 0 });
-    isPanningRef.current = false;
-  };
-
-  const zoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setLbScale((prev) => Math.min(prev + LB_STEP, LB_MAX));
-  };
-
-  const zoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setLbScale((prev) => {
-      const next = Math.max(prev - LB_STEP, LB_MIN);
-      if (next === LB_MIN) setLbOffset({ x: 0, y: 0 });
-      return next;
-    });
-  };
-
-  const onLbMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    hasDraggedRef.current = false;
-    if (lbScale <= 1) return;
-    e.preventDefault();
-    isPanningRef.current = true;
-    panOriginRef.current = {
-      mx: e.clientX,
-      my: e.clientY,
-      ox: lbOffset.x,
-      oy: lbOffset.y,
-    };
-  };
-
-  const onLbMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isPanningRef.current) return;
-    hasDraggedRef.current = true;
-    setLbOffset({
-      x: panOriginRef.current.ox + (e.clientX - panOriginRef.current.mx),
-      y: panOriginRef.current.oy + (e.clientY - panOriginRef.current.my),
-    });
-  };
-
-  const onLbMouseUp = () => {
-    isPanningRef.current = false;
-  };
-
-  const onBackdropClick = () => {
-    if (hasDraggedRef.current) {
-      hasDraggedRef.current = false;
-      return;
-    }
-    closeLightbox();
-  };
-  // ─────────────────────────────────────────────────────────────────
-
-  const renderPreview = (url: string) => {
-    if (!url)
-      return (
-        <div className="flex items-center justify-center h-full text-[10px] uppercase opacity-20 italic">
-          No Asset Loaded
-        </div>
-      );
-    const extension = url.split(".").pop()?.toLowerCase();
-
-    // 1. VIDEO HANDLING
-    if (["mp4", "webm", "ogg"].includes(extension || "")) {
-      return (
-        <video
-          key={url}
-          src={url}
-          controls
-          className="w-full h-full object-contain bg-black"
-          preload="auto"
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-        />
-      );
-    }
-
-    // 2. PDF HANDLING
-    if (extension === "pdf") {
-      return (
-        <iframe
-          key={url}
-          src={`${url}#toolbar=0`}
-          className="w-full h-full border-none bg-white"
-          title="PDF Preview"
-        />
-      );
-    }
-
-    // 3. IMAGE HANDLING
-    return (
-      <>
-        {/* MODAL PREVIEW — original look, click opens lightbox */}
-        <div
-          className="w-full h-full overflow-hidden cursor-pointer relative flex items-center justify-center bg-black group/img"
-          onClick={() => openLightbox(url)}
-        >
-          {/* THUMBNAIL PLACEHOLDER — already cached, fills instantly while full asset loads */}
-          <img
-            src={selectedProject?.thumbnail_url}
-            className="absolute inset-0 w-full h-full object-cover blur-xl opacity-10 scale-110 pointer-events-none grayscale"
-            alt=""
-          />
-          {/* ATMOSPHERIC BACKGROUND FILL */}
-          <img
-            src={url}
-            className="absolute inset-0 w-full h-full object-cover blur-[10px] opacity-30 grayscale"
-            alt=""
-          />
-          {/* LOADING STATE — shows while image fetches */}
-          {imageLoading && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/80 pointer-events-none">
-              <div className="w-8 h-8 border-2 border-white/10 border-t-orange-600 rounded-full animate-spin" />
-              <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/60">
-                Loading Asset
-              </span>
-            </div>
-          )}
-          <img
-            key={url}
-            src={url}
-            className="relative w-full h-full object-contain"
-            alt="Asset Preview"
-            loading="eager"
-            onLoad={() => setImageLoading(false)}
-          />
-          {/* Click hint — persistent gradient bar, always legible */}
-          <div
-            className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none flex items-end justify-center gap-3 pb-4 pt-30 px-3"
-            style={{
-              background:
-                "linear-gradient(to top, rgb(0, 0, 0) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
-            }}
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className="text-orange-600 shrink-0"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" strokeLinecap="round" />
-            </svg>
-            <span className="text-white/90 text-[12px] uppercase tracking-[0.4em] whitespace-nowrap font-brand-secondary-thin">
-              Click image to INSPECT
-            </span>
-          </div>
-        </div>
-
-        {/* LIGHTBOX */}
-        {lightboxOpen && lightboxUrl === url && (
-          <div
-            className="fixed inset-0 z-[500] flex items-center justify-center select-none"
-            style={{
-              background: "rgba(0,0,0,0.92)",
-              backdropFilter: "blur(8px)",
-              cursor: isPanningRef.current
-                ? "grabbing"
-                : lbScale > 1
-                  ? "grab"
-                  : "default",
-            }}
-            onClick={onBackdropClick}
-            onMouseDown={onLbMouseDown}
-            onMouseMove={onLbMouseMove}
-            onMouseUp={onLbMouseUp}
-            onMouseLeave={onLbMouseUp}
-          >
-            {/* Atmospheric bg */}
-            <img
-              src={url}
-              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-15 grayscale scale-110 pointer-events-none"
-              alt=""
-            />
-
-            {/* Zoomable image */}
-            <img
-              src={url}
-              className="relative pointer-events-none"
-              style={{
-                maxWidth: "88vw",
-                maxHeight: "85vh",
-                objectFit: "contain",
-                transform: `scale(${lbScale}) translate(${lbOffset.x / lbScale}px, ${lbOffset.y / lbScale}px)`,
-                transition: isPanningRef.current
-                  ? "none"
-                  : "transform 0.15s ease-out",
-                willChange: "transform",
-                animation: "lbIn 0.2s ease-out both",
-              }}
-              alt="Full view"
-              draggable={false}
-            />
-
-            {/* +/- zoom controls */}
-            <div
-              className="absolute bottom-26 right-6 flex items-center gap-0 z-10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Zoom out */}
-              <button
-                onClick={zoomOut}
-                disabled={lbScale <= LB_MIN}
-                className="w-12 h-12 flex items-center justify-center border border-orange-700 bg-orange-700/40 text-orange-700 hover:text-white hover:border-white hover:bg-orange-700/40 transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer  backdrop-blur-sm"
-                aria-label="Zoom out"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M5 12h14" />
-                </svg>
-              </button>
-
-              {/* Scale readout */}
-              <div className="h-12 px-4 flex items-center justify-center border-t border-b border-orange-700 bg-orange-700/20 text-white text-[13px] uppercase tracking-widest min-w-[56px] text-center  backdrop-blur-sm">
-                {Math.round(lbScale * 100)}%
-              </div>
-
-              {/* Zoom in */}
-              <button
-                onClick={zoomIn}
-                disabled={lbScale >= LB_MAX}
-                className="w-12 h-12 flex items-center justify-center border border-orange-700 bg-orange-700/40 text-orange-700 hover:text-white hover:border-white hover:bg-orange-700/40 transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer  backdrop-blur-sm"
-                aria-label="Zoom in"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Labels */}
-            <span className="absolute bottom-7 right-6 flex items-center gap-2 bg-black/80 text-white/90 text-[12px] uppercase tracking-[0.4em] pointer-events-none whitespace-nowrap px-4 py-1.5 border border-white/30 backdrop-blur-sm">
-              <img src="/right-click.png" alt="" className="w-12 h-12" />
-              Click outside to exit
-            </span>
-            {lbScale > 1 && (
-              <span className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-5 bg-orange-700/20 text-white text-[13px] uppercase tracking-[0.4em] pointer-events-none whitespace-nowrap px-4 py-1.5 border border-orange-700 backdrop-blur-sm">
-                <img src="/drag-to-pan.png" alt="" className="w-10 h-10" />
-                Drag to pan
-              </span>
-            )}
-          </div>
-        )}
-      </>
-    );
-  };
 
   if (loading)
     return (
@@ -412,7 +123,7 @@ export default function ArchiveCatalogue() {
           />
         </video>
         <div className="relative z-10 flex flex-col items-center">
-          <div className="font-brand-secondary-thin text-[13px] tracking-[0.7em] uppercase text-white animate-pulse establishing-authority-mobile">
+          <div className="font-brand-secondary-thin text-[13px] tracking-[0.7em] uppercase text-white animate-pulse">
             Loading Project Archive
           </div>
         </div>
@@ -421,7 +132,6 @@ export default function ArchiveCatalogue() {
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -430,112 +140,89 @@ export default function ArchiveCatalogue() {
           position: "fixed",
           inset: 0,
           backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
+          zIndex: 999,
           pointerEvents: "none",
         }}
       />
-      <div className="min-h-screen relative text-white font-brand-secondary-thin antialiased overflow-x-hidden bg-black custom-scrollbar">
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #000000; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #636363; border-radius: 0px; cursor: pointer; }
-        * { scrollbar-width: thin; scrollbar-color: #d3d3d3 #000000; }
-      `,
-          }}
-        />
 
-        <div className="relative w-full min-h-screen bg-black ">
-          <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
-            <video
-              key="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
-              muted
-              autoPlay
-              loop
-              playsInline
-              preload="auto"
-              className="w-full h-full object-cover grayscale opacity-30"
+      <div className="min-h-screen relative text-white font-brand-secondary-thin antialiased overflow-x-hidden bg-black">
+        {/* Fixed video background */}
+        <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+          <video
+            muted
+            autoPlay
+            loop
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover"
+          >
+            <source
+              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
+              type="video/mp4"
+            />
+          </video>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/70 pointer-events-none" />
+        </div>
+
+        {/* ── HEADER ── */}
+        <header
+          className="relative bg-black backdrop-blur-sm px-6 lg:px-35 pt-10 pb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sticky top-0 z-30 transition-all duration-500 overflow-hidden shadow-2xl"
+          style={{
+            backgroundImage: "url('/archive-header.avif')",
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
+          <div className="flex flex-col">
+            <div className="flex items-end justify-between w-full relative"></div>
+
+            <Link
+              href="/projectarchive"
+              className="flex items-center cursor-pointer group mb-0 self-start"
             >
-              <source
-                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
-                type="video/mp4"
+              <motion.img
+                src="/return-to.png"
+                className="pt-8 w-22 h-auto opacity-70 group-hover:opacity-100"
+                animate={{ x: [0, -4, 0] }}
+                transition={{ duration: 3, repeat: Infinity }}
               />
-            </video>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/0 pointer-events-none" />
+            </Link>
           </div>
 
-          <header
-            className="relative bg-black backdrop-blur-sm px-6 lg:px-16 pt-24 pb-9 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sticky top-0 z-30 transition-all duration-500 overflow-hidden shadow-2xl"
-            style={{
-              backgroundImage: "url('/archive-header.avif')",
-              backgroundSize: "cover",
-              backgroundPosition: "center top",
-            }}
+          <nav
+            ref={scrollRef as any}
+            className="archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1"
           >
-            <div className="absolute inset-0 bg-black/65 z-0 pointer-events-none" />
-            <div className="flex flex-col">
-              <div className="flex items-end justify-between w-full relative">
-                <img
-                  src="/project-arch-title.png"
-                  alt="PROJECT ARCHIVE"
-                  className="w-full max-w-[700px] h-auto object-contain"
-                />
-              </div>
-
-              {!isMobile && (
-                <div className="absolute top-33 right-15 flex items-center space-x-6 ">
-                  <img
-                    src="/box-icon.png"
-                    alt="Archive Designator"
-                    className="w-15 h-auto filter brightness-110"
-                  />
-                </div>
-              )}
-
-              <Link
-                href="/projectarchive"
-                className="flex items-center cursor-pointer group mb-0 self-start"
+            {categories.map((cat) => (
+              <button
+                key={cat.name}
+                onClick={() => setActiveCategory(cat.name)}
+                data-active={activeCategory === cat.name}
+                className={`text-[18px] font-brand-cn uppercase tracking-widest transition-all duration-300 relative pb-1 cursor-pointer ${
+                  activeCategory === cat.name
+                    ? "text-white/40"
+                    : "text-white/40 hover:text-white"
+                }`}
               >
-                <motion.img
-                  src="/return-to.png"
-                  className="pt-8 w-22 h-auto opacity-70 group-hover:opacity-100"
-                  animate={{ x: [0, -4, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
-              </Link>
-            </div>
+                {cat.name}
+                {activeCategory === cat.name && (
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-orange-700" />
+                )}
+              </button>
+            ))}
+          </nav>
+        </header>
 
-            <nav
-              ref={scrollRef as any}
-              className="archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1"
-            >
-              {categories.map((cat) => (
-                <button
-                  key={cat.name}
-                  onClick={() => setActiveCategory(cat.name)}
-                  data-active={activeCategory === cat.name}
-                  className={`text-[18px] font-brand-cn uppercase tracking-widest transition-all duration-300 relative pb-1 cursor-pointer ${
-                    activeCategory === cat.name
-                      ? "text-white/40"
-                      : "text-white/40 hover:text-white"
-                  }`}
-                >
-                  {cat.name}
-                  {activeCategory === cat.name && (
-                    <span className="absolute bottom-0 left-0 w-full h-[2px] bg-orange-700" />
-                  )}
-                </button>
-              ))}
-            </nav>
-          </header>
-
-          <main className="flex-1 px-6 lg:px-16 pb-24">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-12 mt-12">
+        {/* ── COSMOS-STYLE MASONRY GRID ── */}
+        <main className="relative z-10 px-3 lg:px-6 pb-24 pt-7">
+          {/* Desktop: CSS columns masonry */}
+          {!isMobile ? (
+            <div className="columns-2 lg:columns-3 xl:columns-4 gap-7">
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="group cursor-pointer"
+                  className="break-inside-avoid mb-7 group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 rounded"
                   onClick={() => {
                     setSelectedProject(item);
                     setIsPlaying(false);
@@ -543,205 +230,216 @@ export default function ArchiveCatalogue() {
                     setImageLoading(true);
                   }}
                 >
-                  <div className="aspect-[4/5] overflow-hidden bg-white/5 backdrop-blur-md border border-white/0 shadow-xl mb-4 relative rounded-none">
-                    <img
-                      src={item.thumbnail_url}
-                      alt={item.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
-                    />
-                    <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
-                  </div>
-                  <div className="space-y-1 px-1">
-                    <p className="text-[25px] font-brand-other uppercase tracking-[0.2em] leading-tight text-white">
+                  {/* Main image — no thumbnail overlay, full bleed */}
+                  <img
+                    src={
+                      Array.isArray(item.file_url)
+                        ? item.file_url[0]
+                        : item.file_url
+                    }
+                    alt={item.title}
+                    loading="lazy"
+                    className="w-full h-auto block object-cover transition-transform duration-700 ease-out"
+                  />
+                  {/* Hover overlay with title */}
+                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center p-6">
+                    <p className="font-brand-other text-white text-[16px] uppercase tracking-[0.15em] leading-tight text-center">
                       {item.title}
-                    </p>
-                    <p className="text-[12px] text-white/40 font-brand-seondary-thin uppercase tracking-[0.3em]">
-                      {item.resource_type}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-          </main>
-        </div>
-
-        {selectedProject && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center pb-12 px-10">
-            <div
-              className="absolute inset-0 bg-black/70 backdrop-blur-md cursor-pointer"
-              onClick={() => setSelectedProject(null)}
-            />
-
-            <div className="relative w-full max-w-[95vw] h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-none overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-in slide-in-from-bottom-8 duration-500">
-              <div className="lg:w-2/3 h-1/2 lg:h-auto bg-black border-r border-white/0 relative group ">
-                {isVideo(selectedProject.file_url) && !isPlaying && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 opacity-70 group-hover:opacity-0 transition-opacity duration-500 pointer-events-none bg-black/20">
-                    <svg
-                      width="40"
-                      height="40"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      className="text-white mb-4 animate-bounce"
-                    >
-                      <path
-                        d="M12 5V9M12 5C9.23858 5 7 7.23858 7 10V14C7 16.7614 9.23858 19 12 19C14.7614 19 17 16.7614 17 14V10C17 7.23858 14.7614 5 12 5Z"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className="text-white text-[10px] font-black uppercase tracking-[0.6em]">
-                      Click To Play
-                    </span>
-                  </div>
-                )}
-
-                <div className="absolute top-3 left-3 z-20 flex items-center gap-4 opacity-40 transition-opacity">
-                  <span className="w-3 h-3 bg-orange-600 animate-pulse rounded-full" />
-                </div>
-
-                {renderPreview(
-                  Array.isArray(selectedProject.file_url)
-                    ? selectedProject.file_url[currentAssetIndex]
-                    : selectedProject.file_url,
-                )}
-
-                {Array.isArray(selectedProject.file_url) &&
-                  selectedProject.file_url.length > 1 && (
-                    <div className="absolute inset-0 flex items-center justify-between px-4 z-30 pointer-events-none">
-                      {currentAssetIndex > 0 ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentAssetIndex((prev) => prev - 1);
-                            closeLightbox();
-                            setImageLoading(true);
-                          }}
-                          className="p-2 bg-black/50 hover:bg-orange-800 text-white transition-all pointer-events-auto cursor-pointer"
-                        >
-                          <svg
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M15 18l-6-6 6-6" />
-                          </svg>
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-
-                      {currentAssetIndex <
-                      selectedProject.file_url.length - 1 ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentAssetIndex((prev) => prev + 1);
-                            closeLightbox();
-                            setImageLoading(true);
-                          }}
-                          className="p-2 bg-black/50 hover:bg-orange-800 text-white transition-all pointer-events-auto cursor-pointer"
-                        >
-                          <svg
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-                    </div>
-                  )}
-
-                {Array.isArray(selectedProject.file_url) && (
-                  <div className="absolute top-4 right-4 z-30 bg-black/60 px-3 py-1 text-[14px] font-black tracking-widest uppercase">
-                    {currentAssetIndex + 1} / {selectedProject.file_url.length}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 flex flex-col bg-[#0000]">
-                <div className="h-40 shrink-0 relative overflow-hidden border-b border-white/0">
-                  <div
-                    className="absolute inset-0 z-10 pointer-events-none"
-                    style={{
-                      background:
-                        "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, transparent 100%)",
-                    }}
-                  />
+          ) : (
+            /* Mobile: 2-column tight grid */
+            <div className="grid grid-cols-2 gap-2">
+              {filtered.map((item, index) => (
+                <div
+                  key={item.id}
+                  className={`group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 rounded ${index % 5 === 0 ? "col-span-2" : ""}`}
+                  onClick={() => {
+                    setSelectedProject(item);
+                    setIsPlaying(false);
+                    setCurrentAssetIndex(0);
+                    setImageLoading(true);
+                  }}
+                >
                   <img
-                    src={selectedProject.thumbnail_url}
-                    className="w-full h-full object-cover grayscale-26 opacity-100"
-                    alt=""
+                    src={
+                      Array.isArray(item.file_url)
+                        ? item.file_url[0]
+                        : item.file_url
+                    }
+                    alt={item.title}
+                    loading="lazy"
+                    className={`w-full object-cover block ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
                   />
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="absolute top-6 right-6 text-white/80 hover:text-white transition-colors z-30 cursor-pointer"
-                  >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="flex-1 p-8 lg:p-10 overflow-y-auto space-y-8 custom-scrollbar">
-                  <div>
-                    <div className="space-y-8 mb-6">
-                      <span className="px-3 py-1.5 border border-orange-600/60 bg-orange-700/20 text-[10px] uppercase text-orange-600 inline-block animate-pulse">
-                        JDS Archive | {selectedProject.category} -{" "}
-                        {selectedProject.resource_type}
-                      </span>
-                      <h2 className="text-4xl lg:text-4xl font-brand-other uppercase tracking-[0.2em] leading-[1] text-white ">
-                        {selectedProject.title}
-                      </h2>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6 border-t border-white/10 pt-8">
-                    {/* Section label */}
-                    <div className="flex items-center gap-3">
-                      <span className="font-brand-secondary-heavy text-[9px] uppercase tracking-[0.4em] text-orange-600/70">
-                        | Project Brief
-                      </span>
-                      <div className="flex-1 h-[1px] bg-white/10" />
-                    </div>
-
-                    {/* Description text */}
-                    <p className="text-[13px] leading-[1.9] text-white/50 font-brand-secondary-thin whitespace-pre-wrap tracking-wide">
-                      {selectedProject.content}
+                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex items-center justify-center px-4 py-2 backdrop-blur-sm">
+                    <p className="font-brand-other text-white text-[13px] uppercase tracking-[0.1em] leading-tight text-center">
+                      {item.title}
                     </p>
                   </div>
                 </div>
-
-                <div className="bg-[linear-gradient(to_top,rgba(0,0,0,0.8),rgba(0,0,0,0)),url('/archive-header.avif')] bg-cover bg-center p-8 border-t border-white/10 bg-black/29 flex items-center justify-center space-x-4">
-                  <img
-                    src="/judaion-logo-white.svg"
-                    alt="Judaion"
-                    className="h-10 w-auto opacity-50"
-                  />
-                </div>
-              </div>
+              ))}
             </div>
-          </div>
-        )}
+          )}
+
+          {filtered.length === 0 && (
+            <div className="flex items-center justify-center py-80">
+              <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.5em] text-white/80">
+                Nothing to see here...YET
+              </span>
+            </div>
+          )}
+        </main>
+
+
+        {/* ── FOCUS VIEW ── */}
+        <AnimatePresence>
+          {selectedProject && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="fixed inset-0 z-[100] flex items-center justify-center"
+            >
+              {/* Blurred dark backdrop */}
+              <div
+                className="absolute inset-0"
+                style={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", background: "rgba(0,0,0,0.90)" }}
+              />
+
+              {/* X close — absolute top-left of screen */}
+              <button
+                onClick={() => setSelectedProject(null)}
+                className="absolute top-6 left-6 z-30 flex items-center justify-center text-white/40 hover:text-white transition-colors duration-200 cursor-pointer"
+              >
+                <svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* ── MASTER LAYOUT WRAPPER ── */}
+              <div className="flex flex-row items-center justify-center gap-15 w-full max-w-[95vw] mx-auto h-screen relative z-50">
+
+                {/* ── LEFT PANEL — project info ── */}
+                <div className="flex flex-col justify-between h-[78vh] w-[600px] shrink-0">
+
+                  <div>
+                    {/* Tag label */}
+                    <div className="font-brand-cn border border-white/20 px-3 py-1.5 w-fit uppercase tracking-widest text-xs text-white/70">
+                      JDS Archive &nbsp;|&nbsp; {selectedProject.category}
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="font-brand-other text-white text-5xl lg:text-6xl uppercase tracking-[0.05em] mt-6 mb-4 leading-[0.9]">
+                      {selectedProject.title}
+                    </h2>
+
+                    {/* Rule + label */}
+                    <div className="flex items-center gap-3 mb-5">
+                      <span className="font-brand-cn text-[9px] uppercase tracking-[0.45em] text-white/40 whitespace-nowrap">
+                        Project Description
+                      </span>
+                      <div className="flex-1 h-px bg-white/15" />
+                    </div>
+
+                    {/* Description */}
+                    <div
+                      className="desc-scroll overflow-y-scroll max-h-[40vh] pr-2"
+                    >
+                      <p className="font-brand-secondary-thin text-sm text-white/65 leading-relaxed whitespace-pre-wrap">
+                        {selectedProject.content}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer logo block */}
+                  <div className="relative w-full h-[180px] mt-8 border border-white/10 overflow-hidden">
+                    <img src="/archive-header.avif" alt="" className="object-cover w-full h-full" />
+                    <div className="absolute inset-0 bg-black/30" />
+                    <img src="/judaion-logo-white.svg" alt="Judaion" className="absolute inset-0 m-auto w-1/3 opacity-45" />
+                  </div>
+                </div>
+
+                {/* ── CENTRE CONTAINER — main asset ── */}
+                <div className="relative flex items-center justify-center h-[85vh] max-w-[55vw]">
+                  {(() => {
+                    const url = Array.isArray(selectedProject.file_url)
+                      ? selectedProject.file_url[currentAssetIndex]
+                      : selectedProject.file_url;
+                    const ext = url?.split(".").pop()?.toLowerCase();
+                    if (["mp4", "webm", "ogg"].includes(ext || "")) {
+                      return (
+                        <video
+                          key={url}
+                          src={url}
+                          controls
+                          className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl"
+                          preload="auto"
+                        />
+                      );
+                    }
+                    return (
+                      <img
+                        key={url}
+                        src={url}
+                        alt={selectedProject.title}
+                        className="object-contain max-h-full max-w-full border border-white/10 bg-black/20 shadow-2xl"
+                      />
+                    );
+                  })()}
+                </div>
+
+                {/* ── RIGHT CONTAINER — thumbnails ── */}
+                {Array.isArray(selectedProject.file_url) && selectedProject.file_url.length > 1 && (
+                  <div
+                    className="flex flex-col gap-4 shrink-0 overflow-y-auto max-h-[85vh]"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {selectedProject.file_url.map((url: string, idx: number) => {
+                      const ext = url?.split(".").pop()?.toLowerCase();
+                      const isVid = ["mp4", "webm", "ogg"].includes(ext || "");
+                      const isActive = idx === currentAssetIndex;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => { setCurrentAssetIndex(idx); setImageLoading(true); }}
+                          className={`w-[80px] h-[80px] relative overflow-hidden shrink-0 cursor-pointer transition-opacity duration-300 ${
+                            isActive
+                              ? "border-[1.5px] border-white opacity-100"
+                              : "border border-white/10 opacity-40 hover:opacity-100"
+                          }`}
+                        >
+                          {isVid ? (
+                            <>
+                              <video
+                                src={`${url}#t=0.1`}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" opacity="0.85">
+                                  <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                              </div>
+                            </>
+                          ) : (
+                            <img src={url} alt={`Asset ${idx + 1}`} className="w-full h-full object-cover" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );

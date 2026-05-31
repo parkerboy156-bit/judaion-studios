@@ -45,7 +45,7 @@ export default function Contact() {
           form.current,
           "t3-Z2koe9RoLgz3Ri", // Public Key verified from original source
         )
-        .then((result) => {
+        .then(() => {
           setStatus("initiated");
           setTimeout(() => setStatus("idle"), 9000);
         })

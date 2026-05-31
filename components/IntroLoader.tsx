@@ -67,12 +67,7 @@ export default function IntroLoader({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isFinished) return;
-    const handleTimeUpdate = () => {
-      const currentTime = video.currentTime;
-    };
     video.play().catch((e) => console.log(e));
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
   }, [isFinished]);
 
   if (!shouldShow) return null;

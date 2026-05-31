@@ -122,7 +122,7 @@ export default function ServicesHome() {
                   : "absolute top-[86%] left-[11%] flex items-center space-x-6 opacity-80"
               }
             >
-              <span className="text-[13px] tracking-[0.4em] uppercase text-white/68 font-brand-secondary-thin whitespace-nowrap">
+              <span className="text-[13px] tracking-[0.4em] uppercase text-white/68 font-brand-secondary-thin whitespace-nowrap opacity-0">
                 Read{" "}
                 <span className="text-[13px] tracking-[0.4em] uppercase text-white font-brand-secondary-heavy italic whitespace-nowrap">
                   <span className="text-[13px] tracking-[0.4em] uppercase text-orange-600 font-brand-secondary-heavy italic whitespace-nowrap">

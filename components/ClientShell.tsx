@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, createContext, useContext } from "react";
-import { usePathname } from "next/navigation";
 import IntroLoader from "./IntroLoader";
 import { useEffect } from "react";
 
