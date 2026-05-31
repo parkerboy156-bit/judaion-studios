@@ -91,7 +91,7 @@ export default function Tier3() {
                 className="flex items-center cursor-pointer group bg-transparent border-none p-0"
               >
                 <motion.img
-                  src="/return-to.png"
+                  src="/return-to.webp"
                   className="w-25 h-auto opacity-70 group-hover:opacity-100"
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -112,7 +112,7 @@ export default function Tier3() {
                 className="block cursor-pointer bg-transparent border-none p-0"
               >
                 <img
-                  src="/CTA.png"
+                  src="/CTA.webp"
                   alt="Build Your Authority"
                   className="w-full max-w-[230px] h-auto object-contain select-none opacity-90 hover:opacity-100 transition-opacity duration-500"
                 />
@@ -135,7 +135,7 @@ export default function Tier3() {
             className="flex items-center cursor-pointer p-4"
           >
             <motion.img
-              src="/return-to.png"
+              src="/return-to.webp"
               className="w-16 h-auto"
               animate={{ x: [0, -4, 0] }}
               transition={{ duration: 3, repeat: Infinity }}
@@ -146,7 +146,7 @@ export default function Tier3() {
         <div className="tier3-visual-container relative w-[52%] h-full overflow-hidden bg-[#080808]">
           {/* BACKGROUND BASE (Backmost) */}
           <img
-            src="/tier3-bg.png"
+            src="/tier3-bg.webp"
             className="absolute inset-0 w-full h-full object-cover z-0"
           />
 
@@ -155,14 +155,14 @@ export default function Tier3() {
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            src="/tier3-black-back-left.png"
+            src="/tier3-black-back-left.webp"
             className="absolute inset-0 w-full h-full object-cover z-10"
           />
           <motion.img
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            src="/tier3-black-back-right.png"
+            src="/tier3-black-back-right.webp"
             className="absolute inset-0 w-full h-full object-cover z-10"
           />
 
@@ -170,14 +170,14 @@ export default function Tier3() {
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             transition={{ duration: 3.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            src="/tier3-left-wall.png"
+            src="/tier3-left-wall.webp"
             className="absolute inset-0 w-full h-full object-cover z-20"
           />
           <motion.img
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             transition={{ duration: 3.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            src="/tier3-right-wall.png"
+            src="/tier3-right-wall.webp"
             className="absolute inset-0 w-full h-full object-cover z-20"
           />
 
@@ -185,27 +185,27 @@ export default function Tier3() {
             initial={{ y: "-100%" }}
             animate={{ y: 0 }}
             transition={{ duration: 3.2, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
-            src="/tier3-top.png"
+            src="/tier3-top.webp"
             className="absolute inset-0 w-full h-full object-cover z-30"
           />
           <motion.img
             initial={{ y: "-100%" }}
             animate={{ y: 0 }}
             transition={{ duration: 4.6, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            src="/tier3-top-left-chunk.png"
+            src="/tier3-top-left-chunk.webp"
             className="absolute inset-0 w-full h-full object-cover z-40"
           />
           <motion.img
             initial={{ y: "-100%" }}
             animate={{ y: 0 }}
             transition={{ duration: 3.8, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            src="/tier3-top-right-chunk.png"
+            src="/tier3-top-right-chunk.webp"
             className="absolute inset-0 w-full h-full object-cover z-40"
           />
 
           {/* MAIN BASE ASSET (Frontmost Environment Layer) */}
           <img
-            src="/tier3-environment.png"
+            src="/tier3-environment.webp"
             className="absolute inset-0 w-full h-full object-cover z-50"
           />
         </div>

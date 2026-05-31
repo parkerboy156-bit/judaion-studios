@@ -11,8 +11,8 @@ import {
 import * as React from "react";
 import methodBgAvif from "@/public/method-bg.avif";
 import methodBgMobileAvif from "@/public/method-bg-mobile.avif";
-import methodBgPng from "@/public/method-bg.png";
-import methodBgMobilePng from "@/public/method-bg-mobile.png";
+import methodBgPng from "@/public/method-bg.webp";
+import methodBgMobilePng from "@/public/method-bg-mobile.webp";
 import Link from "next/link";
 
 export default function MethodologyPage() {
@@ -169,7 +169,7 @@ export default function MethodologyPage() {
               whileTap={isZoomed ? { scale: 0.95 } : {}}
             >
               <img
-                src="/j-method-v2.0.png"
+                src="/j-method-v2.0.webp"
                 alt="Brand Mark"
                 className="w-46 h-auto object-contain filter brightness-90"
               />
@@ -299,7 +299,7 @@ export default function MethodologyPage() {
               className="flex flex-col items-start group no-underline bg-transparent border-none cursor-pointer"
             >
               <motion.img
-                src="/exit-the-studio-1.png"
+                src="/exit-the-studio-1.webp"
                 className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                 animate={{ x: [0, -5, 0] }}
                 transition={{
@@ -331,7 +331,7 @@ export default function MethodologyPage() {
               className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
             >
               <motion.img
-                src="/upstairs.png"
+                src="/upstairs.webp"
                 className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                 animate={{ x: [0, 5, 0] }}
                 transition={{

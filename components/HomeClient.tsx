@@ -7,7 +7,7 @@ import Link from "next/link";
 import homeBgAvif from "@/public/home-bg.avif";
 import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
 import homeBgWebp from "@/public/home-bg.webp";
-import homeBgMobilePng from "@/public/home-bg-mobile.png";
+import homeBgMobilePng from "@/public/home-bg-mobile.webp";
 
 export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -345,7 +345,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="flex flex-col items-center group no-underline appearance-none bg-transparent border-none cursor-pointer z-50"
               >
                 <motion.img
-                  src="/enter-the-studio.png"
+                  src="/enter-the-studio.webp"
                   className={`${isMobile ? "w-[42px]" : "w-12"} h-auto mb-2  group-hover:opacity-100 transition-all duration-700 filter brightness-125 animate-pulse`}
                   animate={{ y: [0, -5, 0] }}
                   transition={{

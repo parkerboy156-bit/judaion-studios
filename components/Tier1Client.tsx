@@ -94,7 +94,7 @@ export default function Tier1() {
                 className="flex items-center cursor-pointer group bg-transparent border-none p-0"
               >
                 <motion.img
-                  src="/return-to.png"
+                  src="/return-to.webp"
                   className="w-25 h-auto opacity-70 group-hover:opacity-100"
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -115,7 +115,7 @@ export default function Tier1() {
                 className="block cursor-pointer bg-transparent border-none p-0"
               >
                 <img
-                  src="/CTA.png"
+                  src="/CTA.webp"
                   alt="Build Your Authority"
                   className="w-full max-w-[230px] h-auto object-contain select-none opacity-90 hover:opacity-100 transition-opacity duration-500"
                 />
@@ -138,7 +138,7 @@ export default function Tier1() {
             className="flex items-center cursor-pointer p-4 bg-transparent border-none"
           >
             <motion.img
-              src="/return-to.png"
+              src="/return-to.webp"
               className="w-16 h-auto"
               animate={{ x: [0, -4, 0] }}
               transition={{ duration: 3, repeat: Infinity }}
@@ -149,7 +149,7 @@ export default function Tier1() {
         <div className="relative w-[52%] h-full overflow-hidden bg-[#080808]">
           {/* LAYER 00: ENVIRONMENT BACKGROUND */}
           <img
-            src="/tier1-bg.png"
+            src="/tier1-bg.webp"
             alt="Environment"
             className="absolute inset-0 w-full h-full object-cover object-left z-0"
           />
@@ -159,14 +159,14 @@ export default function Tier1() {
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 3.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            src="/tier1-foundation.png"
+            src="/tier1-foundation.webp"
             alt="Foundation Asset"
             className="absolute inset-0 w-full h-full object-cover object-left z-10 select-none pointer-events-none"
           />
 
           {/* LAYER 20: GROUND OVERLAY */}
           <img
-            src="/tier1-ground.png"
+            src="/tier1-ground.webp"
             alt="Ground Overlay"
             className="absolute inset-0 w-full h-full object-cover object-left z-20 pointer-events-none"
           />

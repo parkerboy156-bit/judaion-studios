@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import Link from "next/link";
 import servicesBgAvif from "@/public/service-home-bg.avif";
-import servicesBgPng from "@/public/service-home-bg.png";
+import servicesBgPng from "@/public/service-home-bg.webp";
 
 export default function ServicesHome() {
   // MOUSE PARALLAX LOGIC (PRESERVED)
@@ -182,7 +182,7 @@ export default function ServicesHome() {
               className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
             >
               <motion.img
-                src="/down-stairs-last-floor.png"
+                src="/down-stairs-last-floor.webp"
                 className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                 animate={{ x: [0, -5, 0] }}
                 transition={{
@@ -214,7 +214,7 @@ export default function ServicesHome() {
               className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
             >
               <motion.img
-                src="/next-floor.png"
+                src="/next-floor.webp"
                 className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                 animate={{ x: [0, 5, 0] }}
                 transition={{

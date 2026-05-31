@@ -5,7 +5,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import projectArchiveBgAvif from "@/public/project-archive-home-bg.avif";
-import projectArchiveBgPng from "@/public/project-archive-home-bg.png";
+import projectArchiveBgPng from "@/public/project-archive-home-bg.webp";
 
 export default function ProjectArchive() {
   const [isMobile, setIsMobile] = useState(false);
@@ -129,7 +129,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.png"
+                  src="/last-floor-straight.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
                   transition={{
@@ -161,7 +161,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
-                  src="/next-floor.png"
+                  src="/next-floor.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
                   transition={{
@@ -198,7 +198,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.png"
+                  src="/last-floor-straight.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
                   transition={{
@@ -229,7 +229,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
-                  src="/next-floor.png"
+                  src="/next-floor.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
                   transition={{

@@ -94,7 +94,7 @@ export default function Tier2() {
                 className="flex items-center cursor-pointer group bg-transparent border-none p-0"
               >
                 <motion.img
-                  src="/return-to.png"
+                  src="/return-to.webp"
                   className="w-25 h-auto opacity-70 group-hover:opacity-100"
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -115,7 +115,7 @@ export default function Tier2() {
                 className="block cursor-pointer bg-transparent border-none p-0"
               >
                 <img
-                  src="/CTA.png"
+                  src="/CTA.webp"
                   alt="Build Your Authority"
                   className="w-full max-w-[230px] h-auto object-contain select-none opacity-90 hover:opacity-100 transition-opacity duration-500"
                 />
@@ -138,7 +138,7 @@ export default function Tier2() {
             className="flex items-center cursor-pointer p-4 bg-transparent border-none"
           >
             <motion.img
-              src="/return-to.png"
+              src="/return-to.webp"
               className="w-16 h-auto"
               animate={{ x: [0, -4, 0] }}
               transition={{ duration: 3, repeat: Infinity }}
@@ -149,14 +149,14 @@ export default function Tier2() {
         <div className="relative w-[52%] h-full overflow-hidden bg-[#080808]">
           {/* Tier 2 Background Layer */}
           <img
-            src="/tier2-bg.png"
+            src="/tier2-bg.webp"
             alt="Atmosphere"
             className="absolute inset-0 w-full h-full object-cover z-0"
           />
 
           {/* Tier 2 Environment (Buildings/Street) */}
           <img
-            src="/tier2-environment.png"
+            src="/tier2-environment.webp"
             alt="Environment"
             className="absolute inset-0 w-full h-full object-cover z-10"
           />
@@ -170,7 +170,7 @@ export default function Tier2() {
               delay: 0.8,
               ease: [0.22, 1, 0.36, 1],
             }}
-            src="/tier2-front-door.png"
+            src="/tier2-front-door.webp"
             alt="Front Door Asset"
             className="absolute inset-0 w-full h-full object-cover z-20"
           />

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import heroBgAvif from "@/public/hero-bg-block.avif";
-import heroBgPng from "@/public/hero-bg-block.png";
+import heroBgPng from "@/public/hero-bg-block.webp";
 import archiveheaderAvif from "@/public/archive-header.avif";
 import archiveheaderWebp from "@/public/archive-header.webp";
 
@@ -60,7 +60,7 @@ export default function AboutTemplate() {
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.png"
+                  src="/last-floor-straight.webp"
                   className="w-22 h-auto mb-1 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
                   transition={{
@@ -107,7 +107,7 @@ export default function AboutTemplate() {
             {/* SCROLL LABEL */}
             <div className="absolute bottom-5 right-1 flex items-center space-x-6 opacity-70">
               <img
-                src="/scroll-up.png"
+                src="/scroll-up.webp"
                 alt="Inspect Icon"
                 className="w-20 h-auto filter brightness-110"
               />
@@ -327,7 +327,7 @@ export default function AboutTemplate() {
               {/* PILLAR 01 */}
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
-                  src="/vision.png"
+                  src="/vision.webp"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-5">
@@ -351,7 +351,7 @@ export default function AboutTemplate() {
               {/* PILLAR 02 */}
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
-                  src="/structure.png"
+                  src="/structure.webp"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-80">
@@ -375,7 +375,7 @@ export default function AboutTemplate() {
               {/* PILLAR 03 */}
               <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
                 <img
-                  src="/identity.png"
+                  src="/identity.webp"
                   className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 />
                 <div className="relative z-10 space-y-4">
@@ -469,14 +469,14 @@ export default function AboutTemplate() {
             <div className="relative h-[70vh] lg:h-screen border-r border-white/10 overflow-hidden group cursor-pointer">
               {/* IMAGE 01: INITIAL STATE (Arms Crossed) */}
               <img
-                src="/ZJ-1.png"
+                src="/ZJ-1.webp"
                 alt="Lead Architect - State A"
                 className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out group-hover:opacity-0"
               />
 
               {/* IMAGE 02: HOVER STATE (Hand in Pocket) */}
               <img
-                src="/ZJ-2.png"
+                src="/ZJ-2.webp"
                 alt="Lead Architect - State B"
                 className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-90 group-hover:scale-100"
               />
@@ -581,7 +581,7 @@ export default function AboutTemplate() {
                 className="relative z-10 overflow-hidden  p-5 transition-all duration-500 hover:border-orange-600/50 cursor-pointer"
               >
                 <img
-                  src="/CTA.png"
+                  src="/CTA.webp"
                   alt="Execute Protocol"
                   className="w-64 lg:w-150 h-auto "
                 />

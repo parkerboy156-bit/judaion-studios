@@ -141,7 +141,7 @@ export default function IntroLoader({
             onClick={handleEntry}
           >
             <motion.img
-              src="/start-the-tour.png"
+              src="/start-the-tour.webp"
               className="w-30 h-auto mb-4 opacity-70 group-hover:opacity-100 transition-all duration-700"
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}

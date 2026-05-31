@@ -317,7 +317,7 @@ export default function Contact() {
             className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
           >
             <motion.img
-              src="/re-enter.png"
+              src="/re-enter.webp"
               className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
               animate={{ x: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}

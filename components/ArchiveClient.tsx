@@ -182,7 +182,7 @@ export default function ArchiveCatalogue() {
               className="flex items-center cursor-pointer group mb-0 self-start"
             >
               <motion.img
-                src="/return-to.png"
+                src="/return-to.webp"
                 className="pt-8 w-22 h-auto opacity-70 group-hover:opacity-100"
                 animate={{ x: [0, -4, 0] }}
                 transition={{ duration: 3, repeat: Infinity }}
