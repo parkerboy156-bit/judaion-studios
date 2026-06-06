@@ -47,7 +47,7 @@ export default function Tier2() {
     {
       what: "PERFORMANCE SPEED OPTIMISATION",
       details: [
-        "– All assets are optimised & a performance audit report will also be included.",
+        "– All assets are optimised, a performance audit report is also included for reassurance.",
       ],
     },
   ];
