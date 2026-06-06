@@ -1,72 +1,71 @@
-# CLAUDE.md
+# CLAUDE.md - JUDAION Studios Archive[cite: 1]
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+<!-- Keep this file under 170 lines. Focus ONLY on context Claude cannot infer from code. -->
 
-## Commands
+## 🎯 Project Overview
+- **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Supabase, Oracle Cloud Storage[cite: 1].
+- **Architecture:** Page files (`app/<route>/page.tsx`) are thin server components that only import and render a corresponding `"use client"` shell from `components/<Page>Client.tsx` where all interactive logic resides[cite: 1].
+- **Entry Sequence:** `layout.tsx` → `<Providers>` → `<ClientShell>` → `<Layout>`[cite: 1]. Content stays hidden until `<IntroLoader>` completes its global fade-in animation[cite: 1].
 
-```bash
-npm run dev       # Start dev server at localhost:3000
-npm run build     # Production build
-npm run lint      # ESLint check
-```
+---
 
-No test suite is configured — there are no test files or test scripts.
+## 🛠️ Essential Commands
+> **Rule:** Run from the root directory. There is no test suite configured; use build/lint for verification[cite: 1].
 
-## Environment Variables
+| Action | Command | Scope / Execution Directory |
+| :--- | :--- | :--- |
+| **Development** | `npm run dev` | Root (Localhost:3000)[cite: 1] |
+| **Verify Build** | `npm run build` | Root (Forces typecheck and compilation)[cite: 1] |
+| **Lint & Fix** | `npm run lint` | Root (ESLint check)[cite: 1] |
 
-A `.env.local` file is required with:
+---
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
+## 🧠 Collaborative Engagement & AI Behavior Rules
+To maximize code quality and prevent technical debt, you must follow these cognitive rules:
 
-The Oracle Cloud S3-compatible storage credentials are also required for the admin upload API (`/api/upload`), which generates presigned PUT URLs to bypass Vercel's 4.5 MB request limit.
+1. **Be an Engineering Peer, Not a Yes-Man:** Do not blindly execute bad, redundant, or unoptimized requests. If a request compromises performance, token-efficiency, scale, or the clean dark-UI aesthetic, **challenge it directly**. Propose a superior alternative.
+2. **Context Interviewing:** If an engineering problem lacks clear criteria, do not assume or guess. Pause and interview the user with short, targeted questions to gather edge cases or functional requirements before writing code.
+3. **Proactive Optimization Checks:** Before delivering code, review it for asset optimization (e.g., proper Next.js image loading, bypassing Vercel body limits via presigned URLs) and token usage[cite: 1].
+4. **Architectural Cohesion:** Ensure components remain modular and semantic. Maintain strict data-flow separation: logic stays in the client shells, while routing/metadata stays in the server pages[cite: 1].
 
-## Architecture
+---
 
-This is a **Next.js 16 App Router** project (React 19, TypeScript, Tailwind CSS v4). The routing convention is `app/<route>/page.tsx` — each page file is a thin server component that simply imports and renders its corresponding `components/<Page>Client.tsx`, which carries the `"use client"` directive and all interactive logic.
+## ⚡ Token-Saving & Workflow Guardrails
+To minimize token consumption and keep interactions fast, **YOU MUST** follow these rules:
 
-### Entry sequence
+1. **Progressive Disclosure:** Do not request full file dumps if a specific function or component shell is all you need[cite: 1]. Target your file reads to preserve context window space[cite: 1].
+2. **Mandatory Planning Phase:** For edits touching more than 2 files, **do not write code immediately**[cite: 1]. First, output a brief, step-by-step bulleted plan of your strategy and ask: *"Shall we proceed with this plan?"*[cite: 1] Wait for user confirmation[cite: 1].
+3. **Fail-Fast Loop:** If a fix or implementation fails twice in a row, stop guessing[cite: 1]. Acknowledge the block, step back, and propose an entirely alternative approach or ask for guidance[cite: 1].
+4. **Evidence-Based Verification:** After modifying code, instruct the user to run `npm run build` or `npm run lint` to confirm success[cite: 1]. Do not report a task as complete without verifying compilation stability[cite: 1].
 
-1. `app/layout.tsx` wraps everything in `<Providers>` → `<ClientShell>` → `<Layout>`.
-2. `ClientShell` (client) renders `<IntroLoader>` first. The site content stays `opacity: 0 / visibility: hidden` until `IntroLoader` calls `onComplete`, then fades in. This is the global entry gate — every page goes through it on first load.
-3. `Layout` renders the fixed hamburger nav (Framer Motion overlay) and the `<main>` slot.
+---
 
-### Data layer
+## 🛡️ Hard Constraints & Design Systems
 
-- **Supabase** (`lib/supabase.ts`) is the single DB client, used directly inside client components with the public anon key.
-- The `archive` table stores projects. `file_url` is a `string[]` (array of asset URLs). `thumbnail_url` is a separate single string.
-- `catalogue_categories` and `resource_types` are lookup tables managed from the admin portal.
-- File assets are stored on **Oracle Cloud Object Storage** (S3-compatible). The `/api/upload` route generates a presigned PUT URL; the browser uploads directly to Oracle to avoid Vercel size limits.
+### 🎨 Styling & Tailwind v4 Typography
+- **Configuration:** Theme tokens live in the `@theme` block inside `app/globals.css`[cite: 1]. Do **not** look for or create a `tailwind.config` file[cite: 1].
+- **Fonts:** All custom fonts map to CSS variables under `@theme`[cite: 1]. Never hardcode font families in JSX; always use these utilities[cite: 1]:
+  - `font-brand-other` → Khand Bold (Headings)[cite: 1]
+  - `font-brand-secondary-thin` → AvenirLTProRoman / Avenir 55 Roman (Body, UI text)[cite: 1]
+  - `font-brand-cn` → HelveticaNowDisplay-Cn (Tags, labels)[cite: 1]
+  - `font-brand-compressed` → Helvetica-Compressed[cite: 1]
+- **Responsive & Layout:** The `<1023px` breakpoint is mobile; aligned with the `lg:` Tailwind prefix[cite: 1]. Mobile-specific overrides use highly specific class-name selectors or CSS `:has()` in `globals.css`—do not arbitrarily rename classes targeted there[cite: 1]. Global scrollbars are hidden via CSS[cite: 1].
 
-### Key pages
+### 💾 Data Layer & Environments
+- **Supabase:** Single DB client (`lib/supabase.ts`) used directly in client components via public anon keys[cite: 1]. 
+- **Oracle Cloud (S3-Compatible):** Used via `/api/upload` to generate presigned PUT URLs, bypassing Vercel’s 4.5 MB body limit[cite: 1].
+- **Required Env Variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`[cite: 1].
 
-| Route | Client component | Notes |
-|---|---|---|
-| `/` | `HomeClient` | Main brand landing |
-| `/archivecatalogue` | `ArchiveClient` | Masonry grid + focus view lightbox |
-| `/projectarchive` | `ProjectArchiveClient` | Project listing |
-| `/adminportal` | `adminportal/page.tsx` (inline) | Upload/edit/delete archive entries; no auth guard in the component itself — relies on Supabase session |
-| `/login` | `login/page.tsx` | Supabase auth |
-| `/tier-1`, `/tier-2`, `/tier-3` | `Tier1/2/3Client` | Service tier detail pages |
+---
 
-### Styling conventions
+## 🧠 Codebase Gotchas & UI Rules
+*Strict boundaries to avoid breaking established layouts and wasting context cycles:*
 
-- **Tailwind CSS v4** — configured via `postcss.config.mjs`. Theme tokens live in the `@theme` block in `app/globals.css`, not in a `tailwind.config` file.
-- All custom fonts are declared with `@font-face` in `globals.css` and mapped to CSS variables under `@theme`. Use the Tailwind utility classes (e.g., `font-brand-other`, `font-brand-cn`, `font-brand-secondary-thin`) — never reference font family names directly in JSX.
-- Font reference:
-  - `font-brand-other` → Khand Bold (headings)
-  - `font-brand-cn` → HelveticaNowDisplay-Cn (tags, labels)
-  - `font-brand-secondary-thin` → AvenirLTProRoman (body, UI text)
-  - `font-brand-compressed` → Helvetica-Compressed
-- Mobile-specific overrides are in `globals.css` as `@media (max-width: 1023px)` blocks. Many use highly specific class-name selectors or CSS `:has()` — be careful not to rename Tailwind classes that are targeted there.
-- The `<1023px` breakpoint is treated as "mobile"; `lg:` Tailwind prefix aligns with this.
-- Global scrollbar is hidden via CSS (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`).
-
-### ArchiveClient focus view
-
-The focus view (`selectedProject` state) is a full-screen overlay with three panels:
-- **Left**: scrollable description (tag → title → description), footer with `archive-header.avif` + logo
-- **Centre**: main asset (image/video) rendered inline
-- **Right**: `52×52px` thumbnail strip — active item gets `border-[1.5px] border-white`, others get `border-white/10`
+- **Archive View Layout:** The project archive navigation uses independent containers with a blurred background overlay[cite: 1]. **Do not convert this into a standard modal UI approach.**[cite: 1]
+- **Archive Display Spacing:** Maintain a wide, spread-out layout in the asset browser[cite: 1]. Keep the expanded horizontal spacing/gaps intact[cite: 1].
+- **No Textures/Overlays:** Keep the dark UI clean[cite: 1]. Do not add noise textures or grain effects to the black UI hover overlays[cite: 1].
+- **No Zoom Features:** The asset focus view does not utilize image zooming features or pinch iconography (`pinch-icon.png`)[cite: 1]. Keep the layout structural and clean[cite: 1].
+- **Focus View Panel Layout (`ArchiveClient`):**[cite: 1]
+  - *Left Panel:* Scrollable metadata (tag → title → description), footer with `archive-header.avif` + logo[cite: 1].
+  - *Centre Panel:* Main asset (inline image/video)[cite: 1].
+  - *Right Panel:* `52×52px` thumbnail strip[cite: 1]. Active item gets `border-[1.5px] border-white`; inactive items get `border-white/10`[cite: 1].
