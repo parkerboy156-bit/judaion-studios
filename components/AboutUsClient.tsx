@@ -82,7 +82,7 @@ export default function AboutTemplate() {
 
             {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
             {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div className="absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none border-l-2 border-t-2 border-b-2 border-r-2 border-white">
+            <div className="absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none ">
               <picture>
                 {/* Primary: The modern AVIF version */}
                 <source srcSet={heroBgAvif.src} type="image/avif" />

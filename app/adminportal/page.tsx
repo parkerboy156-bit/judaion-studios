@@ -10,6 +10,8 @@ interface ArchiveItem {
   resource_type: string;
   content: string;
   file_url: string[];
+  instagram_url?: string;
+  linkedin_url?: string;
   created_at?: string;
 }
 
@@ -32,6 +34,8 @@ export default function AdminPortal() {
     category: "",
     resource_type: "",
     content: "",
+    instagram_url: "",
+    linkedin_url: "",
   });
   const [files, setFiles] = useState<{ assets: File[] }>({
     assets: [],
@@ -83,7 +87,7 @@ export default function AdminPortal() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", category: "", resource_type: "", content: "" });
+    setFormData({ title: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
     setFiles({ assets: [] });
     setEditingId(null);
   };
@@ -428,6 +432,38 @@ export default function AdminPortal() {
                   />
                 </div>
 
+                <div className="h-[1px] w-full bg-white/10" />
+
+                <div className="space-y-2">
+                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
+                    Instagram Post URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.instagram_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, instagram_url: e.target.value })
+                    }
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    placeholder="https://instagram.com/p/..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
+                    LinkedIn Post URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.linkedin_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, linkedin_url: e.target.value })
+                    }
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    placeholder="https://linkedin.com/posts/..."
+                  />
+                </div>
+
                 {uploading && (
                   <div className="mb-6 space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter text-orange-600">
@@ -584,6 +620,8 @@ export default function AdminPortal() {
                                     category: item.category,
                                     resource_type: item.resource_type,
                                     content: item.content,
+                                    instagram_url: item.instagram_url || "",
+                                    linkedin_url: item.linkedin_url || "",
                                   });
                                   window.scrollTo({
                                     top: 0,
