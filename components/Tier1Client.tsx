@@ -29,7 +29,7 @@ export default function Tier1() {
   }, []);
 
   useEffect(() => {
-    const urls = ["/tier1-bg.webp", "/tier1-foundation.webp", "/tier1-ground.webp"];
+    const urls = ["/tier1&2-bg.webp", "/tier1-foundation.webp", "/tier1-ground.webp"];
     let count = 0;
     urls.forEach((src) => {
       const img = new Image();
@@ -217,7 +217,7 @@ export default function Tier1() {
           >
             <div className="absolute inset-0 bg-black/50 pointer-events-none" />
             <div className="relative z-10 px-12 xl:px-16 pt-8 lg:pt-18 pb-7 lg:pb-12">
-              <h2 className="text-white font-brand-other text-[clamp(2.5rem,7vw,5.625rem)] uppercase tracking-[0.5em] leading-[1.1]">
+              <h2 className="text-white font-brand-other text-[clamp(2rem,4.4vw,5.625rem)] uppercase tracking-[0.47em] leading-[1.1] whitespace-nowrap">
                 FOUNDATION
               </h2>
               <div className="mt-4 lg:mt-5 flex items-center gap-4">
@@ -252,8 +252,9 @@ export default function Tier1() {
             </div>
           </motion.div>
 
-          {/* CONTENT WRAPPER: Keeps text above the video */}
-          <div className="relative z-10 flex flex-col h-full w-full">
+          {/* CONTENT WRAPPER: Keeps text above the video. flex-1 + min-h-0 lets
+              the deliverables area scroll while header/footer banners stay pinned. */}
+          <div className="desc-scroll relative z-10 flex flex-col flex-1 min-h-0 w-full lg:overflow-y-auto">
             {/* 3. DUAL-COLUMN DELIVERABLES TABLE */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -365,7 +366,7 @@ export default function Tier1() {
         >
           {/* LAYER 00: ENVIRONMENT BACKGROUND — static */}
           <img
-            src="/tier1-bg.webp"
+            src="/tier1&2-bg.webp"
             alt="Environment"
             className="absolute inset-0 w-full h-full object-cover object-left z-0"
           />
@@ -391,10 +392,10 @@ export default function Tier1() {
               transition={{ duration: 0.35, ease: "easeOut", delay: isHovered ? 0.1 : 0 }}
               className="absolute top-[62%] right-[10%] z-10 pointer-events-none flex flex-col gap-[4px] items-end"
             >
-              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
                 <span className="text-white">X: </span><span className="text-white/50">{hoverCoords.x} PX</span>
               </span>
-              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
                 <span className="text-white">Y: </span><span className="text-white/50">{hoverCoords.y} PX</span>
               </span>
             </motion.div>
@@ -416,7 +417,7 @@ export default function Tier1() {
               <motion.div
                 animate={{ y: ["0px", "-12px"] }}
                 transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-[-12px] bg-white/[0.05]"
+                className="absolute inset-[-12px] bg-black/[0.15]"
                 style={{
                   backgroundImage:
                     "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",

@@ -242,10 +242,10 @@ export default function Tier3() {
       <motion.div
         animate={{ y: ["0px", "-12px"] }}
         transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-[-12px] bg-white/[0.10]"
+        className="absolute inset-[-12px] bg-black/[0.21]"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 12px)",
+            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.13) 0px, rgba(255,255,255,0.13) 1px, transparent 1px, transparent 12px)",
           backgroundSize: "100% 12px",
         }}
       />
@@ -298,7 +298,7 @@ export default function Tier3() {
           >
             <div className="absolute inset-0 bg-black/50 pointer-events-none" />
             <div className="relative z-10 px-12 xl:px-16 pt-8 lg:pt-18 pb-7 lg:pb-12">
-              <h2 className="text-white font-brand-other text-[clamp(2.5rem,7vw,5.625rem)] uppercase tracking-[0.35em] leading-[1.1]">
+              <h2 className="text-white font-brand-other text-[clamp(2rem,4.2vw,5.625rem)] uppercase tracking-[0.36em] leading-[1.1] whitespace-nowrap">
                 ARCHITECTURE
               </h2>
               <div className="mt-4 lg:mt-5 flex items-center gap-4">
@@ -333,8 +333,9 @@ export default function Tier3() {
             </div>
           </motion.div>
 
-          {/* CONTENT WRAPPER */}
-          <div className="relative z-10 flex flex-col h-full w-full">
+          {/* CONTENT WRAPPER: flex-1 + min-h-0 lets the deliverables area scroll
+              (with a scrollbar when zoomed) while header/footer banners stay pinned. */}
+          <div className="desc-scroll relative z-10 flex flex-col flex-1 min-h-0 w-full lg:overflow-y-auto">
             {/* DELIVERABLES TABLE */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -507,7 +508,7 @@ export default function Tier3() {
           </motion.div>
 
           {/* STATIC: environment — always frontmost */}
-          <img src="/tier3-environment.webp" className="absolute inset-0 w-full h-full object-cover z-50" />
+          <img src="/tier3-environment.webp" className="absolute inset-0 w-full h-full object-cover z-50 hover:cursor-pointer" />
 
           {/* X/Y COORDINATE DISPLAY — attached to the right-wall fragment (tracks its parallax) */}
           <motion.div
@@ -517,12 +518,12 @@ export default function Tier3() {
             <motion.div
               animate={{ opacity: isHovered && animationDone ? 1 : 0, x: isHovered && animationDone ? 0 : 4 }}
               transition={{ duration: 0.35, ease: "easeOut", delay: isHovered ? 0.1 : 0 }}
-              className="absolute top-[50%] right-[5%] pointer-events-none flex flex-col gap-[4px] items-end"
+              className="absolute top-[50%] right-[4%] pointer-events-none flex flex-col gap-[4px] items-end"
             >
-              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
                 <span className="text-white">X : </span><span className="text-white/50">{hoverCoords.x} PX</span>
               </span>
-              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
                 <span className="text-white">Y : </span><span className="text-white/50">{hoverCoords.y} PX</span>
               </span>
             </motion.div>

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 interface ArchiveItem {
   id: number;
   title: string;
+  subtitle?: string;
   category: string;
   resource_type: string;
   content: string;
@@ -31,6 +32,7 @@ export default function AdminPortal() {
   const [newOption, setNewOption] = useState({ name: "", type: "category" });
   const [formData, setFormData] = useState({
     title: "",
+    subtitle: "",
     category: "",
     resource_type: "",
     content: "",
@@ -87,7 +89,7 @@ export default function AdminPortal() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
+    setFormData({ title: "", subtitle: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
     setFiles({ assets: [] });
     setEditingId(null);
   };
@@ -300,6 +302,21 @@ export default function AdminPortal() {
                     className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
                     placeholder="TITLE"
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
+                    Subtitle <span className="text-white/20">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.subtitle}
+                    onChange={(e) =>
+                      setFormData({ ...formData, subtitle: e.target.value })
+                    }
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
+                    placeholder="e.g. BRAND IDENTITY STUDY"
                   />
                 </div>
 
@@ -617,6 +634,7 @@ export default function AdminPortal() {
                                   setEditingId(item.id);
                                   setFormData({
                                     title: item.title,
+                                    subtitle: item.subtitle || "",
                                     category: item.category,
                                     resource_type: item.resource_type,
                                     content: item.content,

@@ -2,12 +2,39 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState } from "react";
 import heroBgAvif from "@/public/hero-bg-block.avif";
 import heroBgPng from "@/public/hero-bg-block.webp";
 import archiveheaderAvif from "@/public/archive-header.avif";
 import archiveheaderWebp from "@/public/archive-header.webp";
 
 export default function AboutTemplate() {
+  const [hoveredPillar, setHoveredPillar] = useState<number | null>(null);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+
+  function handlePillarMove(e: React.MouseEvent, index: number) {
+    setHoveredPillar(index);
+    setCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
+  }
+  function handlePillarLeave() {
+    setHoveredPillar(null);
+  }
+
+  const [heroHovered, setHeroHovered] = useState(false);
+  const [heroImageHovered, setHeroImageHovered] = useState(false);
+  const [heroCoords, setHeroCoords] = useState({ x: 0, y: 0 });
+
+  function handleHeroMove(e: React.MouseEvent) {
+    const overRightBlock = e.clientX > window.innerWidth / 2;
+    setHeroHovered(true);
+    setHeroImageHovered(overRightBlock);
+    setHeroCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
+  }
+  function handleHeroLeave() {
+    setHeroHovered(false);
+    setHeroImageHovered(false);
+  }
+
   return (
     <main className="relative bg-black">
       {/* SURGICAL MASK: Add this exact block to every new page */}
@@ -47,7 +74,12 @@ export default function AboutTemplate() {
         {/* 2. THE CONTENT LAYER (Z-index 10 to stay above video) */}
         <div className="relative z-10 w-full bg-transparent text-white font-brand-secondary-thin selection:bg-orange-600/30">
           {/* SECTION 1: THE HERO (PRECISION LAYERED BLOCK) */}
-          <section className="h-screen w-full flex flex-col justify-center px-10 lg:px-20 border-b border-white/10 relative overflow-hidden">
+          <section
+            className="h-screen w-full flex flex-col justify-center px-10 lg:px-20 border-b border-white/10 relative overflow-hidden"
+            style={{ cursor: heroImageHovered ? "pointer" : "default" }}
+            onMouseMove={handleHeroMove}
+            onMouseLeave={handleHeroLeave}
+          >
             {/* NAVIGATION: RETURN TO Project Archive */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -57,11 +89,11 @@ export default function AboutTemplate() {
             >
               <Link
                 href="/projectarchive"
-                className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
+                className="flex flex-row items-center gap-2 group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
                   src="/last-floor-straight.webp"
-                  className="w-22 h-auto mb-1 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
+                  className="w-22 h-auto opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain shrink-0"
                   animate={{ x: [0, -5, 0] }}
                   transition={{
                     duration: 3,
@@ -70,11 +102,8 @@ export default function AboutTemplate() {
                   }}
                 />
                 <div className="flex flex-col items-start font-brand-secondary-thin text-left">
-                  <span className="text-[9px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
-                    Previous Floor
-                  </span>
-                  <span className="text-[12px] tracking-[0.4em] uppercase text-white/60 group-hover:text-white transition-colors duration-500">
-                    03 Project Archive
+                  <span className="text-[11px] tracking-[0.3em] uppercase text-white/40 font-light font-secondary-thin">
+                    [Previous Floor]
                   </span>
                 </div>
               </Link>
@@ -82,7 +111,20 @@ export default function AboutTemplate() {
 
             {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
             {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div className="absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none ">
+            <div className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[2px] transition-colors duration-800 ${heroImageHovered ? "border-white/60" : "border-white/10"}`}>
+              {/* SCAN LINES — fade in when mouse is over the right block */}
+              <div
+                className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-800 ${heroImageHovered ? "opacity-100" : "opacity-0"}`}
+              >
+                <div
+                  className="pillar-scanlines absolute inset-[-12px] bg-black/[0.08] "
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
+                    backgroundSize: "100% 12px",
+                  }}
+                />
+              </div>
               <picture>
                 {/* Primary: The modern AVIF version */}
                 <source srcSet={heroBgAvif.src} type="image/avif" />
@@ -105,57 +147,58 @@ export default function AboutTemplate() {
             </div>
 
             {/* SCROLL LABEL */}
-            <div className="absolute bottom-5 right-1 flex items-center space-x-6 opacity-70">
-              <img
-                src="/scroll-up.webp"
-                alt="Inspect Icon"
-                className="w-20 h-auto filter brightness-110"
+            <div className="absolute bottom-5 right-1 flex items-center space-x-6">
+              <motion.img
+                src="/scroll-up.png"
+                alt="Scroll"
+                className="w-25 h-25 opacity-80"
+                animate={{ y: [0, -6, 0] }}
+                transition={{
+                  duration: 1.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
               />
             </div>
 
-            {/* Y axis */}
-            <div className="absolute top-[97%] left-[25%] flex items-center space-x-6">
-              <span className="text-[0.6vw] tracking-[0.1em] uppercase text-white/60 font-brand-italic-thin-cn whitespace-nowrap">
-                <span className="text-[0.6vw] tracking-[0.1em] text-white/60 font-brand-cn">
-                  Y
-                </span>{" "}
-                : 540,34 PX
+            {/* Asset label — live on hero hover */}
+            <div
+              className={`absolute top-[97%] left-[02%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
+            >
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white/60">Asset 3</span>
+                <span className="text-white/40"> "ARCHITECTURE"</span>
               </span>
             </div>
 
-            {/* X axis */}
-            <div className="absolute top-[97%] left-[3%] flex items-center space-x-6">
-              <span className="text-[0.6vw] tracking-[0.1em] uppercase text-white/60 font-brand-italic-thin-cn whitespace-nowrap">
-                <span className="text-[0.6vw] tracking-[0.1em] text-white/60 font-brand-cn">
-                  X
-                </span>{" "}
-                : 474.69 PX
+            {/* Y axis — live on hero hover */}
+            <div
+              className={`absolute top-[97%] left-[35%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
+            >
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">Y: </span>
+                <span className="text-white/50">{heroCoords.y} PX</span>
               </span>
             </div>
 
-            {/* Descritption */}
-            <div className="absolute top-[97%] left-[44%] flex items-center space-x-6">
-              <span className="text-[0.5vw] tracking-[0.1em] uppercase text-white/70 font-brand-italic-thin-cn whitespace-nowrap">
-                <span className="text-[0.5vw] tracking-[0.1em] text-white/60 font-brand-cn">
-                  Asset 3
-                </span>{" "}
-                "ARCHITECTURE"
+            {/* X axis — live on hero hover */}
+            <div
+              className={`absolute top-[97%] left-[20%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
+            >
+              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">X: </span>
+                <span className="text-white/50">{heroCoords.x} PX</span>
               </span>
             </div>
+
+
 
             {/* --- CONTENT LAYER (Z-10 to stay over the new image block) --- */}
             <h1 className="relative z-10 flex flex-col font-brand-cn uppercase leading-[1]">
               {/* LINE 1: Establishing The */}
-              <div className="flex justify-center w-full py-5 self-center gap-x-4">
-                <span className="hero-secondary-text-top text-[2vw] tracking-[0.1em] text-white/30">
-                  We
-                </span>
-                <span className="hero-secondary-text-top text-[2vw] tracking-[0.1em] text-white/98 font-brand-xbold-italic-cn">
-                  {" "}
-                  Establish{" "}
-                </span>
-                <span className="hero-secondary-text-top text-[2vw] tracking-[0.1em] text-white/30">
-                  The
+              <div className="flex justify-center w-full py-2 self-center gap-x-4">
+                <span className="hero-secondary-text-top text-[1.7vw] tracking-[0.1em] text-white/30">
+                  We establish the
                 </span>
               </div>
 
@@ -167,10 +210,10 @@ export default function AboutTemplate() {
 
               {/* LINE 3: For Your business's */}
               <div className="flex justify-center w-full py-5 self-center gap-x-4">
-                <span className="hero-secondary-text-bottom text-[3vw] tracking-[0.1em] text-white/30 ">
+                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/30 ">
                   For
                 </span>
-                <span className="hero-secondary-text-bottom text-[3vw] tracking-[0.2em] text-white/98 font-brand-xbold-italic-cn">
+                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/98 font-brand-xbold-italic-cn">
                   Your Vision's
                 </span>
               </div>
@@ -202,122 +245,120 @@ export default function AboutTemplate() {
               </video>
             </div>
 
-            <div className="flex flex-col justify-center p-10 lg:p-32 space-y-12 ">
-              {/* TOP LABEL / INDEX */}
-              <span className="classification-text text-[11px] tracking-[0.5em] uppercase text-white/30 font-brand-secondary-thin">
-                Classification | About us
-              </span>
-
+            <div className="flex flex-col justify-center p-10 lg:p-30 space-y-15 ">
               <div className="space-y-9">
                 {/* HEADER */}
-                <div className=" inline-block mb-12">
+                <div className=" inline-block mb-25">
                   {/* MAIN HEADING */}
-                  <h2 className="about-main-title text-[60px] font-brand-cn uppercase tracking-[0.1em] text-white leading-none">
-                    Who is{" "}
-                    <span className="font-brand-xbold-italic-cn">Judaion</span>
+                  <h2 className="about-main-title text-[clamp(2rem,4vw,5.625rem)] font-brand-bold uppercase tracking-[0.1em] text-white leading-none">
+                    THE NARRATIVE
                   </h2>
 
                   {/* THE ARCHITECTURAL UNDERLINE */}
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ delay: 3, duration: 1.5, ease: "easeInOut" }}
-                    className="h-[2px] bg-white mt-4 origin-left"
-                  />
+                  <div className="h-[1px] bg-white mt-4 origin-left" />
                 </div>
 
                 {/* PARAGRAPH GROUP 1 */}
                 <div className="space-y-5">
-                  <h4 className="text-[34px] tracking-[0.2em] uppercase  font-brand-other">
-                    <span className="font-brand-med-italic-cn text-orange-600">
-                      *
-                    </span>
-                    THE ARCHITECT
-                  </h4>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    BORN FROM THE CONVERGENCE OF TWO NAMES — ZION & JUDAH. THE
-                    BRAND ORIGINATED AS A PERSONAL REFORMATION. IT WAS SHIFTED
-                    TOWARDS RIGID DISCIPLINE AND "HACKING AWAY AT THE
-                    UNESSENTIAL."
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 border-t border-white/20" />
+                    <h4 className="text-[22px] tracking-[0.1em] uppercase font-brand-secondary-heavy shrink-0">
+                      THE ARCHITECT
+                    </h4>
+                  </div>
+                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    Born from the convergence of two names — Zion & Judah. The
+                    brand originated as a personal reformation. It was shifted
+                    towards rigid discipline and "hacking away at the
+                    unnesential".
                   </p>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    BEFORE IT BUILT IDENTITIES FOR OTHERS,{" "}
-                    <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">
-                      JUDAION
-                    </span>{" "}
-                    WAS THE FRAMEWORK USED TO BUILD THE{" "}
-                    <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">
-                      ARCHITECT.
-                    </span>
+                  <p className="text-white/70 text-[16px] leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    Before it built identities for others, it was an identity in
+                    need of its own architecture. The name JUDAION was the first
+                    asset, the first identity and the first monolith built by
+                    the architect.
                   </p>
                 </div>
 
-                <div className="pt-4 border-t border-white/20"></div>
+                <div className="pt-4 border-t border-white/20">
+                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
+                    - WE BUILD THE MONOLITHS THAT DEFINE BRANDS.
+                  </span>
+                </div>
 
                 {/* PARAGRAPH GROUP 1 */}
                 <div className="space-y-5">
-                  <h4 className="text-[34px] tracking-[0.2em] uppercase  font-brand-other">
-                    <span className="font-brand-med-italic-cn text-orange-600">
-                      *
-                    </span>
-                    THE COMMITMENT
-                  </h4>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    ORIGINALLY ROOTED IN ART-SCHOOL AESTHETICS, PREVIOUS WORK
-                    WAS OBSESSED WITH SEEKING VALIDATION AND CREATING "PRETTY
-                    PICTURES", THIS CAUSED A STRUCTURAL DECAY IN EARLY
-                    FREELANCING WORK. THE TRANSITION FROM FREELANCING TO
-                    PARTNERSHIP ENVOKED THE SHIFT OF "WHAT CAN I ADD" TO "WHAT
-                    IS ESSENTIAL".
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 border-t border-white/20" />
+                    <h4 className="text-[22px] tracking-[0.1em] uppercase  font-brand-secondary-heavy">
+                      THE COMMITMENT
+                    </h4>
+                  </div>
+                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    Originally rooted in art-school aesthetics, previous work
+                    was obsessed with seeking validation and creating 'pretty
+                    pictures'; this caused a structural decay in early
+                    freelancing work. The transition from freelancing to
+                    partnership invoked a shift from 'what can I add' to 'what
+                    is essential.' This is the primary law of the studio:
+                    discipline comes from foundation.
                   </p>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    THIS IS THE PRIMARY LAW OF THE STUDIO:{" "}
-                    <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">
-                      DISCIPLINE COMES FROM FOUNDATION.
-                    </span>
+                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    This is the primary law of the studio: discipline comes from
+                    foundation
                   </p>
                 </div>
-                <div className="pt-4 border-t border-white/20"></div>
+                <div className="pt-4 border-t border-white/20">
+                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
+                    - THE EVOLUTION FROM ART TO ARCHITECTURE.
+                  </span>
+                </div>
 
                 {/* PARAGRAPH GROUP 1 */}
                 <div className="space-y-5">
-                  <h4 className="text-[34px] tracking-[0.2em] uppercase font-brand-other">
-                    <span className="font-brand-med-italic-cn text-orange-600">
-                      *
-                    </span>
-                    THE PRINCIPLE
-                  </h4>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    MOST IDENTITIES SUFFER FROM STRUCTURAL DECAY AND THE
-                    ACCUMULATION OF VISUAL NOISE, TRENDS AND AESTHETIC VOLUME
-                    DESIGNED TO "WOW" RATHER THAN TO ENDURE. WE DO NOT CREATE
-                    "LOOKS" WE ARCHITECT PERMANACE.
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 border-t border-white/20" />
+                    <h4 className="text-[22px] tracking-[0.1em] uppercase font-brand-secondary-heavy shrink-0">
+                      THE PRINCIPLE
+                    </h4>
+                  </div>
+                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    Most identities suffer from structural decay and the
+                    accumulation of visual noise, trends, and aesthetic volume
+                    designed to wow rather than to endure. We do not create
+                    'looks' — we architect permanence.
                   </p>
-                  <p className="text-white/60 text-[16px] leading-relaxed tracking-[0.15em] font-brand-cn max-w-xl">
-                    <span className="text-white text-[18px] leading-relaxed tracking-[0.1em] font-brand-xbold-italic-cn max-w-xl">
-                      LOGIC OVER AESTHETICS.
-                    </span>
+                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
+                    Logic over aesthetics. Foundation over trends. The result of
+                    personal discipline applied to digital precision.
                   </p>
                 </div>
-              </div>
-
-              {/* BOTTOM DETAIL */}
-              <div className="pt-4 border-t border-white/20">
-                <span className="text-[11px] tracking-[0.3em] uppercase text-white/40 font-brand-secondary-thin">
-                  JUDAION IS YOUR CREATIVE STRATEGIC PARTNER.
-                </span>
+                <div className="pt-4 border-t border-white/20">
+                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
+                    - BUILT TO OUTLAST THE NOISE.
+                  </span>
+                </div>
               </div>
             </div>
           </section>
 
           {/* SECTION 3: THE CORE PILLARS (CONNECTED ARCHITECTURE) */}
-          <section className="py-32 px-10 lg:px-20 bg-gradient-to-b from-black/70 to-transparent relative overflow-hidden">
+          <section
+            className="py-32 px-10 lg:px-20 bg-gradient-to-b from-black/70 to-transparent relative overflow-hidden border-t border-white/10"
+            style={{
+              zIndex: 2,
+              backdropFilter: "blur(3px)",
+              WebkitBackdropFilter: "blur(5px)",
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.50) 100%)",
+            }}
+          >
             {/* HEADER LABEL */}
-            <div className="flex justify-between items-end mb-20 border-b border-white/90 pb-10">
-              <h3 className="about-pillars-title text-[11px] uppercase tracking-[0.5em] font-brand-secondary-heavy text-white/90">
+            <div className="flex justify-between items-end mb-20 border-b border-white/60 pb-10">
+              <h3 className="about-pillars-title text-[11px] uppercase tracking-[0.5em] font-brand-secondary-heavy text-white/70">
                 JUDAION CORE PILLARS | 01 — 03
               </h3>
-              <span className="about-pillars-date text-[10px] font-brand-secondary-thin text-white/90 tracking-[0.2em] uppercase">
+              <span className="about-pillars-date text-[10px] font-brand-secondary-thin text-white/90 tracking-[0.5em] uppercase">
                 EST.2025
               </span>
             </div>
@@ -325,20 +366,56 @@ export default function AboutTemplate() {
             {/* THE CONNECTED FLEX CONTAINER */}
             <div className="flex flex-col lg:flex-row items-center justify-between gap-0 relative">
               {/* PILLAR 01 */}
-              <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
-                <img
-                  src="/vision.webp"
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                />
-                <div className="relative z-10 space-y-5">
-                  <h4 className="pillar-item-title text-[70px] tracking-[0.8em] font-brand-other uppercase text-white">
-                    VISION
-                  </h4>
-                  <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
-                    IDENTIFYING THE CORE TRUTH BY HACKING AWAY AT THE
-                    UNESSENTIAL NOISE.
-                  </p>
+              <div
+                className="group w-full lg:w-[30%] flex flex-col gap-3"
+                onMouseMove={(e) => handlePillarMove(e, 0)}
+                onMouseLeave={handlePillarLeave}
+              >
+                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-900 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                  <img
+                    src="/vision.webp"
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
+                  />
+                  {/* SCAN LINES — fade in on hover */}
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
+                        backgroundSize: "100% 12px",
+                      }}
+                    />
+                  </div>
+                  <div className="relative z-10 space-y-5">
+                    <h4 className="pillar-item-title text-[clamp(2rem,3.8vw,5.625rem)] tracking-[0.7em] font-brand-other uppercase text-white">
+                      VISION
+                    </h4>
+                    <p className="text-white/60 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed">
+                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
+                        *{" "}
+                      </span>
+                      Identifying the core truth by hacking away at the
+                      unessential noise.
+                    </p>
+                  </div>
+                </div>
+                {/* Asset label — visible only on hover */}
+                <div
+                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 0 ? "opacity-100" : "opacity-0"}`}
+                >
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white/60">Asset 01</span>{" "}
+                    &nbsp;"VISION"
+                  </span>
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white">X: </span>
+                    <span className="text-white/50">{coords.x} PX</span>
+                    &nbsp;&nbsp;
+                    <span className="text-white">Y: </span>
+                    <span className="text-white/50">{coords.y} PX</span>
+                  </span>
                 </div>
               </div>
 
@@ -350,20 +427,56 @@ export default function AboutTemplate() {
               </div>
 
               {/* PILLAR 02 */}
-              <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
-                <img
-                  src="/structure.webp"
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                />
-                <div className="relative z-10 space-y-80">
-                  <h4 className="pillar-item-title2 text-[70px] tracking-[0.37em] font-brand-other uppercase text-white">
-                    STRUCTURE
-                  </h4>
-                  <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
-                    ENGINEERING A RIGID FRAMEWORK DESIGNED TO WITHSTAND THE
-                    PRESSURE OF TRENDS.
-                  </p>
+              <div
+                className="group w-full lg:w-[30%] flex flex-col gap-3"
+                onMouseMove={(e) => handlePillarMove(e, 1)}
+                onMouseLeave={handlePillarLeave}
+              >
+                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                  <img
+                    src="/structure.webp"
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
+                  />
+                  {/* SCAN LINES — fade in on hover */}
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
+                        backgroundSize: "100% 12px",
+                      }}
+                    />
+                  </div>
+                  <div className="relative z-10 space-y-80">
+                    <h4 className="pillar-item-title2 text-[clamp(2rem,3.8vw,5.625rem)] tracking-[0.3em] font-brand-other uppercase text-white">
+                      STRUCTURE
+                    </h4>
+                    <p className="text-white/75 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed">
+                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
+                        *{" "}
+                      </span>
+                      Engineering a rigid framework designed to withstand the
+                      pressure of trends.
+                    </p>
+                  </div>
+                </div>
+                {/* Asset label — visible only on hover */}
+                <div
+                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 1 ? "opacity-100" : "opacity-0"}`}
+                >
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white/60">Asset 02</span>{" "}
+                    &nbsp;"STRUCTURE"
+                  </span>
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white">X: </span>
+                    <span className="text-white/50">{coords.x} PX</span>
+                    &nbsp;&nbsp;
+                    <span className="text-white">Y: </span>
+                    <span className="text-white/50">{coords.y} PX</span>
+                  </span>
                 </div>
               </div>
 
@@ -375,20 +488,56 @@ export default function AboutTemplate() {
               </div>
 
               {/* PILLAR 03 */}
-              <div className="w-full lg:w-[30%] group relative border border-white p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black/20 backdrop-blur-sm">
-                <img
-                  src="/identity.webp"
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                />
-                <div className="relative z-10 space-y-4">
-                  <h4 className="pillar-item-title3 text-[70px] tracking-[0.5em] font-brand-other uppercase text-white">
-                    IDENTITY
-                  </h4>
-                  <p className="text-white/80 text-md tracking-[0.04em] font-brand-cn leading-relaxed">
-                    DEPLOYING A MONOCHROME SIGNATURE THAT COMMANDS PERMANENCE IN
-                    A CROWDED LANDSCAPE.
-                  </p>
+              <div
+                className="group w-full lg:w-[30%] flex flex-col gap-3"
+                onMouseMove={(e) => handlePillarMove(e, 2)}
+                onMouseLeave={handlePillarLeave}
+              >
+                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                  <img
+                    src="/identity.webp"
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
+                  />
+                  {/* SCAN LINES — fade in on hover */}
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
+                        backgroundSize: "100% 12px",
+                      }}
+                    />
+                  </div>
+                  <div className="relative z-10 ">
+                    <h4 className="pillar-item-title3 text-[clamp(2rem,3.9vw,5.625rem)] tracking-[0.4em] font-brand-other uppercase text-white">
+                      IDENTITY
+                    </h4>
+                    <p className="text-white/60 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed max-w-[350px]">
+                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
+                        *{" "}
+                      </span>
+                      Deploying a monochromatic signature that commands
+                      permanence in a crowded landscape.
+                    </p>
+                  </div>
+                </div>
+                {/* Asset label — visible only on hover */}
+                <div
+                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 2 ? "opacity-100" : "opacity-0"}`}
+                >
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white/60">Asset 03</span>{" "}
+                    &nbsp;"IDENTITY"
+                  </span>
+                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
+                    <span className="text-white">X: </span>
+                    <span className="text-white/50">{coords.x} PX</span>
+                    &nbsp;&nbsp;
+                    <span className="text-white">Y: </span>
+                    <span className="text-white/50">{coords.y} PX</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -413,21 +562,16 @@ export default function AboutTemplate() {
 
             {/* OVERLAY CONTENT */}
             <div className="absolute inset-0 flex flex-col justify-end pl-12 lg:p-20 pb-24 lg:pb-15">
-              <h2 className="commitment-heading text-white text-4xl lg:text-6xl font-brand-other tracking-[0.4em] uppercase mb-6">
-                <span className="font-brand-med-italic-cn text-orange-600">
-                  *
-                </span>
+              <h2 className="commitment-heading text-white text-[clamp(2rem,3.9vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
                 Where Commitment Meets the Grid
               </h2>
 
               {/* PARAGRAPH TEXT MOVED INSIDE FLEX CONTAINER */}
-              <p className="commitment-body-text max-w-2xl text-left text-white/60 text-sm lg:text-base leading-relaxed tracking-[0.15em] font-brand-cn uppercase">
-                THE RESULT OF PERSONAL DISCIPLINE APPLIED TO DIGITAL PRECISION.
-                WE Don't JUST CREATE LOOKS, WE BUILD{" "}
-                <span className="text-white/90 text-[18] leading-relaxed tracking-[0.12em] font-brand-xbold-italic-cn max-w-xl">
-                  STRUCTURAL IDENTITIES
-                </span>{" "}
-                THAT LAST.
+              <p className="commitment-body-text max-w-2xl text-justify text-white/60 text-[13px] leading-[1.6] tracking-[0em] font-brand-secondary-thin">
+                The result of personal discipline applied to digital precision.
+                WE don't create brands based on aesthetics and trends. We build
+                identities rooted in logic and structure designed to endure. The
+                commitment to permanence is the commitment that lasts.
               </p>
             </div>
 
@@ -453,7 +597,7 @@ export default function AboutTemplate() {
                 {/* LIVE TEXT LABELS */}
                 <div className="flex flex-col">
                   <span className="studio-feed-title text-[11px] tracking-[0.4em] uppercase text-white/90 font-brand-secondary-heavy">
-                    Studio Feed 
+                    Studio Feed
                   </span>
                   <span className="archive-status-tag text-[9px] tracking-[0.2em] text-white/30 uppercase font-brand-secondary-thin">
                     SESSION-LOG: [06/04/25]
@@ -469,7 +613,7 @@ export default function AboutTemplate() {
             <div className="absolute inset-0  bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
             {/* LEFT BLOCK: DYNAMIC IMAGE SWITCH */}
-            <div className="relative z-10 h-[70vh] lg:h-screen border-r border-white/10 overflow-hidden group cursor-pointer">
+            <div className="relative z-10 h-[70vh] lg:h-screen overflow-hidden group cursor-pointer">
               {/* IMAGE 01: INITIAL STATE (Arms Crossed) */}
               <img
                 src="/ZJ-1.webp"
@@ -488,7 +632,7 @@ export default function AboutTemplate() {
             </div>
 
             {/* RIGHT BLOCK: NAME & BIO */}
-            <div className="relative overflow-hidden flex flex-col justify-between p-12 lg:p-32 h-full backdrop-blur-sm bg-cover bg-center bg-no-repeat">
+            <div className="relative overflow-hidden flex flex-col justify-between p-12 lg:p-32 h-full bg-cover bg-center bg-no-repeat rounded-sm border border-white/10">
               <picture>
                 <source srcSet={archiveheaderAvif.src} type="image/avif" />
                 <img
@@ -504,72 +648,61 @@ export default function AboutTemplate() {
                 aria-hidden="true"
               />
 
-              {/* TOP ANCHOR: STATUS & LOGO SPLIT */}
-              <div className="flex flex-row justify-between items-start w-full">
-                {/* TOP LEFT: OPERATIONAL STATUS */}
-                <div className="flex flex-col space-y-2">
-                  <span className="operational-lead text-[10px] tracking-[0.6em] uppercase text-white/30 font-brand-secondary-thin">
-                    Operational Lead
-                  </span>
-                </div>
-
-                {/* TOP RIGHT: BRAND LOGO */}
-                <img
-                  src="/judaion-logo-white.svg"
-                  alt="JUDAION Logo"
-                  className="w-32 lg:w-30 opacity-90"
-                />
-              </div>
-
               {/* CENTER BLOCK: IDENTITY & BIO (Spaced for maximum authority) */}
-              <div className="flex flex-col space-y-12 py-16">
-                <div className="space-y-9">
-                  <h2 className="architect-signature-name text-4xl lg:text-6xl font-brand-xbold-italic-cn uppercase tracking-[0.15em] text-white leading-none">
+              <div className="flex flex-col space-y-20 py-24">
+                <div className="space-y-6">
+                  <h2 className="architect-signature-name text-[clamp(2rem,4.5vw,6.625rem)] font-brand-other uppercase tracking-[0.2em] text-white leading-none">
                     <span className="border-b-2 border-white ">
-                      ZION JUDAH{" "}
-                      <span className="font-brand-cn text-white">PARKER</span>
+                      ZION{" "}
+                      <span className="font-brand-other text-white">
+                        PARKER
+                      </span>
                     </span>
                   </h2>
 
                   {/* ROLE TITLE */}
                   <div className="flex items-center space-x-4">
-                    <span className="architect-signature-title text-[35px] tracking-[0.4em] uppercase text-white/89 font-brand-other">
-                      <span className="font-brand-med-italic-cn text-[25px] text-orange-600">
-                        *
-                      </span>
+                    <span className="architect-signature-title text-[clamp(1.5rem,1.8vw,2.25rem)] tracking-[0.4em] uppercase text-white/89 font-brand-cn italic">
                       Chief Creative Officer
                     </span>
                   </div>
                 </div>
 
-                <p className="text-white/60 text-sm lg:text-base leading-relaxed tracking-[0.13em] font-brand-cn uppercase">
+                <p className="text-white/60 text-sm lg:text-base leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                   Zion Judah Parker is the architect of the JUDAION system. His
                   methodology focuses on Extracting the core Truth of an
                   organisation to build identities backed by Structural Logic.
                   Guided by a philosophy of permanence, he engineers enduring
                   brand foundations for founders who require their visual
-                  presence to operate with{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Absolute Authority.
-                  </span>
+                  presence to operate with absolute authority.
                 </p>
               </div>
 
               {/* BOTTOM ANCHOR: SIGNATURE / INDEX */}
               <div className="pt-8 border-t border-white/20">
-                <span className="operational-lead text-[10px] tracking-[0.3em] uppercase text-white/30 font-brand-secondary-thin">
-                  Protocol: Lead Architect | Framework 5.0
+                <span className="operational-lead text-[10px] tracking-[0.16em] uppercase text-white/30 font-brand-secondary-thin">
+                  JUDAION (Pty) Ltd is a registered studio in the Republic of
+                  South Africa. All rights reserved. &copy; 2025
                 </span>
               </div>
             </div>
           </section>
 
           {/* SECTION 6: THE CALL TO ACTION (FINAL PROTOCOL) */}
-          <section className="about-cta-section h-[70vh] w-full flex flex-col lg:flex-row items-center justify-between px-12 lg:px-32 border-t border-white/10 bg-transparent relative overflow-hidden">
+          <section className="about-cta-section h-[70vh] w-full flex flex-col lg:flex-row items-center justify-between px-12 lg:px-32 border-t border-white/10 bg-transparent relative overflow-hidden"
+                      style={{
+              zIndex: 2,
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(5px)",
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.70) 100%)",
+            }}
+          >
+          
             {/* LEFT: TEXT STACK */}
             <div className="flex flex-col items-start space-y-4">
               <span className="cta-meta-tag text-[10px] uppercase tracking-[1em] text-white/40 font-brand-secondary-thin">
-                NEXT FLOOR | CONTACT US
+                [NEXT FLOOR]
               </span>
               <h2 className="cta-main-title text-4xl lg:text-6xl font-brand-cn tracking-[0.3em] uppercase text-white leading-tight">
                 BUILD YOUR <br />

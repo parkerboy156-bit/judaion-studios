@@ -478,7 +478,7 @@ export default function ArchiveCatalogue() {
               {/* Exit — fixed top left, always visible while scrolling */}
               <button
                 onClick={() => setSelectedProject(null)}
-                className="fixed top-15 left-15 z-[200] flex items-center gap-2 font-brand-bold text-[15px] uppercase tracking-[0.1em] text-white hover:text-white transition-colors duration-200 cursor-pointer"
+                className="fixed top-15 left-15 z-[200] flex items-center gap-2 font-brand-bold text-[18px] uppercase tracking-[0.2em] text-white hover:text-white transition-colors duration-200 cursor-pointer"
               >
                 Exit
                 <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.2em] text-white/50">
@@ -737,7 +737,7 @@ export default function ArchiveCatalogue() {
                       <div className="flex-1 min-w-0">
                         {/* Title */}
                         <h2
-                          className={`font-brand-bold uppercase text-white leading-[0.92] tracking-[0.04em] mb-4 ${isMobile ? "text-[32px]" : "text-[44px] lg:text-[54px]"}`}
+                          className={`font-brand-bold uppercase text-white leading-[0.92] tracking-[0.04em] mb-4 ${isMobile ? "text-[32px]" : "text-[clamp(34px,4.5vw,54px)]"}`}
                         >
                           Project Description
                         </h2>
@@ -747,26 +747,36 @@ export default function ArchiveCatalogue() {
                           <div className="flex-1 h-[1px] bg-white" />
                         </div>
 
+                        {/* Subtitle — THE ARCHITECT style, only renders if set */}
+                        {selectedProject.subtitle && (
+                          <div className="flex items-center gap-4 mb-8">
+                            <div className="flex-1 border-t border-white/20" />
+                            <h4 className="font-brand-secondary-heavy text-[clamp(13px,0.55vw,16px)] uppercase tracking-[0.3em] text-white/90 shrink-0">
+                              {selectedProject.subtitle}
+                            </h4>
+                          </div>
+                        )}
+
                         {/* Description — no scroll cap, flows naturally */}
-                        <p className="font-brand-secondary-thin text-[13px] leading-[1.9] text-white/60 whitespace-pre-wrap tracking-[0em] text-justify">
+                        <p className="font-brand-secondary-thin text-[clamp(12px,0.68vw,14px)] leading-[1.9] text-white/60 whitespace-pre-wrap tracking-[0em] text-justify">
                           {selectedProject.content}
                         </p>
 
                         {/* ── VIEW THE LIVE ASSET ── */}
                         {(selectedProject.instagram_url ||
                           selectedProject.linkedin_url) && (
-                          <div className="mt-8 pt-5 border-t border-white/20 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
+                          <div className="mt-10 pt-5 border-t border-white/20 flex items-center justify-between">
+                            <div className="flex items-center gap-5">
                               {selectedProject.instagram_url && (
                                 <a
                                   href={selectedProject.instagram_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="opacity-80 hover:opacity-100 transition-opacity duration-200"
+                                  className="opacity-70 hover:opacity-100 transition-opacity duration-200"
                                 >
                                   <svg
-                                    width="30"
-                                    height="30"
+                                    width="40"
+                                    height="40"
                                     viewBox="0 0 24 24"
                                     fill="none"
                                     stroke="white"
@@ -798,29 +808,30 @@ export default function ArchiveCatalogue() {
                                   href={selectedProject.linkedin_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="opacity-40 hover:opacity-100 transition-opacity duration-200"
+                                  className="opacity-70 hover:opacity-100 transition-opacity duration-200"
                                 >
                                   <svg
-                                    width="25"
-                                    height="25"
+                                    width="35"
+                                    height="35"
                                     viewBox="0 0 24 24"
                                     fill="white"
                                   >
-                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.２２７ ２４ ２２．２７１V１．７２９C２４．００３ .７７４ ２３．２ ０ ２２．２２２ ０h．００３z" />
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227 0 24 .775 24h22.451C23.2 24 24 23.227 24 22.271V1.729C24.003 .774 23.2 0 22.222 0h.003z" />
                                   </svg>
                                 </a>
                               )}
                             </div>
-                            <span className="font-brand-cn text-[15px]  tracking-[0.1em] text-white/50">
-                              judaion.studios
+                            <span className="font-brand-cn text-[clamp(12px,0.80vw,15px)] uppercase tracking-[0.15em] text-white/50">
+                              ENGAGE LIVE ASSET
                             </span>
                           </div>
+                          
                         )}
                       </div>
 
                       {/* RIGHT — product details panel (Flyerwrk baseline layout) */}
                       <div
-                        className={`shrink-0 ${isMobile ? "w-full" : "w-[400px]"}`}
+                        className={`shrink-0 ${isMobile ? "w-full" : "w-[clamp(300px,21vw,400px)]"}`}
                       >
                         <div
                           className="border border-white/15 p-6 sticky top-8 relative overflow-hidden rounded-sm"
@@ -833,7 +844,7 @@ export default function ArchiveCatalogue() {
                           <div className="absolute inset-0 bg-black/60 pointer-events-none" />
                           <div className="relative z-10">
                             {/* ── HEADER ── */}
-                            <h3 className="font-brand-other text-[16px] uppercase tracking-[0.2em] text-white mb-4">
+                            <h3 className="font-brand-other text-[clamp(13px,0.83vw,16px)] uppercase tracking-[0.2em] text-white mb-4">
                               {selectedProject.title}
                             </h3>
                             <div className="h-px bg-white/15 mb-5" />
@@ -841,41 +852,41 @@ export default function ArchiveCatalogue() {
                             {/* ── METADATA ROWS — label left, value right, no row dividers ── */}
                             <div className="flex flex-col gap-1 mb-5">
                               <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[10px] uppercase tracking-[0.12em] text-white">
+                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
                                   Category
                                 </span>
-                                <span className="font-brand-secondary-thin text-[10px] text-white/55">
+                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
                                   {selectedProject.category}
                                 </span>
                               </div>
                               <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[10px] uppercase tracking-[0.12em] text-white">
+                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
                                   Type
                                 </span>
-                                <span className="font-brand-secondary-thin text-[10px] text-white/55">
+                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
                                   {selectedProject.resource_type}
                                 </span>
                               </div>
                               <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[10px] uppercase tracking-[0.12em] text-white">
+                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
                                   Number of Assets
                                 </span>
-                                <span className="font-brand-secondary-thin text-[10px] text-white/55">
+                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
                                   {Array.isArray(selectedProject.file_url)
                                     ? selectedProject.file_url.length
                                     : 1}
                                 </span>
                               </div>
                               <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[10px] uppercase tracking-[0.12em] text-white">
+                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
                                   Uploaded
                                 </span>
-                                <span className="font-brand-secondary-thin text-[10px] text-white/55">
+                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
                                   {new Date(selectedProject.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                                 </span>
                               </div>
                               <div className="flex justify-between items-start py-1">
-                                <span className="font-brand-bold text-[10px] uppercase tracking-[0.12em] text-white shrink-0">
+                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white shrink-0">
                                   File Type
                                 </span>
                                 <div className="flex flex-col items-end gap-0.5">
@@ -883,7 +894,7 @@ export default function ArchiveCatalogue() {
                                     const urls = Array.isArray(selectedProject.file_url) ? selectedProject.file_url : [selectedProject.file_url];
                                     const exts = [...new Set<string>(urls.map((u: string) => u?.split(".").pop()?.toUpperCase() ?? "").filter(Boolean))];
                                     return exts.map((ext: string) => (
-                                      <span key={ext} className="font-brand-secondary-thin text-[10px] text-white/55">{ext}</span>
+                                      <span key={ext} className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">{ext}</span>
                                     ));
                                   })()}
                                 </div>
@@ -897,8 +908,8 @@ export default function ArchiveCatalogue() {
                             <div className="flex flex-col gap-[10px] mb-6">
                               {["Assets created and pubished by JUDAION (Pty) Ltd", "Vision. Structure. Identity."].map((feat) => (
                                 <div key={feat} className="flex items-center gap-3">
-                                  <span className="font-brand-cn text-[20px] text-orange-600 shrink-0 leading-none">*</span>
-                                  <span className="font-brand-secondary-thin text-[11px] text-white/45 tracking-wide">
+                                  <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600 shrink-0 leading-none">*</span>
+                                  <span className="font-brand-secondary-thin text-[clamp(10px,0.57vw,12px)] text-white/45 tracking-wide">
                                     {feat}
                                   </span>
                                 </div>
@@ -906,7 +917,7 @@ export default function ArchiveCatalogue() {
                             </div>
 
                             {/* — CTA BUTTON — white bg, brand icon left, label centre-left, price right — */}
-                            <button className="w-full flex items-center bg-white text-black px-4 py-[11px] mb-5 cursor-pointer rounded-sm border border-neutral-200">
+                            <button className="w-full flex items-center bg-white text-black px-4 py-[11px] mb-5 rounded-sm border border-neutral-200">
                               {/* Left: Icon and Vertical Separator */}
                               <div className="flex items-center gap-4">
                                 <img
@@ -918,8 +929,8 @@ export default function ArchiveCatalogue() {
                               </div>
 
                               {/* Center-Left: Main Label */}
-                              <span className="font-brand-bold text-[18px] uppercase tracking-[0.12em] ml-4">
-                                Project Archive '26
+                              <span className="font-brand-bold text-[clamp(15px,0.94vw,18px)] uppercase tracking-[0.12em] ml-4">
+                                JDS PROJ. Archive .26
                               </span>
                             </button>
                           </div>
@@ -953,7 +964,7 @@ export default function ArchiveCatalogue() {
                       </div>
 
                       {/* Right — copyright text */}
-                      <p className="relative font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/50 text-right">
+                      <p className="relative font-brand-secondary-thin text-[clamp(8px,0.47vw,9px)] uppercase tracking-[0.25em] text-white/50 text-right">
                         Copyright © {new Date().getFullYear()} Judaion Studios.
                         All Rights Reserved.
                       </p>

@@ -1304,6 +1304,15 @@
   }
 }
 
+/* Pillar block scan-line scroll animation */
+@keyframes scanline-scroll {
+  from { transform: translateY(0px); }
+  to   { transform: translateY(-12px); }
+}
+.pillar-scanlines {
+  animation: scanline-scroll 1.1s linear infinite;
+}
+
 /* Firefox scrollbar styling */
 .desc-scroll {
   scrollbar-width: thin;

@@ -2,7 +2,7 @@ import AboutUsClient from '@/components/AboutUsClient';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Who we are | JUDAION',
+  title: 'The Narrative | JUDAION',
   description: 'Storage assets.',
 };
 

@@ -184,7 +184,7 @@ export default function ServicesHome() {
                     <motion.div
                       animate={{ opacity: active ? 1 : 0 }}
                       transition={{ duration: 0.35 }}
-                      className="absolute inset-0 overflow-hidden pointer-events-none bg-white/[0.10]"
+                      className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.15]"
                     >
                       <motion.div
                         animate={{ y: ["0px", "-12px"] }}

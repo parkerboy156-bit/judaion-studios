@@ -142,7 +142,7 @@ export default function ProjectArchive() {
               <motion.div
                 animate={{ opacity: hitboxHovered ? 1 : 0 }}
                 transition={{ duration: 0.35 }}
-                className="absolute inset-0 overflow-hidden pointer-events-none bg-white/[0.10]"
+                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.12]"
               >
                 <motion.div
                   animate={{ y: ["0px", "-12px"] }}
@@ -150,7 +150,7 @@ export default function ProjectArchive() {
                   className="absolute inset-[-12px]"
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 12px)",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 12px)",
                     backgroundSize: "100% 12px",
                   }}
                 />
@@ -239,7 +239,7 @@ export default function ProjectArchive() {
               </span>
             </div>
           ) : (
-            <div className="absolute top-[68%] left-[73%] flex items-center pointer-events-none">
+            <div className="absolute top-[68%] left-[72%] flex items-center pointer-events-none">
               <span className="text-[11px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
                 CLICK ITEM TO ENTER
               </span>
