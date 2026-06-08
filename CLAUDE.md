@@ -24,9 +24,11 @@
 To maximize code quality and prevent technical debt, you must follow these cognitive rules:
 
 1. **Be an Engineering Peer, Not a Yes-Man:** Do not blindly execute bad, redundant, or unoptimized requests. If a request compromises performance, token-efficiency, scale, or the clean dark-UI aesthetic, **challenge it directly**. Propose a superior alternative.
-2. **Context Interviewing:** If an engineering problem lacks clear criteria, do not assume or guess. Pause and interview the user with short, targeted questions to gather edge cases or functional requirements before writing code.
-3. **Proactive Optimization Checks:** Before delivering code, review it for asset optimization (e.g., proper Next.js image loading, bypassing Vercel body limits via presigned URLs) and token usage[cite: 1].
-4. **Architectural Cohesion:** Ensure components remain modular and semantic. Maintain strict data-flow separation: logic stays in the client shells, while routing/metadata stays in the server pages[cite: 1].
+2. **Feature Interviewing — Required Before Any New Feature:** When the user asks to add a feature, **do not write code immediately**. First, ask short targeted questions to confirm: what it should do, where it should live, and how it should behave on mobile. Only proceed once there is clear alignment.
+3. **Structural Soundness Check:** Before implementing any request, evaluate whether it is structurally sound and practical given the existing architecture. If a request would create technical debt, break existing patterns, conflict with the component hierarchy, or cause layout regressions — say so directly and propose a cleaner alternative. Do not silently implement a bad approach just because it was asked for.
+4. **Mobile-First & Resolution Awareness:** Every UI change must account for the `<1024px` (mobile) breakpoint. Before marking any task complete, mentally verify that the change looks correct and is usable at mobile widths. If a change only makes sense at desktop, flag the mobile behaviour explicitly. Additionally, actively scan touched code for CSS that is brittle at non-standard resolutions — hardcoded `px` heights on fluid containers, fixed widths that will overflow, viewport-unit assumptions that break on ultrawide or small laptop screens, and magic numbers with no responsive fallback. Flag any found, explain why they will break, and suggest the fix (e.g. `min-h` instead of `h`, `clamp()`, `max-w` guards, or responsive Tailwind variants).
+5. **Proactive Optimization Checks:** Before delivering code, review it for asset optimization (e.g., proper Next.js image loading, bypassing Vercel body limits via presigned URLs) and token usage[cite: 1].
+6. **Architectural Cohesion:** Ensure components remain modular and semantic. Maintain strict data-flow separation: logic stays in the client shells, while routing/metadata stays in the server pages[cite: 1].
 
 ---
 
@@ -65,7 +67,7 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
 - **Archive Display Spacing:** Maintain a wide, spread-out layout in the asset browser[cite: 1]. Keep the expanded horizontal spacing/gaps intact[cite: 1].
 - **No Textures/Overlays:** Keep the dark UI clean[cite: 1]. Do not add noise textures or grain effects to the black UI hover overlays[cite: 1].
 - **No Zoom Features:** The asset focus view does not utilize image zooming features or pinch iconography (`pinch-icon.png`)[cite: 1]. Keep the layout structural and clean[cite: 1].
-- **Focus View Panel Layout (`ArchiveClient`):**[cite: 1]
-  - *Left Panel:* Scrollable metadata (tag → title → description), footer with `archive-header.avif` + logo[cite: 1].
-  - *Centre Panel:* Main asset (inline image/video)[cite: 1].
-  - *Right Panel:* `52×52px` thumbnail strip[cite: 1]. Active item gets `border-[1.5px] border-white`; inactive items get `border-white/10`[cite: 1].
+- **Focus View Layout (`ArchiveClient`) — Two-Section Scroll:**
+  - A full-screen overlay (`backdrop-blur + bg-black/88`) with a single scrollable container (`focusScrollRef`) using inertia-lerp scroll.
+  - *Section 1 (sticky, 100vh):* Grain video bg. Fixed Exit button (top-left) and Music toggle (top-right). Main asset centred (image with J-logo loading placeholder, or `<video controls>`). Multi-asset thumbnail strip: `72×72px`, vertical `flex-col` on desktop / horizontal `flex-row` on mobile. Active thumb: `border-[1px] border-white`; inactive: `border-white/10 opacity-60`. Scroll hint bottom-right ("Scroll to Inspect" + animated arrow).
+  - *Section 2 (details, scrolls in below Section 1):* Two-column desktop / stacked mobile. **Left:** "Project Description" heading + divider + `content` body text + optional Instagram/LinkedIn SVG links. **Right (`400px` desktop / full-width mobile):** product-details card with `archive-header.avif` bg and `bg-black/60` overlay — title, metadata rows (Category, Type, Number of Assets, Uploaded, File Type), feature checklist (orange `*` bullet), and CTA button (white bg, `box-icon.png` icon, "Project Archive '26" label). **Footer:** `archive-header.avif` bg, logo left, copyright right.

@@ -646,11 +646,8 @@
 
 /* --- 2. IPHONE 8 (Small Display / 16:9) --- */
 @media (max-width: 375px) and (max-height: 667px) {
-  /* Manually position the Inspect Text/Icon Group */
   .mobile-inspect-fix {
-    top: 65% !important; /* Adjust Y coordinate */
-    left: 63% !important; /* Adjust X coordinate */
-    transform: scale(0.75) !important; /* Scale entire group */
+    transform: scale(0.75) !important;
   }
 
   .mobile-inspect-fix span {
@@ -661,11 +658,8 @@
 
 /* --- 3. IPHONE 11 / LARGE MOBILE (Tall Display) --- */
 @media (min-width: 376px) and (max-height: 900px) {
-  /* Manually position the Inspect Text/Icon Group */
   .mobile-inspect-fix {
-    top: 63% !important; /* Adjust Y coordinate */
-    left: 64% !important; /* Adjust X coordinate */
-    transform: scale(0.9) !important; /* Scale entire group */
+    transform: scale(0.9) !important;
   }
 
   .mobile-inspect-fix span {
@@ -1359,8 +1353,8 @@
 
 /* J logo glitch loader */
 .loader-j {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   animation: jGlitch 1.6s infinite, jGlow 2.4s ease-in-out infinite;
 }
@@ -1393,4 +1387,22 @@
 .loader-text::after {
   content: "loading...";
   animation: loadingDots 1.2s steps(1) infinite;
+}
+@keyframes loadingDotsArchive {
+  0%,20%  { content: "loading project archive.";   }
+  40%     { content: "loading project archive..";  }
+  60%,100%{ content: "loading project archive..."; }
+}
+.loader-text-archive::after {
+  content: "loading project archive...";
+  animation: loadingDotsArchive 1.2s steps(1) infinite;
+}
+@keyframes loadingDotsAuthority {
+  0%,20%  { content: "establishing authority.";   }
+  40%     { content: "establishing authority..";  }
+  60%,100%{ content: "establishing authority..."; }
+}
+.loader-text-authority::after {
+  content: "establishing authority...";
+  animation: loadingDotsAuthority 1.2s steps(1) infinite;
 }

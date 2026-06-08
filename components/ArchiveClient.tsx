@@ -231,7 +231,7 @@ export default function ArchiveCatalogue() {
 
   if (loading)
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black">
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-black">
         <video
           autoPlay
           loop
@@ -244,11 +244,8 @@ export default function ArchiveCatalogue() {
             type="video/mp4"
           />
         </video>
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="font-brand-secondary-thin text-[13px] tracking-[0.7em] uppercase text-white animate-pulse">
-            Loading Project Archive
-          </div>
-        </div>
+        <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80 relative z-10" />
+        <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
       </div>
     );
 
@@ -288,7 +285,7 @@ export default function ArchiveCatalogue() {
 
         {/* ── HEADER ── */}
         <header
-          className="relative bg-black backdrop-blur-sm px-6 lg:px-35 pt-10 pb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sticky top-0 z-30 transition-all duration-500 overflow-hidden shadow-2xl"
+          className="relative bg-black backdrop-blur-sm px-6 lg:px-35 pt-10 pb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sticky top-0 z-30 transition-all duration-500 overflow-hidden shadow-2xl border-b border-white/10"
           style={{
             backgroundImage: "url('/archive-header.avif')",
             backgroundSize: "cover",
@@ -607,7 +604,7 @@ export default function ArchiveCatalogue() {
                         return (
                           <div key={url} className="relative flex items-center justify-center" style={{ maxHeight: isMobile ? "48vh" : "83vh" }}>
                             {imageLoading && (
-                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
                                 <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80" />
                                 <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
                               </div>
@@ -688,14 +685,14 @@ export default function ArchiveCatalogue() {
                   </div>
 
                   {/* Scroll hint — bottom right of section 1 */}
-                  <div className="absolute bottom-5 right-6 flex items-center pointer-events-none">
+                  <div className="absolute bottom-8 right-6 flex items-center pointer-events-none">
                     <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.3em] uppercase text-white/30">
                       [Scroll to Inspect]
                     </span>
                     <motion.img
                       src="/scroll-up.png"
                       alt="Scroll"
-                      className="w-16 h-16 opacity-80"
+                      className="w-20 h-20 opacity-80"
                       animate={{ y: [0, -6, 0] }}
                       transition={{
                         duration: 1.6,

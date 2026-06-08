@@ -105,18 +105,9 @@ export default function IntroLoader({
                 />
               </video>
 
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.span
-                  animate={{ opacity: [0.2, 0.8, 0.2] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="text-[14px] tracking-[0.7em] uppercase text-white font-brand-secondary-thin establishing-authority-mobile"
-                >
-                  Establishing Authority
-                </motion.span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
+                <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80 relative z-10" />
+                <span className="loader-text-authority font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
               </div>
             </motion.div>
           )}
@@ -137,18 +128,18 @@ export default function IntroLoader({
             initial={{ opacity: 0, x: 20 }}
             animate={showNavigation ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 2, ease: "easeOut" }}
-            className="absolute top-12 right-12 z-[1001] flex flex-col items-end group cursor-pointer pointer-events-auto intro-nav-mobile"
+            className="absolute top-12 right-12 z-[1001] flex flex-row-reverse items-center gap-5 group cursor-pointer pointer-events-auto intro-nav-mobile"
             onClick={handleEntry}
           >
             <motion.img
               src="/start-the-tour.webp"
-              className="w-30 h-auto mb-4 opacity-70 group-hover:opacity-100 transition-all duration-700"
+              className="w-30 h-auto opacity-70 group-hover:opacity-100 transition-all duration-700"
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             />
-            <span className="text-[11px] tracking-[0.6em] uppercase text-white/70 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">
-              Begin the Tour
-            </span>
+                    <span className="lg:inline font-brand-secondary-thin text-[10px] tracking-[0.4em] uppercase text-white/50">
+                      [Begin the Tour]
+                    </span>
           </motion.div>
 
           <video

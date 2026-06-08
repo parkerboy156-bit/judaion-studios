@@ -8,6 +8,25 @@ export default function Tier1() {
   const router = useRouter();
   const [isAudioOn, setIsAudioOn] = useState(false);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoverCoords, setHoverCoords] = useState({ x: 0, y: 0 });
+  const [animationDone, setAnimationDone] = useState(false);
+
+  // Offscreen canvas of the foundation asset for per-pixel alpha hit-testing
+  const hitRef = useRef<{ ctx: CanvasRenderingContext2D; w: number; h: number } | null>(null);
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      hitRef.current = { ctx, w: img.naturalWidth, h: img.naturalHeight };
+    };
+    img.src = "/tier1-foundation.webp";
+  }, []);
 
   useEffect(() => {
     const urls = ["/tier1-bg.webp", "/tier1-foundation.webp", "/tier1-ground.webp"];
@@ -34,13 +53,31 @@ export default function Tier1() {
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const r = e.currentTarget.getBoundingClientRect();
-    mouseX.set((e.clientX - r.left) / r.width  * 2 - 1);
-    mouseY.set((e.clientY - r.top)  / r.height * 2 - 1);
+    const W = r.width, H = r.height;
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    mouseX.set(px / W * 2 - 1);
+    mouseY.set(py / H * 2 - 1);
+    setHoverCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
+
+    // Per-pixel hit-test against the foundation asset's alpha channel.
+    const hit = hitRef.current;
+    if (!hit) { setIsHovered(false); return; }
+    // Undo the layer transform: scale(1.05) about centre + parallax translate.
+    const scale = 1.05, cx = W / 2, cy = H / 2;
+    const lx = cx + (px - cx - foundX.get()) / scale;
+    const ly = cy + (py - cy - foundY.get()) / scale;
+    // Undo object-cover / object-left to reach natural pixel coords.
+    const s = Math.max(W / hit.w, H / hit.h);
+    const ix = lx / s;                       // object-left → no x offset
+    const iy = (ly - (H - hit.h * s) / 2) / s; // vertical centre
+    if (ix < 0 || iy < 0 || ix >= hit.w || iy >= hit.h) { setIsHovered(false); return; }
+    const alpha = hit.ctx.getImageData(ix, iy, 1, 1).data[3];
+    setIsHovered(alpha > 10);
   }
-  function handleMouseLeave() { mouseX.set(0); mouseY.set(0); }
+  function handleMouseLeave() { mouseX.set(0); mouseY.set(0); setIsHovered(false); }
 
   useEffect(() => {
-    const audio = new Audio("/audio/archive-bg-music.mp3");
+    const audio = new Audio("/audio/t1-bg.mp3");
     audio.loop = true;
     audio.volume = 0;
     audioRef.current = audio;
@@ -105,7 +142,7 @@ export default function Tier1() {
     {
       what: "LOGOS",
       details: [
-        "– Primary Logo: The main brand mark that governs brand. Will be used for general use across website, signage etc.",
+        "– Primary Logo: The main brand mark that governs the brand. Will be used for general use across website, signage etc.",
         "– Secondary / Alternative logo: A horizontal or stacked version for spaces where the primary logo doesn't fit (e.g., narrow navigation bars or business cards)",
         "– Brand Icon : A simplified version (favicon, social media profile picture) that remains legible at tiny sizes.",
       ],
@@ -164,7 +201,7 @@ export default function Tier1() {
           </div>
 
           {/* 0b. LEFT COLUMN BACKDROP — black blur over global bg */}
-          <div className="absolute inset-0 z-[1] pointer-events-none bg-black/60" />
+          <div className="absolute inset-0 z-[1] pointer-events-none bg-black/40" />
 
           {/* 1. TOP TEXT TITLE — archive-header banner, flush to top & sides */}
           <motion.div
@@ -322,6 +359,7 @@ export default function Tier1() {
 
         <div
           className="relative w-full lg:w-[52%] h-[60vh] lg:h-full overflow-hidden bg-[#080808]"
+          style={{ cursor: isHovered ? "pointer" : "default" }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -334,17 +372,58 @@ export default function Tier1() {
 
           {/* LAYER 10: FOUNDATION ASSET — entry animation + parallax */}
           <motion.div
-            className="absolute inset-0 z-10 select-none pointer-events-none"
+            className="absolute inset-0 z-10 select-none pointer-events-none overflow-hidden"
             style={{ x: foundX, y: foundY, scale: 1.05 }}
           >
             <motion.img
               initial={{ y: "100%", opacity: 0 }}
               animate={assetsLoaded ? { y: 0, opacity: 1 } : { y: "100%", opacity: 0 }}
               transition={{ duration: 3.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => { if (assetsLoaded) setAnimationDone(true); }}
               src="/tier1-foundation.webp"
               alt="Foundation Asset"
               className="absolute inset-0 w-full h-full object-cover object-left"
             />
+
+            {/* X/Y COORDINATE DISPLAY — top-right corner of the foundation asset */}
+            <motion.div
+              animate={{ opacity: isHovered && animationDone ? 1 : 0, x: isHovered && animationDone ? 0 : 4 }}
+              transition={{ duration: 0.35, ease: "easeOut", delay: isHovered ? 0.1 : 0 }}
+              className="absolute top-[62%] right-[10%] z-10 pointer-events-none flex flex-col gap-[4px] items-end"
+            >
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">X: </span><span className="text-white/50">{hoverCoords.x} PX</span>
+              </span>
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">Y: </span><span className="text-white/50">{hoverCoords.y} PX</span>
+              </span>
+            </motion.div>
+
+            {/* SCAN LINES — masked to foundation asset shape, fade in on hover (after entry animation) */}
+            <motion.div
+              animate={{ opacity: isHovered && animationDone ? 1 : 0 }}
+              transition={{ duration: 0.35 }}
+              className="absolute inset-0 overflow-hidden"
+              style={{
+                maskImage: "url('/tier1-foundation.webp')",
+                maskSize: "cover",
+                maskPosition: "left center",
+                WebkitMaskImage: "url('/tier1-foundation.webp')",
+                WebkitMaskSize: "cover",
+                WebkitMaskPosition: "left center",
+              }}
+            >
+              <motion.div
+                animate={{ y: ["0px", "-12px"] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[-12px] bg-white/[0.05]"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
+                  backgroundSize: "100% 12px",
+                }}
+              />
+            </motion.div>
           </motion.div>
 
           {/* LAYER 20: GROUND OVERLAY — static */}

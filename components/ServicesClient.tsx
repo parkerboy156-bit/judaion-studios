@@ -4,7 +4,6 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import Link from "next/link";
 import servicesBgAvif from "@/public/service-home-bg.avif";
-import servicesBgPng from "@/public/service-home-bg.webp";
 
 export default function ServicesHome() {
   // MOUSE PARALLAX LOGIC (PRESERVED)
@@ -21,12 +20,54 @@ export default function ServicesHome() {
     y.set(e.clientY);
   };
 
-  // Paths preserved for the invisible hitboxes (PRESERVED)
-  const serviceTiers = [
-    { id: "01", path: "/tier-1" },
-    { id: "02", path: "/tier-2" },
-    { id: "03", path: "/tier-3" },
+  // ─────────────────────────────────────────────
+  // HITBOX TUNING — position/size as % of the background layer so they
+  // track the image and don't drift across screen sizes. Adjust freely.
+  // ─────────────────────────────────────────────
+  const HITBOXES = [
+    {
+      path: "/tier-1",
+      tag: "ASSET 1",
+      name: "FOUNDATION",
+      top: "18.5%",
+      left: "11%",
+      width: "23.4%",
+      height: "65.5%",
+      rotate: "0deg",
+    },
+    {
+      path: "/tier-2",
+      tag: "ASSET",
+      name: "FRONT-DOOR",
+      top: "18.5%",
+      left: "38.5%",
+      width: "23.5%",
+      height: "65.5%",
+      rotate: "0deg",
+    },
+    {
+      path: "/tier-3",
+      tag: "ASSET",
+      name: "ARCHITECTURE",
+      top: "18.5%",
+      left: "65.9%",
+      width: "23.7%",
+      height: "65.5%",
+      rotate: "0deg",
+    },
   ];
+
+  // Selection-box hover visuals (shared across all hitboxes)
+  const SELECTION = {
+    lineOpacity: 0.65,
+    handleSize: 7.5,
+    lineDuration: 0.4,
+    cornerDelay: 0.35,
+    cornerDuration: 0.18,
+  };
+
+  const [hoveredBox, setHoveredBox] = React.useState<string | null>(null);
+  const [hoverCoords, setHoverCoords] = React.useState({ x: 0, y: 0 });
 
   const [isMobile, setIsMobile] = React.useState(false);
 
@@ -54,105 +95,245 @@ export default function ServicesHome() {
       />
       <div
         onMouseMove={handleMouseMove}
-        className={`relative h-screen bg-[#0a0a0a] select-none ${
+        className={`relative h-screen bg-black select-none ${
           isMobile ? "overflow-x-auto overflow-y-hidden" : "overflow-hidden"
         }`}
       >
         <motion.section
-          className={`relative h-screen bg-[#0a0a0a] overflow-hidden flex-shrink-0 ${
+          className={`relative h-screen bg-black overflow-hidden flex-shrink-0 ${
             isMobile ? "w-[300vw]" : "w-full"
           }`}
         >
-          {/* --- PARALLAX BACKGROUND LAYER (PRESERVED) --- */}
+          {/*
+            PARALLAX BACKGROUND LAYER — archive-style background-image setup.
+            Desktop: background-size cover + scale(1.05) buffer + x/y parallax translate.
+            Mobile: min-w-[300vw] div, background-size auto 100% to preserve full image width (native scroll).
+          */}
           <motion.div
-            // Add drag properties only when isMobile is true
-            drag={isMobile ? "x" : false}
-            dragConstraints={{
-              left:
-                typeof window !== "undefined" ? -window.innerWidth * 2 : -2000,
-              right: 0,
-            }}
-            dragElastic={0.05}
-            // Existing parallax styles remain for desktop compatibility
-            style={{ x: bgMoveX, y: bgMoveY }}
-            className="absolute inset-0 w-full h-full pointer-events-none origin-center"
+            style={
+              isMobile
+                ? {
+                    backgroundImage: `url(${servicesBgAvif.src})`,
+                    backgroundSize: "auto 100%",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "left center",
+                  }
+                : {
+                    x: bgMoveX,
+                    y: bgMoveY,
+                    scale: 1.05,
+                    backgroundImage: `url(${servicesBgAvif.src})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    opacity: 0.95,
+                  }
+            }
+            className={`${isMobile ? "absolute top-0 left-0 min-w-[300vw] h-full" : "absolute inset-0"} origin-center`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isMobile ? 1 : 0.95 }}
+            transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
           >
-            <picture>
-              {/* Primary: Modern High-Quality AVIF */}
-              <source srcSet={servicesBgAvif.src} type="image/avif" />
-
-              {/* Fallback: Universal PNG */}
-              <img
-                src={servicesBgPng.src}
-                alt="JUDAION Service Tiers"
-                className="w-full h-full object-cover scale-102"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                }}
-                fetchPriority="high"
-              />
-            </picture>
-
             {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
             <div
-              className={`absolute top-[06%] left-1/2 -translate-x-1/2 flex items-center space-x-6 opacity-80 ${isMobile ? "mobile-inspect-fix-services" : ""}`}
+              className={`absolute top-[08%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
             >
+              <span className="text-[15px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
+                {isMobile
+                  ? "SERVICES ONLY VIEWABLE ON DESKTOP"
+                  : "CLICK ITEMS TO ENTER"}
+              </span>
               {!isMobile && (
                 <img
                   src="/right-click.png"
                   alt="Inspect Icon"
-                  className="w-17 h-auto filter brightness-110"
+                  className="w-14 h-auto filter brightness-110"
                 />
               )}
-
-              <span className="text-[15px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile
-                  ? "SERVICES ONLY VIEWABLE ON DESKTOP"
-                  : "CLICK ITEMS TO INSPECT"}
-              </span>
             </div>
 
-            {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
-            <div
-              className={
-                isMobile
-                  ? "fixed inset-x-0 z-50 collector-footer-mobile"
-                  : "absolute top-[86%] left-[11%] flex items-center space-x-6 opacity-80"
-              }
-            >
-              <span className="text-[13px] tracking-[0.4em] uppercase text-white/68 font-brand-secondary-thin whitespace-nowrap opacity-0">
-                Read{" "}
-                <span className="text-[13px] tracking-[0.4em] uppercase text-white font-brand-secondary-heavy italic whitespace-nowrap">
-                  <span className="text-[13px] tracking-[0.4em] uppercase text-orange-600 font-brand-secondary-heavy italic whitespace-nowrap">
-                    *
-                  </span>
-                  Collector Assets{" "}
-                </span>{" "}
-                for all tiers in the JDS{" "}
-                <span className="text-[13px] tracking-[0.4em] uppercase text-white font-brand-secondary-heavy italic whitespace-nowrap">
-                  "Project archive" {" "}
-                </span>{" "}
-                 | Next floor
-              </span>
-            </div>
+            {/* --- HIT BOXES with selection-box hover effect — %-positioned children of bg layer (DESKTOP ONLY) --- */}
+            {!isMobile &&
+              HITBOXES.map((box) => {
+                const active = hoveredBox === box.path;
+                return (
+                  <div
+                    key={box.path}
+                    className="absolute z-20 pointer-events-auto"
+                    style={{
+                      top: box.top,
+                      left: box.left,
+                      width: box.width,
+                      height: box.height,
+                      transform: `rotate(${box.rotate})`,
+                    }}
+                    onMouseEnter={() => setHoveredBox(box.path)}
+                    onMouseLeave={() => setHoveredBox(null)}
+                    onMouseMove={(e) =>
+                      setHoverCoords({
+                        x: Math.round(e.clientX),
+                        y: Math.round(e.clientY),
+                      })
+                    }
+                  >
+                    <Link
+                      href={box.path}
+                      className="absolute inset-0 cursor-pointer"
+                    />
+
+                    {/* Scan lines — fade in on hover, scroll upward continuously */}
+                    <motion.div
+                      animate={{ opacity: active ? 1 : 0 }}
+                      transition={{ duration: 0.35 }}
+                      className="absolute inset-0 overflow-hidden pointer-events-none bg-white/[0.10]"
+                    >
+                      <motion.div
+                        animate={{ y: ["0px", "-12px"] }}
+                        transition={{
+                          duration: 1.1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="absolute inset-[-12px]"
+                        style={{
+                          backgroundImage:
+                            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
+                          backgroundSize: "100% 12px",
+                        }}
+                      />
+                    </motion.div>
+
+                    {/* Edge lines */}
+                    <motion.div
+                      animate={{ scaleX: active ? 1 : 0 }}
+                      transition={{
+                        duration: SELECTION.lineDuration,
+                        ease: "easeOut",
+                      }}
+                      className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+                      style={{
+                        transformOrigin: "center",
+                        backgroundColor: `rgba(255,255,255,${SELECTION.lineOpacity})`,
+                      }}
+                    />
+                    <motion.div
+                      animate={{ scaleX: active ? 1 : 0 }}
+                      transition={{
+                        duration: SELECTION.lineDuration,
+                        ease: "easeOut",
+                      }}
+                      className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+                      style={{
+                        transformOrigin: "center",
+                        backgroundColor: `rgba(255,255,255,${SELECTION.lineOpacity})`,
+                      }}
+                    />
+                    <motion.div
+                      animate={{ scaleY: active ? 1 : 0 }}
+                      transition={{
+                        duration: SELECTION.lineDuration,
+                        ease: "easeOut",
+                      }}
+                      className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
+                      style={{
+                        transformOrigin: "center",
+                        backgroundColor: `rgba(255,255,255,${SELECTION.lineOpacity})`,
+                      }}
+                    />
+                    <motion.div
+                      animate={{ scaleY: active ? 1 : 0 }}
+                      transition={{
+                        duration: SELECTION.lineDuration,
+                        ease: "easeOut",
+                      }}
+                      className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
+                      style={{
+                        transformOrigin: "center",
+                        backgroundColor: `rgba(255,255,255,${SELECTION.lineOpacity})`,
+                      }}
+                    />
+
+                    {/* Corner handles — centered on each corner intersection */}
+                    {(
+                      [
+                        {
+                          top: -SELECTION.handleSize / 2,
+                          left: -SELECTION.handleSize / 2,
+                        },
+                        {
+                          top: -SELECTION.handleSize / 2,
+                          right: -SELECTION.handleSize / 2,
+                        },
+                        {
+                          bottom: -SELECTION.handleSize / 2,
+                          left: -SELECTION.handleSize / 2,
+                        },
+                        {
+                          bottom: -SELECTION.handleSize / 2,
+                          right: -SELECTION.handleSize / 2,
+                        },
+                      ] as React.CSSProperties[]
+                    ).map((pos, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{ opacity: active ? 1 : 0 }}
+                        transition={{
+                          duration: SELECTION.cornerDuration,
+                          delay: active ? SELECTION.cornerDelay : 0,
+                        }}
+                        className="absolute bg-white pointer-events-none"
+                        style={{
+                          width: SELECTION.handleSize,
+                          height: SELECTION.handleSize,
+                          ...pos,
+                        }}
+                      />
+                    ))}
+
+                    {/* Right-side X/Y coordinate display */}
+                    <motion.div
+                      animate={{ opacity: active ? 1 : 0, x: active ? 0 : -4 }}
+                      transition={{
+                        duration: 0.35,
+                        ease: "easeOut",
+                        delay: active ? 0.1 : 0,
+                      }}
+                      className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
+                      style={{ left: "calc(100% + 10px)" }}
+                    >
+                      <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                        <span className="text-white">X: </span>
+                        <span className="text-white/50">
+                          {hoverCoords.x} PX
+                        </span>
+                      </span>
+                      <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                        <span className="text-white">Y: </span>
+                        <span className="text-white/50">
+                          {hoverCoords.y} PX
+                        </span>
+                      </span>
+                    </motion.div>
+
+                    {/* Below-hitbox description label */}
+                    <motion.div
+                      animate={{ opacity: active ? 1 : 0, y: active ? 0 : 4 }}
+                      transition={{
+                        duration: 0.35,
+                        ease: "easeOut",
+                        delay: active ? 0.15 : 0,
+                      }}
+                      className="absolute left-0 right-0 pointer-events-none"
+                      style={{ top: "calc(100% + 8px)" }}
+                    >
+                      <span className="font-brand-cn text-[10px] uppercase tracking-[0.2em] text-white">
+                        {box.tag}:
+                        <span className="text-white/50"> "{box.name}"</span>
+                      </span>
+                    </motion.div>
+                  </div>
+                );
+              })}
           </motion.div>
-
-          {/* --- INVISIBLE CLICKABLE HIT BOXES (DESKTOP ONLY) --- */}
-          {!isMobile && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center px-20">
-              <div className="w-full max-w-[1400px] h-[650px] flex justify-between relative">
-                {serviceTiers.map((tier, index) => (
-                  <Link
-                    key={`${tier.id}-hitbox`}
-                    href={`/tier-${index + 1}`}
-                    className="cursor-pointer block w-[30%] h-full"
-                  ></Link>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* --- FLOOR NAVIGATION (PRESERVED) --- */}
 

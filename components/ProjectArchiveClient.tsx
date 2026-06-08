@@ -5,10 +5,39 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import projectArchiveBgAvif from "@/public/project-archive-home-bg.avif";
-import projectArchiveBgPng from "@/public/project-archive-home-bg.webp";
+
+// ─────────────────────────────────────────────
+// HITBOX TUNING — adjust these values freely
+// ─────────────────────────────────────────────
+const HITBOX = {
+  // Position (% of the background container)
+  top:    "15%",
+  left:   "64%",
+
+  // Size (% of the background container)
+  width:  "23.7%",
+  height: "50%",
+
+  // Rotation — positive = clockwise, negative = counter-clockwise
+  rotate: "-4deg",
+
+  // Selection box line opacity (0–1)
+  lineOpacity: 0.65,
+
+  // Corner handle size in px
+  handleSize: 7.5,
+
+  // Animation speed (seconds)
+  lineDuration:   0.4,
+  cornerDelay:    0.35,
+  cornerDuration: 0.18,
+};
+// ─────────────────────────────────────────────
 
 export default function ProjectArchive() {
   const [isMobile, setIsMobile] = useState(false);
+  const [hitboxHovered, setHitboxHovered] = useState(false);
+  const [hoverCoords, setHoverCoords] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -23,19 +52,17 @@ export default function ProjectArchive() {
   const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
   const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
 
-  // Match these percentages exactly across all moving parts
   const bgMoveX = useTransform(mouseX, [0, 1920], ["1.5%", "-1.5%"]);
   const bgMoveY = useTransform(mouseY, [0, 1080], ["1.5%", "-1.5%"]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isMobile) return; // KILL PARALLAX ON MOBILE
+    if (isMobile) return;
     x.set(e.clientX);
     y.set(e.clientY);
   };
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -44,80 +71,187 @@ export default function ProjectArchive() {
           position: "fixed",
           inset: 0,
           backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
+          zIndex: 999,
           pointerEvents: "none",
         }}
       />
       <div
         onMouseMove={handleMouseMove}
-        /* Change: display block ensures the 300vw content forces a scrollbar */
-        className={`relative w-full h-screen bg-[#0a0a0a] ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
+        className={`relative w-full h-screen h-[100dvh] bg-black ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
       >
-        {/* BACKGROUND LAYER */}
-        <picture>
-          {/* Primary Choice: AVIF */}
-          <source srcSet={projectArchiveBgAvif.src} type="image/avif" />
-
-          {/* Fallback & Animated Element */}
-          <motion.img
-            src={projectArchiveBgPng.src}
-            alt="Project Archive Portal"
-            style={
-              isMobile
-                ? { x: 0, y: 0, scale: 1 }
-                : { x: bgMoveX, y: bgMoveY, scale: 1.4 }
-            }
-            className={`${
-              isMobile
-                ? "min-w-[300vw] h-full object-cover"
-                : "absolute inset-0 w-full h-full object-contain opacity-95 pointer-events-none"
-            }`}
-          />
-        </picture>
-
-        {/* --- THE PINNED WRAPPER --- */}
-        {/* This container moves exactly like the image, effectively "carrying" the icons with it */}
+        {/*
+          BACKGROUND + HITBOX — single motion.div carries both.
+          Desktop: background-size cover + scale(1.05) for parallax buffer + x/y translate.
+          Mobile: 300vw wide div, background-size auto 100% to preserve full image width.
+        */}
         <motion.div
-          style={isMobile ? { x: 0, y: 0 } : { x: bgMoveX, y: bgMoveY }}
-          /* Change: Wrapper is now 300vw and absolute to the scrollable area */
-          className={`${isMobile ? "absolute top-0 left-0 min-w-[300vw] h-full pointer-events-none" : "absolute inset-0 pointer-events-none"}`}
+          style={
+            isMobile
+              ? {
+                  backgroundImage: `url(${projectArchiveBgAvif.src})`,
+                  backgroundSize: "auto 100%",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "left center",
+                }
+              : {
+                  x: bgMoveX,
+                  y: bgMoveY,
+                  scale: 1.05,
+                  backgroundImage: `url(${projectArchiveBgAvif.src})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  opacity: 0.95,
+                }
+          }
+          className={`${isMobile ? "absolute top-0 left-0 min-w-[300vw] h-full" : "absolute inset-0"}`}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: isMobile ? 1 : 0.95 }}
           transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
         >
-          {/* HITBOX: Coordinates (top-[15%] left-[65%]) remain identical */}
-          <Link
-            href="/archivecatalogue"
-            className="absolute z-50 w-[24%] h-[45%] top-[15%] left-[65%] cursor-pointer pointer-events-auto"
-          />
-
-          {/* INSPECT INSTRUCTION (Pinned to specific coordinates on the graphic) */}
-          <div
-            className={`absolute top-[69%] left-[67%] flex items-center space-x-3 opacity-100 ${isMobile ? "mobile-inspect-fix" : ""}`}
-          >
-            {/* Conditional Icon Swap */}
-            <img
-              src={isMobile ? "/tap-icon.png" : "/right-click.png"}
-              alt="Inspect Icon"
-              className={
-                isMobile
-                  ? "w-12 h-auto filter brightness-110"
-                  : "w-17 h-auto filter brightness-110"
-              }
+          {/* HITBOX */}
+          {isMobile ? (
+            <Link
+              href="/archivecatalogue"
+              style={{ top: HITBOX.top, left: HITBOX.left, width: HITBOX.width, height: HITBOX.height }}
+              className="absolute z-50 cursor-pointer"
             />
+          ) : (
+            <div
+              className="absolute z-50"
+              style={{
+                top: HITBOX.top,
+                left: HITBOX.left,
+                width: HITBOX.width,
+                height: HITBOX.height,
+                transform: `rotate(${HITBOX.rotate})`,
+              }}
+              onMouseEnter={() => setHitboxHovered(true)}
+              onMouseLeave={() => setHitboxHovered(false)}
+              onMouseMove={(e) => { setHoverCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) }); }}
+            >
+              <Link href="/archivecatalogue" className="absolute inset-0 cursor-pointer" />
 
-            {/* Conditional Text Swap */}
-            <span className="text-[13px] tracking-[0.7em] uppercase text-white font-brand-secondary-heavy whitespace-nowrap">
-              {isMobile ? "TAP ITEM TO INSPECT" : "CLICK ITEM TO INSPECT"}
-            </span>
-          </div>
+              {/* Faint fill on hover */}
+              <motion.div
+                animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-0  pointer-events-none"
+              />
+
+              {/* Scan lines — fade in on hover, scroll upward continuously */}
+              <motion.div
+                animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: 0.35 }}
+                className="absolute inset-0 overflow-hidden pointer-events-none bg-white/[0.10]"
+              >
+                <motion.div
+                  animate={{ y: ["0px", "-12px"] }}
+                  transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-[-12px]"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 12px)",
+                    backgroundSize: "100% 12px",
+                  }}
+                />
+              </motion.div>
+
+              {/* Top line */}
+              <motion.div
+                animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
+                className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+                style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
+              />
+              {/* Bottom line */}
+              <motion.div
+                animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
+                className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+                style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
+              />
+              {/* Left line */}
+              <motion.div
+                animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
+                className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
+                style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
+              />
+              {/* Right line */}
+              <motion.div
+                animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
+                className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
+                style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
+              />
+
+              {/* Corner handles — centered on each corner intersection */}
+              {([
+                { top: -HITBOX.handleSize / 2, left: -HITBOX.handleSize / 2 },
+                { top: -HITBOX.handleSize / 2, right: -HITBOX.handleSize / 2 },
+                { bottom: -HITBOX.handleSize / 2, left: -HITBOX.handleSize / 2 },
+                { bottom: -HITBOX.handleSize / 2, right: -HITBOX.handleSize / 2 },
+              ] as React.CSSProperties[]).map((pos, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                  transition={{ duration: HITBOX.cornerDuration, delay: hitboxHovered ? HITBOX.cornerDelay : 0 }}
+                  className="absolute bg-white pointer-events-none"
+                  style={{ width: HITBOX.handleSize, height: HITBOX.handleSize, ...pos }}
+                />
+              ))}
+
+              {/* Right-side X/Y coordinate display */}
+              <motion.div
+                animate={{ opacity: hitboxHovered ? 1 : 0, x: hitboxHovered ? 0 : -4 }}
+                transition={{ duration: 0.35, ease: "easeOut", delay: hitboxHovered ? 0.1 : 0 }}
+                className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
+                style={{ left: "calc(100% + 10px)" }}
+              >
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                  <span className="text-white">X: </span><span className="text-white/50">{hoverCoords.x} PX</span>
+                </span>
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                  <span className="text-white">Y: </span><span className="text-white/50">{hoverCoords.y} PX</span>
+                </span>
+              </motion.div>
+
+              {/* Below-hitbox description label */}
+              <motion.div
+                animate={{ opacity: hitboxHovered ? 1 : 0, y: hitboxHovered ? 0 : 4 }}
+                transition={{ duration: 0.35, ease: "easeOut", delay: hitboxHovered ? 0.15 : 0 }}
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{ top: "calc(100% + 8px)" }}
+              >
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.2em] text-white">
+                  ASSET 2:<span className="text-white/50"> "ARCHIVE CATALOUGE"</span>
+                </span>
+              </motion.div>
+            </div>
+          )}
+
+          {/* INSPECT INSTRUCTION */}
+          {isMobile ? (
+            <div className="absolute top-[69%] left-[67%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
+              <img src="/tap-icon.png" alt="Tap Icon" className="w-12 h-auto filter brightness-110" />
+              <span className="text-[13px] tracking-[0.7em] uppercase text-white font-brand-secondary-heavy whitespace-nowrap">
+                TAP ITEM TO INSPECT
+              </span>
+            </div>
+          ) : (
+            <div className="absolute top-[68%] left-[73%] flex items-center pointer-events-none">
+              <span className="text-[11px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
+                CLICK ITEM TO ENTER
+              </span>
+              <img src="/right-click.png" alt="Inspect Icon" className="w-14 h-auto filter brightness-110" />
+            </div>
+          )}
         </motion.div>
 
-        {/* --- MOBILE NAVIGATION (Pinned to far left/right of the 300vw world) --- */}
+        {/* --- MOBILE NAVIGATION --- */}
         {isMobile && (
           <div className="absolute top-0 left-0 w-[300vw] h-full pointer-events-none">
             <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 m-4 z-20" />
-            {/* PREVIOUS FLOOR: Pinned to the start of the 300vw image */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -132,11 +266,7 @@ export default function ProjectArchive() {
                   src="/last-floor-straight.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <div className="flex flex-col items-start font-brand-secondary-thin">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
@@ -149,7 +279,6 @@ export default function ProjectArchive() {
               </Link>
             </motion.div>
 
-            {/* NEXT FLOOR: Pinned to the far end of the 300vw image */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -164,11 +293,7 @@ export default function ProjectArchive() {
                   src="/next-floor.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <div className="flex flex-col items-end font-secondary-thin text-right">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
@@ -183,7 +308,7 @@ export default function ProjectArchive() {
           </div>
         )}
 
-        {/* --- DESKTOP NAVIGATION (Fixed to viewport corners) --- */}
+        {/* --- DESKTOP NAVIGATION --- */}
         {!isMobile && (
           <>
             <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 m-4 z-20" />
@@ -201,11 +326,7 @@ export default function ProjectArchive() {
                   src="/last-floor-straight.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <div className="flex flex-col items-start font-brand-secondary-thin">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
@@ -232,11 +353,7 @@ export default function ProjectArchive() {
                   src="/next-floor.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <div className="flex flex-col items-end font-secondary-thin text-right">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
@@ -251,6 +368,7 @@ export default function ProjectArchive() {
           </>
         )}
       </div>
+
     </main>
   );
 }

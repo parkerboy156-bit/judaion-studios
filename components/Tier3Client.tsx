@@ -4,10 +4,39 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+// Hover/scan-line target fragments (everything except the static bg + environment)
+const HOVER_SRCS = [
+  "/tier3-black-back-left.webp", "/tier3-black-back-right.webp",
+  "/tier3-left-wall.webp", "/tier3-right-wall.webp", "/tier3-top.webp",
+  "/tier3-top-left-chunk.webp", "/tier3-top-right-chunk.webp",
+];
+
 export default function Tier3() {
   const router = useRouter();
   const [isAudioOn, setIsAudioOn] = useState(false);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoverCoords, setHoverCoords] = useState({ x: 0, y: 0 });
+  const [animationDone, setAnimationDone] = useState(false);
+  const [activeAsset, setActiveAsset] = useState<string | null>(null);
+
+  // Offscreen canvases of each fragment for per-pixel alpha hit-testing
+  const hitsRef = useRef<Record<string, { ctx: CanvasRenderingContext2D; w: number; h: number }>>({});
+  useEffect(() => {
+    HOVER_SRCS.forEach((src) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        hitsRef.current[src] = { ctx, w: img.naturalWidth, h: img.naturalHeight };
+      };
+      img.src = src;
+    });
+  }, []);
 
   useEffect(() => {
     const urls = [
@@ -59,15 +88,56 @@ export default function Tier3() {
   const chunkRX = useTransform(sX, [-1, 1], [-9,  9]);
   const chunkRY = useTransform(sY, [-1, 1], [-17, 17]);
 
+  // Fragments ordered topmost-first (highest z) so overlaps resolve to the visible one.
+  // Each carries its own scale + parallax motion values to invert the layer transform.
+  const HIT_LAYERS = [
+    { src: "/tier3-top-left-chunk.webp",  scale: 1.06, x: chunkLX, y: chunkLY }, // z-40
+    { src: "/tier3-top-right-chunk.webp", scale: 1.06, x: chunkRX, y: chunkRY }, // z-40
+    { src: "/tier3-top.webp",             scale: 1.05, x: topX,    y: topY },    // z-30
+    { src: "/tier3-left-wall.webp",       scale: 1.05, x: wallLX,  y: wallLY },  // z-20
+    { src: "/tier3-right-wall.webp",      scale: 1.05, x: wallRX,  y: wallRY },  // z-20
+    { src: "/tier3-black-back-left.webp", scale: 1.04, x: backLX,  y: backLY },  // z-10
+    { src: "/tier3-black-back-right.webp",scale: 1.04, x: backRX,  y: backRY },  // z-10
+  ];
+
+  function hitLayer(
+    layer: { src: string; scale: number; x: { get: () => number }; y: { get: () => number } },
+    W: number, H: number, px: number, py: number,
+  ) {
+    const hit = hitsRef.current[layer.src];
+    if (!hit) return false;
+    // Undo the layer transform: scale about centre + parallax translate.
+    const cx = W / 2, cy = H / 2;
+    const lx = cx + (px - cx - layer.x.get()) / layer.scale;
+    const ly = cy + (py - cy - layer.y.get()) / layer.scale;
+    // Undo object-cover (centre on both axes) to reach natural pixel coords.
+    const s = Math.max(W / hit.w, H / hit.h);
+    const ix = (lx - (W - hit.w * s) / 2) / s;
+    const iy = (ly - (H - hit.h * s) / 2) / s;
+    if (ix < 0 || iy < 0 || ix >= hit.w || iy >= hit.h) return false;
+    return hit.ctx.getImageData(ix, iy, 1, 1).data[3] > 10;
+  }
+
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const r = e.currentTarget.getBoundingClientRect();
-    mouseX.set((e.clientX - r.left) / r.width  * 2 - 1);
-    mouseY.set((e.clientY - r.top)  / r.height * 2 - 1);
+    const W = r.width, H = r.height;
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    mouseX.set(px / W * 2 - 1);
+    mouseY.set(py / H * 2 - 1);
+    setHoverCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
+
+    // Topmost opaque fragment under the cursor wins.
+    let active: string | null = null;
+    for (const layer of HIT_LAYERS) {
+      if (hitLayer(layer, W, H, px, py)) { active = layer.src; break; }
+    }
+    setActiveAsset(active);
+    setIsHovered(active !== null);
   }
-  function handleMouseLeave() { mouseX.set(0); mouseY.set(0); }
+  function handleMouseLeave() { mouseX.set(0); mouseY.set(0); setActiveAsset(null); setIsHovered(false); }
 
   useEffect(() => {
-    const audio = new Audio("/audio/archive-bg-music.mp3");
+    const audio = new Audio("/audio/t3-bg.mp3");
     audio.loop = true;
     audio.volume = 0;
     audioRef.current = audio;
@@ -129,7 +199,7 @@ export default function Tier3() {
       ],
     },
     {
-      what: "CONVERSION-OPTIMISED AS CREATIVE",
+      what: "CONVERSION-OPTIMISED AD CREATIVE",
       details: [
         "– Purpose-built paid campaign visuals (quantity aligned to monthly campaign plan).",
       ],
@@ -157,6 +227,30 @@ export default function Tier3() {
       ],
     },
   ];
+
+  // Scan-line overlay masked to a fragment's shape; visible when it's the active hover target.
+  const scanOverlay = (src: string) => (
+    <motion.div
+      animate={{ opacity: activeAsset === src && animationDone ? 1 : 0 }}
+      transition={{ duration: 0.35 }}
+      className="absolute inset-0 overflow-hidden"
+      style={{
+        maskImage: `url('${src}')`, maskSize: "cover", maskPosition: "center",
+        WebkitMaskImage: `url('${src}')`, WebkitMaskSize: "cover", WebkitMaskPosition: "center",
+      }}
+    >
+      <motion.div
+        animate={{ y: ["0px", "-12px"] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-[-12px] bg-white/[0.10]"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 12px)",
+          backgroundSize: "100% 12px",
+        }}
+      />
+    </motion.div>
+  );
 
   return (
     <main className="relative bg-black">
@@ -188,7 +282,7 @@ export default function Tier3() {
           </div>
 
           {/* LEFT COLUMN BACKDROP */}
-          <div className="absolute inset-0 z-[1] pointer-events-none bg-black/60" />
+          <div className="absolute inset-0 z-[1] pointer-events-none bg-black/40" />
 
           {/* HEADER BANNER */}
           <motion.div
@@ -333,6 +427,7 @@ export default function Tier3() {
         {/* --- RIGHT COLUMN: VISUAL ASSEMBLY --- */}
         <div
           className="tier3-visual-container relative w-[52%] h-full overflow-hidden bg-[#080808]"
+          style={{ cursor: isHovered ? "pointer" : "default" }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -340,71 +435,98 @@ export default function Tier3() {
           <img src="/tier3-bg.webp" className="absolute inset-0 w-full h-full object-cover z-0" />
 
           {/* BACK PANELS — fast spring, subtle ±5-6px */}
-          <motion.div className="absolute inset-0 z-10 pointer-events-none" style={{ x: backLX, y: backLY, scale: 1.04 }}>
+          <motion.div className="absolute inset-0 z-10 pointer-events-none select-none overflow-hidden" style={{ x: backLX, y: backLY, scale: 1.04 }}>
             <motion.img
               initial={{ x: "-100%" }} animate={assetsLoaded ? { x: 0 } : { x: "-100%" }}
               transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-black-back-left.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-black-back-left.webp")}
           </motion.div>
-          <motion.div className="absolute inset-0 z-10 pointer-events-none" style={{ x: backRX, y: backRY, scale: 1.04 }}>
+          <motion.div className="absolute inset-0 z-10 pointer-events-none select-none overflow-hidden" style={{ x: backRX, y: backRY, scale: 1.04 }}>
             <motion.img
               initial={{ x: "100%" }} animate={assetsLoaded ? { x: 0 } : { x: "100%" }}
               transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-black-back-right.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-black-back-right.webp")}
           </motion.div>
 
           {/* WALLS — medium spring, lateral emphasis, asymmetric */}
-          <motion.div className="absolute inset-0 z-20 pointer-events-none" style={{ x: wallLX, y: wallLY, scale: 1.05 }}>
+          <motion.div className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden" style={{ x: wallLX, y: wallLY, scale: 1.05 }}>
             <motion.img
               initial={{ x: "-100%" }} animate={assetsLoaded ? { x: 0 } : { x: "-100%" }}
               transition={{ duration: 3.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-left-wall.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-left-wall.webp")}
           </motion.div>
-          <motion.div className="absolute inset-0 z-20 pointer-events-none" style={{ x: wallRX, y: wallRY, scale: 1.05 }}>
+          <motion.div className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden" style={{ x: wallRX, y: wallRY, scale: 1.05 }}>
             <motion.img
               initial={{ x: "100%" }} animate={assetsLoaded ? { x: 0 } : { x: "100%" }}
               transition={{ duration: 3.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-right-wall.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-right-wall.webp")}
           </motion.div>
 
           {/* TOP — medium spring, vertical emphasis */}
-          <motion.div className="absolute inset-0 z-30 pointer-events-none" style={{ x: topX, y: topY, scale: 1.05 }}>
+          <motion.div className="absolute inset-0 z-30 pointer-events-none select-none overflow-hidden" style={{ x: topX, y: topY, scale: 1.05 }}>
             <motion.img
               initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
               transition={{ duration: 3.2, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
               src="/tier3-top.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-top.webp")}
           </motion.div>
 
           {/* TOP CHUNKS — slowest lag, strongest vertical, asymmetric */}
-          <motion.div className="absolute inset-0 z-40 pointer-events-none" style={{ x: chunkLX, y: chunkLY, scale: 1.06 }}>
+          <motion.div className="absolute inset-0 z-40 pointer-events-none select-none overflow-hidden" style={{ x: chunkLX, y: chunkLY, scale: 1.06 }}>
             <motion.img
               initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
               transition={{ duration: 4.6, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => { if (assetsLoaded) setAnimationDone(true); }}
               src="/tier3-top-left-chunk.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-top-left-chunk.webp")}
           </motion.div>
-          <motion.div className="absolute inset-0 z-40 pointer-events-none" style={{ x: chunkRX, y: chunkRY, scale: 1.06 }}>
+          <motion.div className="absolute inset-0 z-40 pointer-events-none select-none overflow-hidden" style={{ x: chunkRX, y: chunkRY, scale: 1.06 }}>
             <motion.img
               initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
               transition={{ duration: 3.8, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
               src="/tier3-top-right-chunk.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {scanOverlay("/tier3-top-right-chunk.webp")}
           </motion.div>
 
           {/* STATIC: environment — always frontmost */}
           <img src="/tier3-environment.webp" className="absolute inset-0 w-full h-full object-cover z-50" />
+
+          {/* X/Y COORDINATE DISPLAY — attached to the right-wall fragment (tracks its parallax) */}
+          <motion.div
+            className="absolute inset-0 z-[55] pointer-events-none"
+            style={{ x: wallRX, y: wallRY }}
+          >
+            <motion.div
+              animate={{ opacity: isHovered && animationDone ? 1 : 0, x: isHovered && animationDone ? 0 : 4 }}
+              transition={{ duration: 0.35, ease: "easeOut", delay: isHovered ? 0.1 : 0 }}
+              className="absolute top-[50%] right-[5%] pointer-events-none flex flex-col gap-[4px] items-end"
+            >
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">X : </span><span className="text-white/50">{hoverCoords.x} PX</span>
+              </span>
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                <span className="text-white">Y : </span><span className="text-white/50">{hoverCoords.y} PX</span>
+              </span>
+            </motion.div>
+          </motion.div>
 
           {/* LOADING OVERLAY */}
           <AnimatePresence>
