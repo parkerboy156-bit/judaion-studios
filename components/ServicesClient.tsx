@@ -80,19 +80,6 @@ export default function ServicesHome() {
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
-          pointerEvents: "none",
-        }}
-      />
       <div
         onMouseMove={handleMouseMove}
         className={`relative h-screen bg-black select-none ${

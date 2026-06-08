@@ -63,21 +63,9 @@ export default function ProjectArchive() {
 
   return (
     <main className="relative bg-black">
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 999,
-          pointerEvents: "none",
-        }}
-      />
       <div
         onMouseMove={handleMouseMove}
-        className={`relative w-full h-screen h-[100dvh] bg-black ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
+        className={`relative w-full h-screen bg-black ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
       >
         {/*
           BACKGROUND + HITBOX — single motion.div carries both.
@@ -232,7 +220,7 @@ export default function ProjectArchive() {
 
           {/* INSPECT INSTRUCTION */}
           {isMobile ? (
-            <div className="absolute top-[69%] left-[67%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
+            <div className="absolute top-[63%] left-[67%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
               <img src="/tap-icon.png" alt="Tap Icon" className="w-12 h-auto filter brightness-110" />
               <span className="text-[13px] tracking-[0.7em] uppercase text-white font-brand-secondary-heavy whitespace-nowrap">
                 TAP ITEM TO INSPECT
