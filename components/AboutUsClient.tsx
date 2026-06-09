@@ -296,12 +296,11 @@ export default function AboutTemplate() {
                   </div>
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                     Originally rooted in art-school aesthetics, previous work
-                    was obsessed with seeking validation and creating 'pretty
-                    pictures'; this caused a structural decay in early
+                    was obsessed with seeking validation and creating "pretty
+                    pictures", this caused a structural decay in early
                     freelancing work. The transition from freelancing to
-                    partnership invoked a shift from 'what can I add' to 'what
-                    is essential.' This is the primary law of the studio:
-                    discipline comes from foundation.
+                    partnership invoked a shift from "what can I add" to "what
+                    is essential."
                   </p>
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                     This is the primary law of the studio: discipline comes from
@@ -324,9 +323,9 @@ export default function AboutTemplate() {
                   </div>
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                     Most identities suffer from structural decay and the
-                    accumulation of visual noise, trends, and aesthetic volume
+                    accumulation of visual noise, trends and aesthetic volume
                     designed to wow rather than to endure. We do not create
-                    'looks' — we architect permanence.
+                    "looks" — we architect permanence.
                   </p>
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                     Logic over aesthetics. Foundation over trends. The result of
@@ -562,7 +561,7 @@ export default function AboutTemplate() {
 
             {/* OVERLAY CONTENT */}
             <div className="absolute inset-0 flex flex-col justify-end pl-12 lg:p-20 pb-5 lg:pb-15">
-              <h2 className="commitment-heading text-white text-[clamp(2rem,3.9vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
+              <h2 className="commitment-heading text-white text-[clamp(2rem,4vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
                 Where Commitment Meets the Grid
               </h2>
 
