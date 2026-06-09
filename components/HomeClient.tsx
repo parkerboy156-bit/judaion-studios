@@ -203,10 +203,10 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
           >
             {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
             <div
-              className={`absolute top-[9.8%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
+              className={`absolute left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "top-[20%] mobile-inspect-fix-services" : "top-[9.8%]"}`}
             >
               <span className="text-[13px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile ? "TAP TO ENTER THE STUDIO" : "CLICK TO ENTER THE STUDIO"}
+                {isMobile ? "TAP  TO ENTER THE STUDIO" : "CLICK TO ENTER THE STUDIO"}
               </span>
               {!isMobile && (
                 <img
