@@ -40,7 +40,7 @@ export default function IntroLoader({
 
     // 1. Establish separate delay constants
     const DESKTOP_NAV_DELAY = 1500;
-    const MOBILE_NAV_DELAY = 11000; // Increased delay for mobile
+    const MOBILE_NAV_DELAY = 2000; // Increased delay for mobile
 
     const bootTimer = setTimeout(() => {
       setIsFinished(true);
