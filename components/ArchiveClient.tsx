@@ -588,6 +588,10 @@ export default function ArchiveCatalogue() {
                                   isMutedRef.current = false;
                                   audioSuppressedByVideoRef.current = false;
                                   setIsAudioOn(true);
+                                  // iOS pauses the background <audio> entirely
+                                  // when a video with sound plays — muting alone
+                                  // won't bring it back, so explicitly resume.
+                                  audio.play().catch(() => {});
                                 }
                               }}
                               onEnded={() => {
@@ -601,6 +605,10 @@ export default function ArchiveCatalogue() {
                                   isMutedRef.current = false;
                                   audioSuppressedByVideoRef.current = false;
                                   setIsAudioOn(true);
+                                  // iOS pauses the background <audio> entirely
+                                  // when a video with sound plays — muting alone
+                                  // won't bring it back, so explicitly resume.
+                                  audio.play().catch(() => {});
                                 }
                               }}
                             />
