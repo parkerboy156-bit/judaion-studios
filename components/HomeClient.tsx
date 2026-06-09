@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
@@ -7,11 +7,28 @@ import Link from "next/link";
 import homeBgAvif from "@/public/home-bg.avif";
 import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
 import homeBgWebp from "@/public/home-bg.webp";
+import homeBgMobilePng from "@/public/home-bg-mobile.webp";
+
+// Door selection-box hitbox — same treatment as the Archive/Services boxes.
+// Box is centred on the door's top/left anchor; size as % of the layer. Tune freely.
+const DOOR_HITBOX = {
+  lineOpacity: 0.65,
+  handleSize: 7.5,
+  lineDuration: 0.4,
+  cornerDelay: 0.35,
+  cornerDuration: 0.18,
+};
+const DOOR_BOX = {
+  desktop: "w-[11.5%] h-[35.5%]",
+  mobile: "w-[11.5%] h-[27.5%]",
+};
 
 export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [hasSensorPermission] = useState(false);
+  const [doorHovered, setDoorHovered] = useState(false);
+  const [doorCoords, setDoorCoords] = useState({ x: 0, y: 0 });
 
   // Detect if the user is on mobile/tablet
   useEffect(() => {
@@ -75,22 +92,39 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
     identity: "top-[19%] left-[74%]",
   };
 
+  // Selection box shows on hover (desktop) and is permanently on (mobile).
+  const doorActive = true;
+
   return (
     <div className="relative bg-black overflow-hidden">
+      {/* SURGICAL MASK: Only exists on this page, handles the fade-out from black */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.4, delay: 0.5, ease: "easeOut" }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
+        onAnimationComplete={() => {
+          // Optional: remove from DOM if it interferes with clicks
+        }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "black",
+          zIndex: 99,
+          pointerEvents: "none",
+        }}
+      />
+
+      <motion.div
         className={`relative h-screen bg-black select-none ${
           isMobile
-            ? "overflow-x-auto overflow-y-hidden overscroll-x-none"
+            ? "overflow-x-auto overflow-y-hidden"
             : "overflow-hidden"
         }`}
       >
         <section
           onMouseMove={handleMouseMove}
           className={`relative h-screen bg-black overflow-hidden flex-shrink-0 ${
-            isMobile ? "w-max" : "w-full"
+            isMobile ? "w-[300vw]" : "w-full"
           }`}
         >
           {/* TOP HUD: SYSTEM STATS */}
@@ -113,239 +147,258 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             </div>
           </motion.div>
 
-          {/* MOBILE BACKGROUND — a real <img> at h-full w-auto defines the
-              horizontal scroll width from the image's natural aspect, so it
-              fills edge-to-edge with no crop, black gap, or cutoff. */}
-          {isMobile && (
-            <img
-              src={homeBgMobileAvif.src}
-              alt="JDS Background"
-              draggable={false}
-              className="h-full w-auto max-w-none block select-none pointer-events-none"
-              fetchPriority="high"
-            />
-          )}
-
-          {/* DESKTOP DYNAMIC BACKGROUND — parallax + blur-on-hover */}
-          {!isMobile && (
-            <motion.div
-              style={{ x: moveX, y: moveY, scale: 1.03 }}
-              animate={{
-                opacity: hoveredIndex !== null ? 0.4 : 1,
-                filter:
-                  hoveredIndex !== null
-                    ? "blur(4px) grayscale(0)"
-                    : "blur(0px) grayscale(0)",
-              }}
-              className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center"
-            >
-              <picture>
-                <source srcSet={homeBgAvif.src} type="image/avif" />
-                <source srcSet={homeBgWebp.src} type="image/webp" />
-                <img
-                  src={homeBgWebp.src}
-                  alt="JDS Background"
-                  className="object-cover object-center w-full h-full"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    zIndex: -1,
-                  }}
-                  fetchPriority="high"
-                />
-              </picture>
-            </motion.div>
-          )}
-
-          {/* CONTENT LAYER — desktop parallax only; mobile uses native scroll
-              (the section's overflow-x-auto), spanning the real bg image. */}
+          {/* DYNAMIC BACKGROUND */}
           <motion.div
-            style={isMobile ? {} : { x: moveX, y: moveY }}
-            className="absolute inset-0 z-10 pointer-events-none"
+            onTap={() => isMobile && setHoveredIndex(null)}
+            style={{ x: moveX, y: moveY, scale: 1.03 }}
+            animate={{
+              opacity: hoveredIndex !== null ? 0.4 : 1,
+              filter:
+                hoveredIndex !== null
+                  ? "blur(4px) grayscale(0)"
+                  : "blur(0px) grayscale(0)",
+            }}
+            className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center"
           >
-            {/* --- VISION BLOCK --- */}
-            <div
-              className={`absolute flex flex-col group pointer-events-auto vision-block-mobile ${isMobile ? mobilePositions.vision : "top-[11%] left-[10%]"}`}
-            >
-              <motion.h3
-                onMouseEnter={() => !isMobile && setHoveredIndex(0)}
-                onMouseLeave={() => !isMobile && setHoveredIndex(null)}
-                onTap={() => {
-                  if (isMobile) {
-                    setHoveredIndex((prev) => (prev === 0 ? null : 0));
-                  }
-                }}
-                animate={{
-                  opacity:
-                    hoveredIndex === null ? 0.7 : hoveredIndex === 0 ? 1 : 0,
-                  letterSpacing: hoveredIndex === 0 ? "1.4em" : "0.8em",
-                }}
-                className="text-[14px] uppercase font-medium font-brand-secondary-thin cursor-pointer text-white transition-all duration-500"
-              >
-                Vision
-              </motion.h3>
-
-              <motion.div
-                animate={{ opacity: hoveredIndex === 0 ? 1 : 0 }}
-                style={{ originX: 0 }}
-                className="mt-1 w-[146px] h-[1px] bg-white"
+            <picture>
+              <source
+                srcSet={isMobile ? homeBgMobileAvif.src : homeBgAvif.src}
+                type="image/avif"
               />
 
-              <div
-                className={`absolute top-full pt-8 transition-opacity duration-500 pointer-events-none ${hoveredIndex === 0 ? "opacity-100" : "opacity-0"}`}
-              >
-                <p className="text-[15px] leading-relaxed tracking-[0.1em] uppercase text-white/75 font-light font-brand-cn w-[280px]">
-                  We extract the{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    core objective
-                  </span>{" "}
-                  of your organisation. This is the{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Strategic foundation
-                  </span>{" "}
-                  required to position your brand as a{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Category leader
-                  </span>{" "}
-                  before a single pixel is moved.
-                </p>
-              </div>
-            </div>
+              {!isMobile && (
+                <source srcSet={homeBgWebp.src} type="image/webp" />
+              )}
 
-            {/* --- STRUCTURE BLOCK --- */}
-            <div
-              className={`absolute flex flex-col group pointer-events-auto structure-block-mobile ${isMobile ? mobilePositions.structure : "top-[11%] left-[46%]"}`}
-            >
-              <motion.h3
-                onMouseEnter={() => !isMobile && setHoveredIndex(1)}
-                onMouseLeave={() => !isMobile && setHoveredIndex(null)}
-                onTap={() => {
-                  if (isMobile) {
-                    setHoveredIndex((prev) => (prev === 1 ? null : 1));
-                  }
+              {/* 3. The Final Component */}
+              <img
+                // If mobile, we use the PNG. If desktop, we use WebP as the final 'src'.
+                // This is because the desktop browser will only reach this if AVIF fails.
+                src={isMobile ? homeBgMobilePng.src : homeBgWebp.src}
+                alt="JDS Background"
+                className="object-cover object-center w-full h-full"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  zIndex: -1,
                 }}
-                animate={{
-                  opacity:
-                    hoveredIndex === null ? 0.7 : hoveredIndex === 1 ? 1 : 0,
-                  letterSpacing: hoveredIndex === 1 ? "1.4em" : "0.8em",
-                }}
-                className="text-[14px] uppercase font-medium font-brand-secondary-thin cursor-pointer text-white transition-all duration-500"
-              >
-                Structure
-              </motion.h3>
-
-              <motion.div
-                animate={{ opacity: hoveredIndex === 1 ? 1 : 0 }}
-                style={{ originX: 0 }}
-                className="mt-1 w-[238px] h-[1px] bg-white"
+                fetchPriority="high"
               />
+            </picture>
+          </motion.div>
 
-              <div
-                className={`absolute top-full pt-8 transition-opacity duration-500 pointer-events-none ${hoveredIndex === 1 ? "opacity-100" : "opacity-0"}`}
-              >
-                <p className="text-[15px] leading-relaxed tracking-[0.1em] uppercase text-white/75 font-light font-brand-cn w-[280px]">
-                  We build the rigid frameworks that ensure your brand remains{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Consistent
-                  </span>{" "}
-                  and{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    High-performing
-                  </span>{" "}
-                  under the pressure of{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Rapid Growth.
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            {/* --- IDENTITY BLOCK --- */}
+          {/* PARALLAX CONTENT LAYER */}
+          <motion.div
+            style={{ x: moveX, y: moveY }}
+            drag={isMobile ? "x" : false}
+            dragConstraints={{
+              left: -2000, // Approximate window.innerWidth * 2 constraint preserved from original logic
+              right: 0,
+            }}
+            dragElastic={0.05}
+            className={`absolute inset-0 z-10 pointer-events-none ${
+              isMobile ? "w-[300vw]" : "w-full"
+            }`}
+          >
+            {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
             <div
-              className={`absolute flex flex-col group pointer-events-auto identity-block-mobile ${isMobile ? mobilePositions.identity : "top-[11%] right-[4%]"}`}
+              className={`absolute top-[9.8%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
             >
-              <motion.h3
-                onMouseEnter={() => !isMobile && setHoveredIndex(2)}
-                onMouseLeave={() => !isMobile && setHoveredIndex(null)}
-                onTap={() => {
-                  if (isMobile) {
-                    setHoveredIndex((prev) => (prev === 2 ? null : 2));
-                  }
-                }}
-                animate={{
-                  opacity:
-                    hoveredIndex === null ? 0.7 : hoveredIndex === 2 ? 1 : 0,
-                  letterSpacing: hoveredIndex === 2 ? "1.4em" : "0.8em",
-                }}
-                className="text-[14px] uppercase font-medium font-brand-secondary-thin cursor-pointer text-white transition-all duration-500"
-              >
-                Identity
-              </motion.h3>
-
-              <motion.div
-                animate={{ opacity: hoveredIndex === 2 ? 1 : 0 }}
-                style={{ originX: 0 }}
-                className="mt-1 w-[205px] h-[1px] bg-white"
-              />
-
-              <div
-                className={`absolute top-full pt-8 transition-opacity duration-500 pointer-events-none ${hoveredIndex === 2 ? "opacity-100" : "opacity-0"}`}
-              >
-                <p className="text-[15px] leading-relaxed tracking-[0.1em] uppercase text-white/75 font-light font-brand-cn w-[280px]">
-                  We deploy the{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Visual execution protocol.
-                  </span>{" "}
-                  This is the undeniable stamp of{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    AUTHORITY
-                  </span>{" "}
-                  that declares your status within the market. We create{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    High-torque,
-                  </span>{" "}
-                  monochrome-led visuals designed for absolute{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    permanance.
-                  </span>
-                </p>
-              </div>
+              <span className="text-[13px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
+                {isMobile ? "TAP TO ENTER THE STUDIO" : "CLICK TO ENTER THE STUDIO"}
+              </span>
+              {!isMobile && (
+                <img
+                  src="/right-click.png"
+                  alt="Inspect Icon"
+                  className="w-14 h-auto filter brightness-110"
+                />
+              )}
+              {isMobile && (
+                <img
+                  src="/tap-icon.png"
+                  alt="Tap Icon"
+                  className="w-9 h-auto filter brightness-110"
+                />
+              )}
             </div>
 
-            {/* --- DOOR INTERACTION --- */}
+            {/* --- DOOR HITBOX → Enter the Studio (selection box, same as Archive/Services) --- */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
-              className={`absolute top-[49%] -translate-y-1/2 z-30 pointer-events-auto ${
+              onMouseEnter={() => !isMobile && setDoorHovered(true)}
+              onMouseLeave={() => !isMobile && setDoorHovered(false)}
+              onMouseMove={(e) =>
+                !isMobile &&
+                setDoorCoords({
+                  x: Math.round(e.clientX),
+                  y: Math.round(e.clientY),
+                })
+              }
+              className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-auto ${
                 isMobile
-                  ? "left-[49%] -translate-x-1/2"
-                  : "left-[50.5%] -translate-x-1/2"
+                  ? `top-[53.7%] left-[147vw] ${DOOR_BOX.mobile}`
+                  : `top-[54.3%] left-[50%] ${DOOR_BOX.desktop}`
               }`}
             >
               <Link
                 href="/methodology"
-                className="flex flex-col items-center group no-underline appearance-none bg-transparent border-none cursor-pointer z-50"
+                aria-label="Enter the Studio"
+                className="absolute inset-0 z-20 cursor-pointer"
+              />
+
+              {/* Scan lines — fade in (hover desktop / always-on mobile), scroll upward */}
+              <motion.div
+                animate={{ opacity: doorActive ? 1 : 0 }}
+                transition={{ duration: 0.35 }}
+                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.12]"
               >
-                <motion.img
-                  src="/enter-the-studio.webp"
-                  className={`${isMobile ? "w-[42px]" : "w-12"} h-auto mb-2  group-hover:opacity-100 transition-all duration-700 filter brightness-125 animate-pulse`}
-                  animate={{ y: [0, -5, 0] }}
+                <motion.div
+                  animate={{ y: ["0px", "-12px"] }}
                   transition={{
-                    duration: 4,
+                    duration: 1.1,
                     repeat: Infinity,
-                    ease: "easeInOut",
+                    ease: "linear",
+                  }}
+                  className="absolute inset-[-12px] bg-black/[0.20]"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 12px)",
+                    backgroundSize: "100% 12px",
                   }}
                 />
-                <div className="flex flex-col items-center space-y-2">
-                  <span
-                    className={`${isMobile ? "text-[6px]" : "text-[9px]"} tracking-[0.4em] uppercase text-white/90 group-hover:text-white font-brand-secondary-thin`}
-                  >
-                    Enter the Studio
-                  </span>
-                </div>
-              </Link>
+              </motion.div>
+
+              {/* Edge lines */}
+              <motion.div
+                animate={{ scaleX: doorActive ? 1 : 0 }}
+                transition={{
+                  duration: DOOR_HITBOX.lineDuration,
+                  ease: "easeOut",
+                }}
+                className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+                style={{
+                  transformOrigin: "center",
+                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                }}
+              />
+              <motion.div
+                animate={{ scaleX: doorActive ? 1 : 0 }}
+                transition={{
+                  duration: DOOR_HITBOX.lineDuration,
+                  ease: "easeOut",
+                }}
+                className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+                style={{
+                  transformOrigin: "center",
+                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                }}
+              />
+              <motion.div
+                animate={{ scaleY: doorActive ? 1 : 0 }}
+                transition={{
+                  duration: DOOR_HITBOX.lineDuration,
+                  ease: "easeOut",
+                }}
+                className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
+                style={{
+                  transformOrigin: "center",
+                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                }}
+              />
+              <motion.div
+                animate={{ scaleY: doorActive ? 1 : 0 }}
+                transition={{
+                  duration: DOOR_HITBOX.lineDuration,
+                  ease: "easeOut",
+                }}
+                className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
+                style={{
+                  transformOrigin: "center",
+                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                }}
+              />
+
+              {/* Corner handles */}
+              {(
+                [
+                  {
+                    top: -DOOR_HITBOX.handleSize / 2,
+                    left: -DOOR_HITBOX.handleSize / 2,
+                  },
+                  {
+                    top: -DOOR_HITBOX.handleSize / 2,
+                    right: -DOOR_HITBOX.handleSize / 2,
+                  },
+                  {
+                    bottom: -DOOR_HITBOX.handleSize / 2,
+                    left: -DOOR_HITBOX.handleSize / 2,
+                  },
+                  {
+                    bottom: -DOOR_HITBOX.handleSize / 2,
+                    right: -DOOR_HITBOX.handleSize / 2,
+                  },
+                ] as React.CSSProperties[]
+              ).map((pos, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ opacity: doorActive ? 1 : 0 }}
+                  transition={{
+                    duration: DOOR_HITBOX.cornerDuration,
+                    delay: doorActive ? DOOR_HITBOX.cornerDelay : 0,
+                  }}
+                  className="absolute bg-white pointer-events-none"
+                  style={{
+                    width: DOOR_HITBOX.handleSize,
+                    height: DOOR_HITBOX.handleSize,
+                    ...pos,
+                  }}
+                />
+              ))}
+
+              {/* Right-side X/Y coordinate display */}
+              <motion.div
+                animate={{
+                  opacity: doorActive ? 1 : 0,
+                  x: doorActive ? 0 : -4,
+                }}
+                transition={{
+                  duration: 0.35,
+                  ease: "easeOut",
+                  delay: doorActive ? 0.1 : 0,
+                }}
+                className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
+                style={{ left: "calc(100% + 10px)" }}
+              >
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                  <span className="text-white">X: </span>
+                  <span className="text-white/50">{doorCoords.x} PX</span>
+                </span>
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] whitespace-nowrap">
+                  <span className="text-white">Y: </span>
+                  <span className="text-white/50">{doorCoords.y} PX</span>
+                </span>
+              </motion.div>
+
+              {/* Label caption */}
+              <motion.div
+                animate={{ opacity: doorActive ? 1 : 0, y: doorActive ? 0 : 4 }}
+                transition={{
+                  duration: 0.35,
+                  ease: "easeOut",
+                  delay: doorActive ? 0.15 : 0,
+                }}
+                className="absolute left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap"
+                style={{ top: "calc(100% + 8px)" }}
+              >
+                <span className="font-brand-cn text-[11px] uppercase tracking-[0.2em] text-white">
+                  Asset 1:
+                  <span className="text-white/60"> {`"Enter the Studio"`}</span>
+                </span>
+              </motion.div>
             </motion.div>
           </motion.div>
 

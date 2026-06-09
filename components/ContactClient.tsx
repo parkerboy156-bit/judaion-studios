@@ -79,7 +79,7 @@ export default function Contact() {
       />
       <div
         onMouseMove={handleMouseMove}
-        className={`relative w-full h-screen bg-[#0a0a0a] ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
+        className={`relative w-full h-screen bg-[#0a0a0a] ${isMobile ? "overflow-x-auto overflow-y-hidden overscroll-x-none block" : "overflow-hidden"}`}
       >
         {/* MASTER PARALLAX WRAPPER */}
         <motion.div

@@ -65,7 +65,7 @@ export default function ProjectArchive() {
     <main className="relative bg-black">
       <div
         onMouseMove={handleMouseMove}
-        className={`relative w-full h-screen bg-black ${isMobile ? "overflow-x-auto overflow-y-hidden block" : "overflow-hidden"}`}
+        className={`relative w-full h-screen bg-black ${isMobile ? "overflow-x-auto overflow-y-hidden overscroll-x-none block" : "overflow-hidden"}`}
       >
         {/*
           BACKGROUND + HITBOX — single motion.div carries both.

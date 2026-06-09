@@ -85,7 +85,7 @@ export default function MethodologyPage() {
       />
       <div
         onMouseMove={handleMouseMove}
-        className={`relative w-full bg-[#0a0a0a] ${isMobile ? "h-screen overflow-x-auto overflow-y-hidden" : "h-[300vh]"}`}
+        className={`relative w-full bg-[#0a0a0a] ${isMobile ? "h-screen overflow-x-auto overflow-y-hidden overscroll-x-none" : "h-[300vh]"}`}
       >
         <div
           className={`sticky top-0 h-screen overflow-hidden ${isMobile ? "w-[300vw] relative left-[-100v]" : "w-full"}`}

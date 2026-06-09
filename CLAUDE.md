@@ -71,3 +71,37 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
   - A full-screen overlay (`backdrop-blur + bg-black/88`) with a single scrollable container (`focusScrollRef`) using inertia-lerp scroll.
   - *Section 1 (sticky, 100vh):* Grain video bg. Fixed Exit button (top-left) and Music toggle (top-right). Main asset centred (image with J-logo loading placeholder, or `<video controls>`). Multi-asset thumbnail strip: `72×72px`, vertical `flex-col` on desktop / horizontal `flex-row` on mobile. Active thumb: `border-[1px] border-white`; inactive: `border-white/10 opacity-60`. Scroll hint bottom-right ("Scroll to Inspect" + animated arrow).
   - *Section 2 (details, scrolls in below Section 1):* Two-column desktop / stacked mobile. **Left:** "Project Description" heading + divider + `content` body text + optional Instagram/LinkedIn SVG links. **Right (`400px` desktop / full-width mobile):** product-details card with `archive-header.avif` bg and `bg-black/60` overlay — title, metadata rows (Category, Type, Number of Assets, Uploaded, File Type), feature checklist (orange `*` bullet), and CTA button (white bg, `box-icon.png` icon, "Project Archive '26" label). **Footer:** `archive-header.avif` bg, logo left, copyright right.
+
+---
+
+## 📐 Page Structure & Mobile Patterns
+
+### Mobile horizontal-scroll background — `ServicesClient`, `ProjectArchiveClient`
+- Wide landscape bg shown full-height, scrolled horizontally on mobile.
+- A **real `<img className="h-full w-auto … block">`** (NOT `background-image` + a magic `w-[300vw]`) defines the exact scroll width from the image's natural aspect → no crop / black gap / cutoff. Section is `w-max` (mobile) / `w-full` (desktop); overlays sit `absolute inset-0`. Desktop keeps CSS `background-size: cover` (+ parallax).
+- ⚠️ This pattern was tried on Home and **reverted** (caused zoom/gap). Do NOT re-apply it to Home.
+
+### Hard-stop horizontal scroll (all background pages)
+- Every mobile native horizontal-scroll bg adds **`overscroll-x-none`** on the `overflow-x-auto` container to kill iOS rubber-band overscroll (which reveals black past the image edge): Home, Services, Methodology, Contact, Project Archive.
+
+### `HomeClient` — KEEP ORIGINAL structure
+- `w-[300vw]` canvas + `object-cover` bg image + framer-motion `drag="x"` content layer (drag layered over native scroll). It is intentionally NOT on the `<img>`/`w-max` pattern. Keeps its own SURGICAL-MASK fade-from-black. Mobile hero labels (Vision/Structure/Identity) hidden via `.vision/structure/identity-block-mobile { display:none }` in globals.
+
+### Tier pages header banner — `Tier1/2/3Client`
+- Banner is flush to the top via `-mt-12 lg:-mt-20` (cancels the column's `pt-12 lg:pt-20`) so `archive-header.avif` covers behind the fixed nav; inner content uses `pt-20 lg:pt-18` to drop the title below the nav. **Never use positive `mt`** here — it opens a black gap above the image.
+
+### Services mobile tier hitboxes — `ServicesClient`
+- Always-on (no hover) tappable boxes over the 3 posters → `/tier-1|2|3`. Separate `HITBOXES_MOBILE` coords (% of full image) + `MOBILE_SELECTION` config (`lineOpacity`, `handleSize`, `handleOpacity`, `scanTint`). Desktop boxes stay hover-gated.
+
+### About Us mobile — `AboutUsClient`
+- Pillar + hero scanlines always-on via `opacity-100 lg:opacity-0 lg:group-hover:opacity-100`; image borders thinner on mobile (`border-[1px] lg:border-[2px]`). Section-4 body copy `hidden lg:block`; heading dropped lower via reduced `pb`.
+
+### Audio system — `Tier1/2/3Client` + `ArchiveClient`
+- Each page creates its own `new Audio()`; first user click starts + fades it in; ducks on asset-video play, restores on pause/ended.
+- **iOS gotchas:** `audio.volume` is READ-ONLY → mute/duck MUST set `audio.muted` (not just volume). After a video plays, the bg `<audio>` is *paused* by iOS → restore handlers MUST call `audio.play()`. Archive video restore covers BOTH `onPause` AND `onEnded` (iOS fires only `ended` on completion).
+
+### `IntroLoader` video
+- Put `src` directly on the `<video>` (not a child `<source>`) so a React src swap reloads on iOS. Use `autoPlay muted playsInline preload="auto"`. On `isFinished`, rewind to frame 0 and play after `REVEAL_MS` (~1800ms) so the desktop clip's **epilepsy warning** (its start) isn't consumed behind the loader overlay.
+
+### Video assets (Oracle bucket)
+- All bg/intro/section videos must be web-optimised: `-movflags +faststart`, `-pix_fmt yuv420p` (iOS), audio stripped (`-an`) for muted-use clips. Never ship 4K/100MB+ masters to mobile — downscale (1080–1440p) + CRF-encode.

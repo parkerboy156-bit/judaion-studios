@@ -132,7 +132,7 @@ export default function ServicesHome() {
       <div
         onMouseMove={handleMouseMove}
         className={`relative h-screen bg-black select-none ${
-          isMobile ? "overflow-x-auto overflow-y-hidden" : "overflow-hidden"
+          isMobile ? "overflow-x-auto overflow-y-hidden overscroll-x-none" : "overflow-hidden"
         }`}
       >
         <motion.section
