@@ -276,7 +276,7 @@ export default function Tier3() {
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
             <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
               <source
-                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
+                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
                 type="video/mp4"
               />
             </video>

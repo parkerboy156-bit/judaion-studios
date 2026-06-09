@@ -55,7 +55,7 @@ export default function AboutTemplate() {
         <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
           <video
             poster="/global-bg-poster.avif"
-            key="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
+            key="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
             muted
             autoPlay
             loop
@@ -64,7 +64,7 @@ export default function AboutTemplate() {
             className="w-full h-full object-cover grayscale opacity-65"
           >
             <source
-              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Global%20Bgglobal-bg.mp4"
+              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
               type="video/mp4"
             />
           </video>
@@ -553,7 +553,7 @@ export default function AboutTemplate() {
               className="w-full h-full object-cover grayscale hover:scale-105 transition-transform duration-[3s]"
             >
               <source
-                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Section%204%20JDS-section-4-color.mp4"
+                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Section%204JDS-section-4-color.mp4"
                 type="video/mp4"
               />
               Your browser does not support the video tag.

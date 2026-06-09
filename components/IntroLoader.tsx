@@ -13,9 +13,9 @@ export default function IntroLoader({
   const [showNavigation, setShowNavigation] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mobileVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT%20Mobile.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT%20Mobile%20";
   const desktopVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT";
   const [activeVideoSrc, setActiveVideoSrc] = useState(desktopVideoSrc);
 
   useEffect(() => {
@@ -39,8 +39,8 @@ export default function IntroLoader({
     if (!shouldShow) return;
 
     // 1. Establish separate delay constants
-    const DESKTOP_NAV_DELAY = 1500;
-    const MOBILE_NAV_DELAY = 2000; // Increased delay for mobile
+    const DESKTOP_NAV_DELAY = 3000;
+    const MOBILE_NAV_DELAY = 5000; // Increased delay for mobile
 
     const bootTimer = setTimeout(() => {
       setIsFinished(true);
@@ -67,8 +67,23 @@ export default function IntroLoader({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isFinished) return;
-    video.play().catch((e) => console.log(e));
-  }, [isFinished]);
+    // The clip opens with an epilepsy warning that must be seen in full — so it
+    // must NOT play behind the grain/"establishing authority" overlay. autoPlay
+    // (kept on the element for reliable iOS unlock) means it's been running
+    // hidden, so here we rewind it to frame 0 and only begin playback once the
+    // overlay has cleared. This is also the backup play() that taller iPhones
+    // need when their muted autoplay is deferred.
+    video.pause();
+    video.currentTime = 0;
+    // ~ how long until the grain overlay has faded and the video is on screen.
+    // Bump this up if the warning is still partially clipped by the fade.
+    const REVEAL_MS = 900;
+    const startTimer = setTimeout(() => {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    }, REVEAL_MS);
+    return () => clearTimeout(startTimer);
+  }, [isFinished, activeVideoSrc]);
 
   if (!shouldShow) return null;
 
@@ -144,13 +159,14 @@ export default function IntroLoader({
 
           <video
             ref={videoRef}
+            src={activeVideoSrc}
             muted
             loop
+            autoPlay
             playsInline
+            preload="auto"
             className="absolute inset-0 w-full h-full object-cover mix-blend-screen pointer-events-none opacity-[0.90]"
-          >
-            <source src={activeVideoSrc} type="video/mp4" />
-          </video>
+          />
         </motion.div>
       </motion.div>
     </AnimatePresence>

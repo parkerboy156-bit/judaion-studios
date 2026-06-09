@@ -7,7 +7,6 @@ import Link from "next/link";
 import homeBgAvif from "@/public/home-bg.avif";
 import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
 import homeBgWebp from "@/public/home-bg.webp";
-import homeBgMobilePng from "@/public/home-bg-mobile.webp";
 
 export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -78,32 +77,20 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
 
   return (
     <div className="relative bg-black overflow-hidden">
-      {/* SURGICAL MASK: Only exists on this page, handles the fade-out from black */}
       <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        onAnimationComplete={() => {
-          // Optional: remove from DOM if it interferes with clicks
-        }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 99,
-          pointerEvents: "none",
-        }}
-      />
-
-      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.4, delay: 0.5, ease: "easeOut" }}
         className={`relative h-screen bg-black select-none ${
-          isMobile ? "overflow-x-auto overflow-y-hidden" : "overflow-hidden"
+          isMobile
+            ? "overflow-x-auto overflow-y-hidden overscroll-x-none"
+            : "overflow-hidden"
         }`}
       >
         <section
           onMouseMove={handleMouseMove}
           className={`relative h-screen bg-black overflow-hidden flex-shrink-0 ${
-            isMobile ? "w-[300vw]" : "w-full"
+            isMobile ? "w-max" : "w-full"
           }`}
         >
           {/* TOP HUD: SYSTEM STATS */}
@@ -126,59 +113,56 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             </div>
           </motion.div>
 
-          {/* DYNAMIC BACKGROUND */}
-          <motion.div
-            onTap={() => isMobile && setHoveredIndex(null)}
-            style={{ x: moveX, y: moveY, scale: 1.03 }}
-            animate={{
-              opacity: hoveredIndex !== null ? 0.4 : 1,
-              filter:
-                hoveredIndex !== null
-                  ? "blur(4px) grayscale(0)"
-                  : "blur(0px) grayscale(0)",
-            }}
-            className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center"
-          >
-            <picture>
-              <source
-                srcSet={isMobile ? homeBgMobileAvif.src : homeBgAvif.src}
-                type="image/avif"
-              />
+          {/* MOBILE BACKGROUND — a real <img> at h-full w-auto defines the
+              horizontal scroll width from the image's natural aspect, so it
+              fills edge-to-edge with no crop, black gap, or cutoff. */}
+          {isMobile && (
+            <img
+              src={homeBgMobileAvif.src}
+              alt="JDS Background"
+              draggable={false}
+              className="h-full w-auto max-w-none block select-none pointer-events-none"
+              fetchPriority="high"
+            />
+          )}
 
-              {!isMobile && (
+          {/* DESKTOP DYNAMIC BACKGROUND — parallax + blur-on-hover */}
+          {!isMobile && (
+            <motion.div
+              style={{ x: moveX, y: moveY, scale: 1.03 }}
+              animate={{
+                opacity: hoveredIndex !== null ? 0.4 : 1,
+                filter:
+                  hoveredIndex !== null
+                    ? "blur(4px) grayscale(0)"
+                    : "blur(0px) grayscale(0)",
+              }}
+              className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center"
+            >
+              <picture>
+                <source srcSet={homeBgAvif.src} type="image/avif" />
                 <source srcSet={homeBgWebp.src} type="image/webp" />
-              )}
+                <img
+                  src={homeBgWebp.src}
+                  alt="JDS Background"
+                  className="object-cover object-center w-full h-full"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    zIndex: -1,
+                  }}
+                  fetchPriority="high"
+                />
+              </picture>
+            </motion.div>
+          )}
 
-              {/* 3. The Final Component */}
-              <img
-                // If mobile, we use the PNG. If desktop, we use WebP as the final 'src'.
-                // This is because the desktop browser will only reach this if AVIF fails.
-                src={isMobile ? homeBgMobilePng.src : homeBgWebp.src}
-                alt="JDS Background"
-                className="object-cover object-center w-full h-full"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  zIndex: -1,
-                }}
-                fetchPriority="high"
-              />
-            </picture>
-          </motion.div>
-
-          {/* PARALLAX CONTENT LAYER */}
+          {/* CONTENT LAYER — desktop parallax only; mobile uses native scroll
+              (the section's overflow-x-auto), spanning the real bg image. */}
           <motion.div
-            style={{ x: moveX, y: moveY }}
-            drag={isMobile ? "x" : false}
-            dragConstraints={{
-              left: -2000, // Approximate window.innerWidth * 2 constraint preserved from original logic
-              right: 0,
-            }}
-            dragElastic={0.05}
-            className={`absolute inset-0 z-10 pointer-events-none ${
-              isMobile ? "w-[300vw]" : "w-full"
-            }`}
+            style={isMobile ? {} : { x: moveX, y: moveY }}
+            className="absolute inset-0 z-10 pointer-events-none"
           >
             {/* --- VISION BLOCK --- */}
             <div
@@ -336,7 +320,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
               className={`absolute top-[49%] -translate-y-1/2 z-30 pointer-events-auto ${
                 isMobile
-                  ? "left-[149vw] -translate-x-1/2"
+                  ? "left-[49%] -translate-x-1/2"
                   : "left-[50.5%] -translate-x-1/2"
               }`}
             >
