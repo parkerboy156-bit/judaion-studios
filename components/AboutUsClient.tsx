@@ -89,7 +89,7 @@ export default function AboutTemplate() {
             >
               <Link
                 href="/projectarchive"
-                className="flex flex-row items-center gap-2 group no-underline appearance-none bg-transparent border-none cursor-pointer"
+                className="flex flex-col items-start gap-2 lg:flex-row lg:items-center group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
                   src="/last-floor-straight.webp"
@@ -111,10 +111,10 @@ export default function AboutTemplate() {
 
             {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
             {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[2px] transition-colors duration-800 ${heroImageHovered ? "border-white/60" : "border-white/10"}`}>
+            <div className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[1px] lg:border-[2px] transition-colors duration-800 border-white/60 ${heroImageHovered ? "lg:border-white/60" : "lg:border-white/10"}`}>
               {/* SCAN LINES — fade in when mouse is over the right block */}
               <div
-                className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-800 ${heroImageHovered ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-800 opacity-100 ${heroImageHovered ? "lg:opacity-100" : "lg:opacity-0"}`}
               >
                 <div
                   className="pillar-scanlines absolute inset-[-12px] bg-black/[0.08] "
@@ -197,7 +197,7 @@ export default function AboutTemplate() {
             <h1 className="relative z-10 flex flex-col font-brand-cn uppercase leading-[1]">
               {/* LINE 1: Establishing The */}
               <div className="flex justify-center w-full py-2 self-center gap-x-4">
-                <span className="hero-secondary-text-top text-[1.7vw] tracking-[0.1em] text-white/30">
+                <span className="hero-secondary-text-top text-[1.7vw] tracking-[0.1em] text-white/50">
                   We establish the
                 </span>
               </div>
@@ -210,7 +210,7 @@ export default function AboutTemplate() {
 
               {/* LINE 3: For Your business's */}
               <div className="flex justify-center w-full py-5 self-center gap-x-4">
-                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/30 ">
+                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/50 ">
                   For
                 </span>
                 <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/98 font-brand-xbold-italic-cn">
@@ -371,14 +371,14 @@ export default function AboutTemplate() {
                 onMouseMove={(e) => handlePillarMove(e, 0)}
                 onMouseLeave={handlePillarLeave}
               >
-                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-900 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-900 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
                   <img
                     src="/vision.webp"
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                   />
                   {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
                     <div
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
@@ -432,14 +432,14 @@ export default function AboutTemplate() {
                 onMouseMove={(e) => handlePillarMove(e, 1)}
                 onMouseLeave={handlePillarLeave}
               >
-                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
                   <img
                     src="/structure.webp"
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                   />
                   {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
                     <div
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
@@ -493,14 +493,14 @@ export default function AboutTemplate() {
                 onMouseMove={(e) => handlePillarMove(e, 2)}
                 onMouseLeave={handlePillarLeave}
               >
-                <div className="relative border border-white/20 hover:border-white/70 border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
+                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
                   <img
                     src="/identity.webp"
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                   />
                   {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
                     <div
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
@@ -561,13 +561,13 @@ export default function AboutTemplate() {
             </video>
 
             {/* OVERLAY CONTENT */}
-            <div className="absolute inset-0 flex flex-col justify-end pl-12 lg:p-20 pb-24 lg:pb-15">
+            <div className="absolute inset-0 flex flex-col justify-end pl-12 lg:p-20 pb-5 lg:pb-15">
               <h2 className="commitment-heading text-white text-[clamp(2rem,3.9vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
                 Where Commitment Meets the Grid
               </h2>
 
               {/* PARAGRAPH TEXT MOVED INSIDE FLEX CONTAINER */}
-              <p className="commitment-body-text max-w-2xl text-justify text-white/60 text-[13px] leading-[1.6] tracking-[0em] font-brand-secondary-thin">
+              <p className="commitment-body-text hidden lg:block max-w-2xl text-justify text-white/60 text-[13px] leading-[1.6] tracking-[0em] font-brand-secondary-thin">
                 The result of personal discipline applied to digital precision.
                 WE don't create brands based on aesthetics and trends. We build
                 identities rooted in logic and structure designed to endure. The

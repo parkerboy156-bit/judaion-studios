@@ -57,6 +57,55 @@ export default function ServicesHome() {
     },
   ];
 
+  // ─────────────────────────────────────────────
+  // MOBILE HITBOXES — always-on (no hover). Positioned as % of the FULL
+  // image (which mobile shows uncropped), so these differ from the desktop
+  // set above. Measured off the three posters; tune freely.
+  // ─────────────────────────────────────────────
+  const HITBOXES_MOBILE = [
+    {
+      path: "/tier-1",
+      tag: "ASSET 1",
+      name: "FOUNDATION",
+      top: "25%",
+      left: "10.4%",
+      width: "25%",
+      height: "53%",
+    },
+    {
+      path: "/tier-2",
+      tag: "ASSET",
+      name: "FRONT-DOOR",
+      top: "25%",
+      left: "37.8%",
+      width: "25%",
+      height: "53%",
+    },
+    {
+      path: "/tier-3",
+      tag: "ASSET",
+      name: "ARCHITECTURE",
+      top: "25%",
+      left: "65%",
+      width: "25%",
+      height: "53%",
+    },
+  ];
+
+  // ─────────────────────────────────────────────
+  // MOBILE BOX STYLING — independent of desktop. Tweak freely:
+  //   lineOpacity   → outline line opacity (0–1). Lower = dimmer, less stark white.
+  //   handleSize    → corner box size in px.
+  //   handleOpacity → corner box opacity (0–1). Lower = dimmer.
+  //   scanTint      → darkness of the always-on scan overlay (0–1).
+  // ─────────────────────────────────────────────
+  const MOBILE_SELECTION = {
+    lineOpacity: 0.4,
+    handleSize: 6,
+    handleOpacity: 0.55,
+    scanTint: 0.20,
+  };
+
   // Selection-box hover visuals (shared across all hitboxes)
   const SELECTION = {
     lineOpacity: 0.65,
@@ -88,23 +137,31 @@ export default function ServicesHome() {
       >
         <motion.section
           className={`relative h-screen bg-black overflow-hidden flex-shrink-0 ${
-            isMobile ? "w-[300vw]" : "w-full"
+            isMobile ? "w-max" : "w-full"
           }`}
         >
           {/*
-            PARALLAX BACKGROUND LAYER — archive-style background-image setup.
-            Desktop: background-size cover + scale(1.05) buffer + x/y parallax translate.
-            Mobile: min-w-[300vw] div, background-size auto 100% to preserve full image width (native scroll).
+            BACKGROUND LAYER.
+            Desktop: CSS background cover + scale(1.05) buffer + x/y parallax translate.
+            Mobile: a real <img> at h-full w-auto defines the scroll width from the
+            image's natural aspect — fills edge-to-edge, no black gap or cutoff.
+            The motion.div below then becomes a transparent overlay for the label.
           */}
+          {isMobile && (
+            <motion.img
+              src={servicesBgAvif.src}
+              alt=""
+              draggable={false}
+              className="h-full w-auto max-w-none block select-none pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
+            />
+          )}
           <motion.div
             style={
               isMobile
-                ? {
-                    backgroundImage: `url(${servicesBgAvif.src})`,
-                    backgroundSize: "auto 100%",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "left center",
-                  }
+                ? {}
                 : {
                     x: bgMoveX,
                     y: bgMoveY,
@@ -115,25 +172,30 @@ export default function ServicesHome() {
                     opacity: 0.95,
                   }
             }
-            className={`${isMobile ? "absolute top-0 left-0 min-w-[300vw] h-full" : "absolute inset-0"} origin-center`}
+            className={`absolute inset-0 origin-center ${isMobile ? "pointer-events-none" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: isMobile ? 1 : 0.95 }}
             transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
           >
             {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
             <div
-              className={`absolute top-[08%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
+              className={`absolute top-[09%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
             >
               <span className="text-[15px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile
-                  ? "SERVICES ONLY VIEWABLE ON DESKTOP"
-                  : "CLICK ITEMS TO ENTER"}
+                {isMobile ? "TAP A TIER TO ENTER" : "CLICK ITEMS TO ENTER"}
               </span>
               {!isMobile && (
                 <img
                   src="/right-click.png"
                   alt="Inspect Icon"
                   className="w-14 h-auto filter brightness-110"
+                />
+              )}
+              {isMobile && (
+                <img
+                  src="/tap-icon.png"
+                  alt="Tap Icon"
+                  className="w-9 h-auto filter brightness-110"
                 />
               )}
             </div>
@@ -314,12 +376,106 @@ export default function ServicesHome() {
                     >
                       <span className="font-brand-cn text-[10px] uppercase tracking-[0.2em] text-white">
                         {box.tag}:
-                        <span className="text-white/50"> "{box.name}"</span>
+                        <span className="text-white/50"> {`"${box.name}"`}</span>
                       </span>
                     </motion.div>
                   </div>
                 );
               })}
+
+            {/* --- MOBILE HIT BOXES — always-on (scan + outline + label), tap to enter --- */}
+            {isMobile &&
+              HITBOXES_MOBILE.map((box) => (
+                <motion.div
+                  key={box.path}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 1.2, ease: "easeOut" }}
+                  className="absolute z-20 pointer-events-auto"
+                  style={{
+                    top: box.top,
+                    left: box.left,
+                    width: box.width,
+                    height: box.height,
+                  }}
+                >
+                  <Link
+                    href={box.path}
+                    aria-label={box.name}
+                    className="absolute inset-0 z-10 cursor-pointer"
+                  />
+
+                  {/* Scan lines — always scrolling */}
+                  <div
+                    className="absolute inset-0 overflow-hidden pointer-events-none"
+                    style={{ backgroundColor: `rgba(0,0,0,${MOBILE_SELECTION.scanTint})` }}
+                  >
+                    <motion.div
+                      animate={{ y: ["0px", "-12px"] }}
+                      transition={{
+                        duration: 1.1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="absolute inset-[-12px]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
+                        backgroundSize: "100% 12px",
+                      }}
+                    />
+                  </div>
+
+                  {/* Outline — static, always visible */}
+                  <span
+                    className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+                    style={{ backgroundColor: `rgba(255,255,255,${MOBILE_SELECTION.lineOpacity})` }}
+                  />
+                  <span
+                    className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+                    style={{ backgroundColor: `rgba(255,255,255,${MOBILE_SELECTION.lineOpacity})` }}
+                  />
+                  <span
+                    className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
+                    style={{ backgroundColor: `rgba(255,255,255,${MOBILE_SELECTION.lineOpacity})` }}
+                  />
+                  <span
+                    className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
+                    style={{ backgroundColor: `rgba(255,255,255,${MOBILE_SELECTION.lineOpacity})` }}
+                  />
+
+                  {/* Corner handles — static */}
+                  {(
+                    [
+                      { top: -MOBILE_SELECTION.handleSize / 2, left: -MOBILE_SELECTION.handleSize / 2 },
+                      { top: -MOBILE_SELECTION.handleSize / 2, right: -MOBILE_SELECTION.handleSize / 2 },
+                      { bottom: -MOBILE_SELECTION.handleSize / 2, left: -MOBILE_SELECTION.handleSize / 2 },
+                      { bottom: -MOBILE_SELECTION.handleSize / 2, right: -MOBILE_SELECTION.handleSize / 2 },
+                    ] as React.CSSProperties[]
+                  ).map((pos, i) => (
+                    <span
+                      key={i}
+                      className="absolute pointer-events-none"
+                      style={{
+                        width: MOBILE_SELECTION.handleSize,
+                        height: MOBILE_SELECTION.handleSize,
+                        backgroundColor: `rgba(255,255,255,${MOBILE_SELECTION.handleOpacity})`,
+                        ...pos,
+                      }}
+                    />
+                  ))}
+
+                  {/* Label caption — always visible */}
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none"
+                    style={{ top: "calc(100% + 8px)" }}
+                  >
+                    <span className="font-brand-cn text-[10px] uppercase tracking-[0.2em] text-white">
+                      {box.tag}:<span className="text-white/50"> {`"${box.name}"`}</span>
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
           </motion.div>
 
           {/* --- FLOOR NAVIGATION (PRESERVED) --- */}

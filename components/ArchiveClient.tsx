@@ -103,10 +103,12 @@ export default function ArchiveCatalogue() {
     const audio = audioRef.current;
     if (!audio) return;
     if (isAudioOn) {
+      audio.muted = true;
       audio.volume = 0;
       isMutedRef.current = true;
       setIsAudioOn(false);
     } else {
+      audio.muted = false;
       audio.volume = 0.35;
       isMutedRef.current = false;
       setIsAudioOn(true);
@@ -569,6 +571,7 @@ export default function ArchiveCatalogue() {
                               onPlay={() => {
                                 const audio = audioRef.current;
                                 if (audio && !isMutedRef.current) {
+                                  audio.muted = true;
                                   audio.volume = 0;
                                   audioSuppressedByVideoRef.current = true;
                                   setIsAudioOn(false);
@@ -580,6 +583,7 @@ export default function ArchiveCatalogue() {
                                   audio &&
                                   audioSuppressedByVideoRef.current
                                 ) {
+                                  audio.muted = false;
                                   audio.volume = 0.35;
                                   isMutedRef.current = false;
                                   audioSuppressedByVideoRef.current = false;
@@ -592,6 +596,7 @@ export default function ArchiveCatalogue() {
                                   audio &&
                                   audioSuppressedByVideoRef.current
                                 ) {
+                                  audio.muted = false;
                                   audio.volume = 0.35;
                                   isMutedRef.current = false;
                                   audioSuppressedByVideoRef.current = false;

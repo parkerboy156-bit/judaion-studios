@@ -181,10 +181,12 @@ export default function Tier3() {
     const audio = audioRef.current;
     if (!audio) return;
     if (isAudioOn) {
+      audio.muted = true;
       audio.volume = 0;
       isMutedRef.current = true;
       setIsAudioOn(false);
     } else {
+      audio.muted = false;
       audio.volume = 0.35;
       isMutedRef.current = false;
       setIsAudioOn(true);
@@ -297,7 +299,7 @@ export default function Tier3() {
             }}
           >
             <div className="absolute inset-0 bg-black/50 pointer-events-none" />
-            <div className="relative z-10 px-12 xl:px-16 pt-8 lg:pt-18 pb-7 lg:pb-12">
+            <div className="relative z-10 px-12 xl:px-16 pt-20 lg:pt-18 pb-7 lg:pb-12">
               <h2 className="text-white font-brand-other text-[clamp(2rem,4.2vw,5.625rem)] uppercase tracking-[0.36em] leading-[1.1] whitespace-nowrap">
                 ARCHITECTURE
               </h2>
@@ -384,7 +386,7 @@ export default function Tier3() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 1 }}
-            className="relative z-10 shrink-0 overflow-hidden -mx-12 xl:-mx-16 -mb-4 lg:-mb-6 border-t border-white/10"
+            className="relative z-10 shrink-0 overflow-hidden -mx-15 xl:-mx-16 -mb-5 lg:-mb-6 border-t border-white/10"
             style={{
               backgroundImage: "url('/archive-header.avif')",
               backgroundSize: "cover",

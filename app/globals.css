@@ -671,7 +671,23 @@
 /* MOBILE VERSION LAYER END */
 
 /* ============================================================ */
-/* ARCHIVE CATALOGUE MOBILE SPECIFIC REFINEMENTS           
+/* SERVICES MOBILE — "TAP A TIER" INSTRUCTION LABEL           */
+/* ============================================================ */
+@media (max-width: 1023px) {
+  /* Glued to the background image (scrolls with it). Its POSITION is set in
+     the JSX via `top-[09%] left-1/2` — tune position there.
+     ── TUNE SIZE HERE ── font-size + letter-spacing. */
+  .mobile-inspect-fix-services {
+    position: absolute !important;
+  }
+  .mobile-inspect-fix-services span {
+    font-size: 11px !important;
+    letter-spacing: 0.4em !important;
+  }
+}
+
+/* ============================================================ */
+/* ARCHIVE CATALOGUE MOBILE SPECIFIC REFINEMENTS
 /* ============================================================ */
 @media (max-width: 1023px) {
   /* 1. TARGET ONLY THE ARCHIVE NAV, NOT THE GLOBAL MENU */
@@ -1061,36 +1077,31 @@
 
 /* NAME AND TITLE */
 @media (max-width: 1023px) {
-  /* Section 5: Architect Name Optimization */
+  /* Section 5: Architect NAME — kept clearly larger than the role title below
+     so the hierarchy reads. ── TUNE: font-size is the name size. */
   .architect-signature-name {
-    font-size: 28px !important;
-    letter-spacing: 0.3em !important;
+    font-size: 34px !important;
+    letter-spacing: 0.15em !important;
     line-height: 1.2 !important;
-    margin-bottom: 8px !important;
+    margin-bottom: 10px !important;
   }
 
-  /* Section 5: Architect Title (Role) Optimization */
+  /* Section 5: Architect TITLE (Role) — deliberately smaller than the name.
+     Keep this well under the name's size or the two start to look equal. */
   .architect-signature-title {
     font-size: 19px !important;
-    letter-spacing: 0.2em !important;
+    letter-spacing: 0.18em !important;
     display: block !important;
   }
 
-  /* --- IPHONE 8 / SMALL DEVICES --- */
+  /* --- SHORT DEVICES (iPhone SE/8) — scale both down, keep name > title --- */
   @media (max-height: 699px) {
     .architect-signature-name {
-      font-size: 21px !important;
+      font-size: 28px !important;
     }
     .architect-signature-title {
-      font-size: 20px !important;
-      letter-spacing: 0.19em !important;
-    }
-  }
-
-  /* --- LARGE MOBILE (Pro Max / Plus) --- */
-  @media (min-width: 400px) and (max-width: 1023px) {
-    .architect-signature-name {
-      font-size: 21px !important;
+      font-size: 15px !important;
+      letter-spacing: 0.16em !important;
     }
   }
 }

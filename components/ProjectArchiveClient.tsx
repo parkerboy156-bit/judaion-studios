@@ -69,18 +69,14 @@ export default function ProjectArchive() {
       >
         {/*
           BACKGROUND + HITBOX — single motion.div carries both.
-          Desktop: background-size cover + scale(1.05) for parallax buffer + x/y translate.
-          Mobile: 300vw wide div, background-size auto 100% to preserve full image width.
+          Desktop: CSS background cover + scale(1.05) parallax buffer + x/y translate.
+          Mobile: real <img> at h-full w-auto defines the scroll width from the
+          image's natural aspect — fills edge-to-edge with no black gap or cutoff.
         */}
         <motion.div
           style={
             isMobile
-              ? {
-                  backgroundImage: `url(${projectArchiveBgAvif.src})`,
-                  backgroundSize: "auto 100%",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "left center",
-                }
+              ? {}
               : {
                   x: bgMoveX,
                   y: bgMoveY,
@@ -91,11 +87,22 @@ export default function ProjectArchive() {
                   opacity: 0.95,
                 }
           }
-          className={`${isMobile ? "absolute top-0 left-0 min-w-[300vw] h-full" : "absolute inset-0"}`}
+          className={`${isMobile ? "absolute top-0 left-0 h-full w-auto" : "absolute inset-0"}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: isMobile ? 1 : 0.95 }}
           transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
         >
+          {/* MOBILE BG — real <img> defines the scroll width from its natural
+              aspect (never cropped), so the page scrolls to the true image edge. */}
+          {isMobile && (
+            <img
+              src={projectArchiveBgAvif.src}
+              alt=""
+              draggable={false}
+              className="h-full w-auto max-w-none block select-none pointer-events-none"
+            />
+          )}
+
           {/* HITBOX */}
           {isMobile ? (
             <Link
@@ -220,7 +227,7 @@ export default function ProjectArchive() {
 
           {/* INSPECT INSTRUCTION */}
           {isMobile ? (
-            <div className="absolute top-[63%] left-[67%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
+            <div className="absolute top-[63%] left-[65%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
               <img src="/tap-icon.png" alt="Tap Icon" className="w-12 h-auto filter brightness-110" />
               <span className="text-[13px] tracking-[0.7em] uppercase text-white font-brand-secondary-heavy whitespace-nowrap">
                 TAP ITEM TO INSPECT
@@ -238,7 +245,16 @@ export default function ProjectArchive() {
 
         {/* --- MOBILE NAVIGATION --- */}
         {isMobile && (
-          <div className="absolute top-0 left-0 w-[300vw] h-full pointer-events-none">
+          <div className="absolute top-0 left-0 h-full pointer-events-none">
+            {/* Hidden spacer image — sizes this layer to the exact same width
+                as the background so the nav arrows sit at the true image edges. */}
+            <img
+              src={projectArchiveBgAvif.src}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="h-full w-auto max-w-none block invisible"
+            />
             <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 m-4 z-20" />
             <motion.div
               initial={{ opacity: 0, x: -20 }}
