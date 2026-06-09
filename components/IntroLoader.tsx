@@ -15,7 +15,7 @@ export default function IntroLoader({
   const mobileVideoSrc =
     "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20intro%20mobile%20JDS-mobile-video.mp4";
   const desktopVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20IntroLoaderJDS-2.1.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT.mp4";
   const [activeVideoSrc, setActiveVideoSrc] = useState(desktopVideoSrc);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function IntroLoader({
     if (!shouldShow) return;
 
     // 1. Establish separate delay constants
-    const DESKTOP_NAV_DELAY = 5000;
+    const DESKTOP_NAV_DELAY = 1500;
     const MOBILE_NAV_DELAY = 11000; // Increased delay for mobile
 
     const bootTimer = setTimeout(() => {
