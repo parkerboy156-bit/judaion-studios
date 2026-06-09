@@ -13,7 +13,7 @@ export default function IntroLoader({
   const [showNavigation, setShowNavigation] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mobileVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20intro%20mobile%20JDS-mobile-video.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT%20Mobile.mp4";
   const desktopVideoSrc =
     "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT.mp4";
   const [activeVideoSrc, setActiveVideoSrc] = useState(desktopVideoSrc);
