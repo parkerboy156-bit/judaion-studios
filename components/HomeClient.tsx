@@ -117,7 +117,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
       <motion.div
         className={`relative h-screen bg-black select-none ${
           isMobile
-            ? "overflow-x-auto overflow-y-hidden"
+            ? "overflow-x-auto overflow-y-hidden overscroll-x-none"
             : "overflow-hidden"
         }`}
       >
