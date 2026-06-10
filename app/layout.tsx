@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     template: "%s | JUDAION",
   },
   description:
-    "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic soul.",
+    "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic rigour.",
   applicationName: "JUDAION",
   keywords: [
     "JUDAION",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     title: "JUDAION | Creative Strategic Partner",
     description:
-      "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic soul.",
+      "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic rigour.",
     images: [
       {
         url: "/og-image.png",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "JUDAION | Creative Strategic Partner",
     description:
-      "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic soul.",
+      "JUDAION is a brand strategy and identity studio for founders — operating at the intersection of strategic logic and cinematic rigour.",
     images: ["/og-image.png"],
   },
   robots: {
