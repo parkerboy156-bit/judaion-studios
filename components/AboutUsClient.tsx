@@ -111,7 +111,9 @@ export default function AboutTemplate() {
 
             {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
             {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[1px] lg:border-[2px] transition-colors duration-800 border-white/60 ${heroImageHovered ? "lg:border-white/60" : "lg:border-white/10"}`}>
+            <div
+              className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[1px] lg:border-[2px] transition-colors duration-800 border-white/60 ${heroImageHovered ? "lg:border-white/60" : "lg:border-white/10"}`}
+            >
               {/* SCAN LINES — fade in when mouse is over the right block */}
               <div
                 className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-800 opacity-100 ${heroImageHovered ? "lg:opacity-100" : "lg:opacity-0"}`}
@@ -190,8 +192,6 @@ export default function AboutTemplate() {
                 <span className="text-white/50">{heroCoords.x} PX</span>
               </span>
             </div>
-
-
 
             {/* --- CONTENT LAYER (Z-10 to stay over the new image block) --- */}
             <h1 className="relative z-10 flex flex-col font-brand-cn uppercase leading-[1]">
@@ -550,7 +550,7 @@ export default function AboutTemplate() {
               loop
               playsInline
               preload="auto"
-              className="w-full h-full object-cover grayscale hover:scale-105 transition-transform duration-[3s]"
+              className="w-full h-full object-cover grayscale hover:scale-108 transition-transform duration-[3s]"
             >
               <source
                 src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Section%204JDS-section-4-color.mp4"
@@ -559,49 +559,46 @@ export default function AboutTemplate() {
               Your browser does not support the video tag.
             </video>
 
-            {/* OVERLAY CONTENT */}
-            <div className="absolute inset-0 flex flex-col justify-end pl-12 lg:p-20 pb-5 lg:pb-15">
-              <h2 className="commitment-heading text-white text-[clamp(2rem,4vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
-                Where Commitment Meets the Grid
-              </h2>
+            {/* DARKEN OVERLAY — dims the video behind the heading */}
+            <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
-              {/* PARAGRAPH TEXT MOVED INSIDE FLEX CONTAINER */}
-              <p className="commitment-body-text hidden lg:block max-w-2xl text-justify text-white/60 text-[13px] leading-[1.6] tracking-[0em] font-brand-secondary-thin">
-                The result of personal discipline applied to digital precision.
-                WE don't create brands based on aesthetics and trends. We build
-                identities rooted in logic and structure designed to endure. The
-                commitment to permanence is the commitment that lasts.
-              </p>
-            </div>
+            {/* CORNER BLUR — softens only the edges/corners (mask is clear in
+                the centre) so the vignette zone is blurred, not tinted.
+                Tune: blur(Npx) for softness; the mask % for how far it reaches. */}
+            <div
+              className="absolute inset-0 z-[5] pointer-events-none"
+              style={{
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                maskImage:
+                  "radial-gradient(ellipse at center, transparent 50%, black 92%)",
+                WebkitMaskImage:
+                  "radial-gradient(ellipse at center, transparent 50%, black 92%)",
+              }}
+            />
 
-            <div className="absolute inset-0 z-10 p-12 pointer-events-none">
-              {/* Top Right: Status Marker */}
-              <div className="absolute top-8 right-8 flex flex-col p-4">
-                <span className="archive-status-tag text-[10px] tracking-[0.2em] uppercase text-white/30 font-brand-secondary-thin">
-                  LOG-ID: ZJP-EXT-02
+            {/* VIGNETTE — plain darkened edges, no colour fringe.
+                Tune the 0.7 alpha for strength; 160px/30px for spread. */}
+            <div
+              className="absolute inset-0 z-[5] pointer-events-none"
+              style={{ boxShadow: "inset 0 0 160px 30px rgba(0,0,0,0.8)" }}
+            />
+
+            {/* CENTERED OVERLAY CONTENT */}
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-8 gap-4 pointer-events-none">
+              <span className="text-[10px] tracking-[0.5em] uppercase text-white/52 font-brand-secondary-thin">
+                JUDAION STUDIOS | THE NARRATIVE
+              </span>
+              {/* Heading + body grouped: the group is sized to the heading
+                  (w-fit), so the left-aligned body lines up with the title's
+                  left edge while the title itself stays centred in the section. */}
+              <div className="flex flex-col items-start gap-4 w-fit max-w-full">
+                <h2 className="commitment-heading text-white text-[clamp(2rem,4vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
+                  Where Commitment Meets the Grid
+                </h2>
+                <span className="commitment-body-text hidden lg:block max-w-2xl text-left text-white/59 text-[14px] leading-[1.6] tracking-[0em] font-brand-secondary-thin text-justify">
+                  The result of personal discipline applied to digital precision. WE don't create brands based on aesthetics and trends. We build identities rooted in logic and structure designed to endure. The commitment to permanence is the commitment that lasts.
                 </span>
-                <span className="archive-status-tag text-[10px] tracking-[0.2em] text-white/30 uppercase font-brand-secondary-thin">
-                  CLEARANCE: LEVEL-04
-                </span>
-                <span className="archive-status-tag text-[10px] tracking-[0.2em] text-white/30 uppercase font-brand-secondary-thin">
-                  SUBJECT: THE ARCHITECT
-                </span>
-              </div>
-
-              {/* TOP LEFT: LIVE FEED STATUS */}
-              <div className="absolute top-8 left-8 flex items-center  space-x-4  p-4 pointer-events-none">
-                {/* PULSING ASSET */}
-                <span className="archive-pulse-icon w-3 h-3 bg-orange-600 animate-pulse rounded-full shadow-[0_0_10px_rgba(234,88,12,0.5)]" />
-
-                {/* LIVE TEXT LABELS */}
-                <div className="flex flex-col">
-                  <span className="studio-feed-title text-[11px] tracking-[0.4em] uppercase text-white/90 font-brand-secondary-heavy">
-                    Studio Feed
-                  </span>
-                  <span className="archive-status-tag text-[9px] tracking-[0.2em] text-white/30 uppercase font-brand-secondary-thin">
-                    SESSION-LOG: [06/04/25]
-                  </span>
-                </div>
               </div>
             </div>
           </section>
@@ -688,8 +685,9 @@ export default function AboutTemplate() {
           </section>
 
           {/* SECTION 6: THE CALL TO ACTION (FINAL PROTOCOL) */}
-          <section className="about-cta-section h-[70vh] w-full flex flex-col lg:flex-row items-center justify-between px-12 lg:px-32 border-t border-white/10 bg-transparent relative overflow-hidden"
-                      style={{
+          <section
+            className="about-cta-section h-[70vh] w-full flex flex-col lg:flex-row items-center justify-between px-12 lg:px-32 border-t border-white/10 bg-transparent relative overflow-hidden"
+            style={{
               zIndex: 2,
               backdropFilter: "blur(4px)",
               WebkitBackdropFilter: "blur(5px)",
@@ -697,7 +695,6 @@ export default function AboutTemplate() {
                 "linear-gradient(to bottom, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.70) 100%)",
             }}
           >
-          
             {/* LEFT: TEXT STACK */}
             <div className="flex flex-col items-start space-y-4">
               <span className="cta-meta-tag text-[10px] uppercase tracking-[1em] text-white/40 font-brand-secondary-thin">
