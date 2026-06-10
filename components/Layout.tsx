@@ -64,7 +64,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   "Methodology",
                   "Services",
                   "Project Archive",
-                  "About Us",
+                  "The Narrative",
                   "Contact",
                 ].map((item, i) => (
                   <Link

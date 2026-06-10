@@ -313,7 +313,7 @@ export default function Contact() {
           className={`absolute z-50 pointer-events-auto ${isMobile ? "contact-floor-nav-mobile" : "bottom-12 left-12"}`}
         >
           <Link
-            href="/aboutus"
+            href="/thenarrative"
             className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
           >
             <motion.img
@@ -327,7 +327,7 @@ export default function Contact() {
                 Re-Enter Studio
               </span>
               <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">
-                05 About Us
+                05 The Narrative
               </span>
             </div>
           </Link>

@@ -8,7 +8,7 @@ import heroBgPng from "@/public/hero-bg-block.webp";
 import archiveheaderAvif from "@/public/archive-header.avif";
 import archiveheaderWebp from "@/public/archive-header.webp";
 
-export default function AboutTemplate() {
+export default function TheNarrative() {
   const [hoveredPillar, setHoveredPillar] = useState<number | null>(null);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
 
@@ -586,8 +586,8 @@ export default function AboutTemplate() {
 
             {/* CENTERED OVERLAY CONTENT */}
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-8 gap-4 pointer-events-none">
-              <span className="text-[10px] tracking-[0.5em] uppercase text-white/52 font-brand-secondary-thin">
-                JUDAION STUDIOS | THE NARRATIVE
+              <span className="hidden lg:block text-[10px] tracking-[0.5em] uppercase text-white/52 font-brand-secondary-thin">
+                JUDAION STUDIOS | STUDIO FEED
               </span>
               {/* Heading + body grouped: the group is sized to the heading
                   (w-fit), so the left-aligned body lines up with the title's

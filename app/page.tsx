@@ -2,8 +2,10 @@ import HomeClient from "@/components/HomeClient";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "JUDAION | Creative Brand Architecture",
-  description: "High-torque, monochrome-led visuals and strategic foundation.",
+  title: { absolute: "JUDAION | Creative Brand Architecture" },
+  description:
+    "JUDAION is a brand strategy and identity studio for founders — high-torque, monochrome-led visuals built on a strategic foundation.",
+  alternates: { canonical: "/" },
 };
 
 export default function Page() {

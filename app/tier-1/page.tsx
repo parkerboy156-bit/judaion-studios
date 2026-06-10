@@ -2,8 +2,10 @@ import Tier1Client from '@/components/Tier1Client';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'The Identity Launchpad | T1',
-  description: 'The JUDAION Service Tiers.',
+  title: 'Tier 1 — The Identity Launchpad',
+  description:
+    'Tier 1: the Identity Launchpad. Establish a strategic brand foundation with JUDAION.',
+  alternates: { canonical: '/tier-1' },
 };
 
 export default function Tier1Page() {

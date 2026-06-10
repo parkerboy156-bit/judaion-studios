@@ -290,7 +290,7 @@ export default function ProjectArchive() {
               className="absolute bottom-12 right-10 pointer-events-auto"
             >
               <Link
-                href="/aboutus"
+                href="/thenarrative"
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
@@ -304,7 +304,7 @@ export default function ProjectArchive() {
                     Next Floor
                   </span>
                   <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">
-                    04 About us
+                    04 The Narrative
                   </span>
                 </div>
               </Link>
@@ -350,7 +350,7 @@ export default function ProjectArchive() {
               className="absolute bottom-12 right-12 z-50 pointer-events-auto"
             >
               <Link
-                href="/aboutus"
+                href="/thenarrative"
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
@@ -364,7 +364,7 @@ export default function ProjectArchive() {
                     Next Floor
                   </span>
                   <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">
-                    04 About us
+                    04 The Narrative
                   </span>
                 </div>
               </Link>

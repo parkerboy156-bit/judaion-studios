@@ -93,7 +93,7 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
 ### Services mobile tier hitboxes — `ServicesClient`
 - Always-on (no hover) tappable boxes over the 3 posters → `/tier-1|2|3`. Separate `HITBOXES_MOBILE` coords (% of full image) + `MOBILE_SELECTION` config (`lineOpacity`, `handleSize`, `handleOpacity`, `scanTint`). Desktop boxes stay hover-gated.
 
-### About Us mobile — `AboutUsClient`
+### The Narrative (route `/thenarrative`) mobile — `TheNarrativeClient`
 - Pillar + hero scanlines always-on via `opacity-100 lg:opacity-0 lg:group-hover:opacity-100`; image borders thinner on mobile (`border-[1px] lg:border-[2px]`). Section-4 body copy `hidden lg:block`; heading dropped lower via reduced `pb`.
 
 ### Audio system — `Tier1/2/3Client` + `ArchiveClient`
