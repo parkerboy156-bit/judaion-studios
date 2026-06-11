@@ -244,11 +244,11 @@ export default function Tier3() {
       <motion.div
         animate={{ y: ["0px", "-12px"] }}
         transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-[-12px] bg-black/[0.21]"
+        className="absolute inset-[-12px] bg-black/[0.20]"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.13) 0px, rgba(255,255,255,0.13) 1px, transparent 1px, transparent 12px)",
-          backgroundSize: "100% 12px",
+            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+          backgroundSize: "100% 3px",
         }}
       />
     </motion.div>
