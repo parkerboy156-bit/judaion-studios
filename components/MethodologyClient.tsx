@@ -239,7 +239,7 @@ export default function MethodologyPage() {
                   ].map((step) => (
                     <div
                       key={step.id}
-                      className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/10 hover:border-white/40"
+                      className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/10 hover:border-white/40 rounded-sm duration-800"
                     >
                       <>
                         <div
@@ -254,7 +254,7 @@ export default function MethodologyPage() {
                           <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
                             {step.title}
                           </h3>
-                          <p className="text-white/50 text-[19px] tracking-[0.1em] leading-relaxed uppercase font-brand-cn">
+                          <p className="text-white/50 text-[19px] tracking-[0em] leading-relaxed  font-brand-secondary-thin text-justify">
                             {step.text}
                           </p>
                         </div>
@@ -282,7 +282,7 @@ export default function MethodologyPage() {
               {isMobile
                 ? "Pinch to Zoom "
                 : isZoomed
-                  ? "Scroll Down to Exit INSPECTION"
+                  ? "Scroll Down to Exit"
                   : "Scroll Up to Inspect"}
             </span>
           </motion.div>

@@ -80,14 +80,11 @@ export default function Contact() {
     height: "45%",
   };
 
-  // Intro-peek intensity — kept tasteful so it never overpowers the art.
-  //   scan  → scan-line block opacity during the peek (0–1)
+  // Intro-peek intensity — the peek shows ONLY the border lines (no scan-line
+  // fill), so the full hitbox rectangle isn't given away until hover.
   //   line  → border-line opacity during the peek (0–1)
   //   scale → how far the borders draw in during the peek (0–1, "half" = 0.5)
-  //   bg    → darkness of the panel tint behind the scan-lines during peek (0–1)
-  const PEEK = { scan: 0.75, line: 0.25, scale: 0.5, bg: 0.18 };
-  // Peek active but not a real hover (used to swap in the darker peek tint).
-  const isPeek = peekOn && !hovered;
+  const PEEK = { line: 0.25, scale: 0.5 };
 
   // Selection-box hover visuals (mirrors ServicesClient)
   const SELECTION = {
@@ -203,7 +200,7 @@ export default function Contact() {
                     style={{ left: x, top: y }}
                     animate={{ opacity: hovered && !formOpen ? 1 : 0 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
+                    className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
                   >
                     <img
                       src="/right-click.png"
@@ -211,7 +208,7 @@ export default function Contact() {
                       className="w-5 h-auto filter brightness-110"
                     />
                     <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
-                      Click to open protocol form
+                      Open protocol form
                     </span>
                   </motion.div>
                 )}
@@ -494,17 +491,21 @@ export default function Contact() {
               }
               onClick={() => setFormOpen(true)}
             >
-              {/* Scan lines — fade in on hover; visible with a dark tint during
-                  the intro peek. Opacity AND tint animate so it fades smoothly. */}
+              {/* Peek-only faint black fill — draws a little attention during
+                  the peek WITHOUT the scan-line texture (scan lines stay
+                  hover-only). Tune the bg-black/[..] value for darkness. */}
               <motion.div
-                animate={{
-                  opacity: hovered ? 1 : peekOn ? PEEK.scan : 0,
-                  backgroundColor: isPeek
-                    ? `rgba(0,0,0,${PEEK.bg})`
-                    : "rgba(0,0,0,0.15)",
-                }}
+                animate={{ opacity: peekOn && !hovered ? 1 : 0 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="absolute inset-0 overflow-hidden pointer-events-none"
+                className="absolute inset-0 pointer-events-none bg-black/[0.08]"
+              />
+
+              {/* Scan lines — HOVER ONLY. Kept out of the peek so the peek
+                  shows just the border lines, not a filled rectangle. */}
+              <motion.div
+                animate={{ opacity: hovered ? 1 : 0 }}
+                transition={{ duration: 0.35 }}
+                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.15]"
               >
                 <motion.div
                   animate={{ y: ["0px", "-12px"] }}
@@ -516,8 +517,8 @@ export default function Contact() {
                   className="absolute inset-[-12px]"
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
-                    backgroundSize: "100% 12px",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px)",
+                    backgroundSize: "100% 3px",
                   }}
                 />
               </motion.div>
@@ -693,8 +694,8 @@ export default function Contact() {
                   className="absolute inset-[-12px]"
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
-                    backgroundSize: "100% 12px",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px)",
+                    backgroundSize: "100% 3px",
                   }}
                 />
               </div>

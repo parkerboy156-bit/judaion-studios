@@ -103,7 +103,7 @@ export default function ServicesHome() {
     lineOpacity: 0.4,
     handleSize: 6,
     handleOpacity: 0.55,
-    scanTint: 0.20,
+    scanTint: 0.25,
   };
 
   // Selection-box hover visuals (shared across all hitboxes)
@@ -123,37 +123,12 @@ export default function ServicesHome() {
 
   const [isMobile, setIsMobile] = React.useState(false);
 
-  // INTRO PEEK — which box is currently half-opening during the one-time sweep
-  const [peekBox, setPeekBox] = React.useState<string | null>(null);
-
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
-  // One-time intro peek — sweeps the hitboxes once (tier 1 → 2 → 3) then stops.
-  // The posters sit close together, so a repeating/hover-gated peek would clash
-  // with real hovers; a single staggered sweep signals interactivity cleanly.
-  React.useEffect(() => {
-    if (isMobile) return;
-    const peekDuration = 650; // how long each box stays half-open
-    const gap = 450; // pause between boxes
-    let delay = 1200; // wait out the intro fade
-    const timers: number[] = [];
-    HITBOXES.forEach((box) => {
-      timers.push(window.setTimeout(() => setPeekBox(box.path), delay));
-      timers.push(
-        window.setTimeout(
-          () => setPeekBox((p) => (p === box.path ? null : p)),
-          delay + peekDuration,
-        ),
-      );
-      delay += peekDuration + gap;
-    });
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [isMobile]);
 
   return (
     <main className="relative bg-black">
@@ -223,8 +198,8 @@ export default function ServicesHome() {
             {!isMobile &&
               HITBOXES.map((box) => {
                 const active = hoveredBox === box.path;
-                // Borders + scan-lines draw to half during this box's peek.
-                const reveal = active ? 1 : peekBox === box.path ? 0.5 : 0;
+                // Borders + scan-lines reveal on hover only.
+                const reveal = active ? 1 : 0;
                 return (
                   <div
                     key={box.path}
@@ -269,8 +244,8 @@ export default function ServicesHome() {
                         className="absolute inset-[-12px]"
                         style={{
                           backgroundImage:
-                            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
-                          backgroundSize: "100% 12px",
+                            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px)",
+                          backgroundSize: "100% 3px",
                         }}
                       />
                     </motion.div>
@@ -444,8 +419,8 @@ export default function ServicesHome() {
                       className="absolute inset-[-12px]"
                       style={{
                         backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 12px)",
-                        backgroundSize: "100% 12px",
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
                       }}
                     />
                   </div>

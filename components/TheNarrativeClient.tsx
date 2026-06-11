@@ -122,8 +122,8 @@ export default function TheNarrative() {
                   className="pillar-scanlines absolute inset-[-12px] bg-black/[0.08] "
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
-                    backgroundSize: "100% 12px",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                    backgroundSize: "100% 3px",
                   }}
                 />
               </div>
@@ -382,8 +382,8 @@ export default function TheNarrative() {
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
                         backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
-                        backgroundSize: "100% 12px",
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
                       }}
                     />
                   </div>
@@ -443,8 +443,8 @@ export default function TheNarrative() {
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
                         backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
-                        backgroundSize: "100% 12px",
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
                       }}
                     />
                   </div>
@@ -504,8 +504,8 @@ export default function TheNarrative() {
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
                         backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 12px)",
-                        backgroundSize: "100% 12px",
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
                       }}
                     />
                   </div>

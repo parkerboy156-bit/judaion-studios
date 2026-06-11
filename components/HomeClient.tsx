@@ -124,8 +124,9 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   // Intro peek active (not a real hover). During the peek we make the lines
   // pure white and the panel darker so they read on bright compositions.
   const isPeek = !doorOn && peekOn;
-  // Scan-line tint opacity — kept strong (not halved) during the peek.
-  const scanTarget = doorOn ? 1 : peekOn ? 0.9 : 0;
+  // Scan-line panel opacity — HOVER / mobile-always-on only (kept OUT of the
+  // peek so the peek shows just the border lines, not a filled rectangle).
+  const scanTarget = doorOn ? 1 : 0;
 
   return (
     <div className="relative bg-black overflow-hidden">
@@ -253,14 +254,23 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute inset-0 z-20 cursor-pointer"
               />
 
+              {/* Peek-only faint black fill — draws a little attention to the
+                  door during the peek WITHOUT the scan-line texture (scan lines
+                  stay hover-only). Tune the bg-black/[..] value for darkness. */}
+              <motion.div
+                animate={{ opacity: isPeek ? 1 : 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute inset-0 pointer-events-none bg-black/[0.18]"
+              />
+
               {/* Scan lines — full when on, gently darker during peek, scroll up.
                   Both opacity AND tint animate so the peek fades out smoothly. */}
               <motion.div
                 animate={{
                   opacity: scanTarget,
                   backgroundColor: isPeek
-                    ? "rgba(0,0,0,0.20)"
-                    : "rgba(0,0,0,0.12)",
+                    ? "rgba(0,0,0,0.15)"
+                    : "rgba(0,0,0,0.16)",
                 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
                 className="absolute inset-0 overflow-hidden pointer-events-none"
@@ -272,11 +282,13 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                     repeat: Infinity,
                     ease: "linear",
                   }}
-                  className="absolute inset-[-12px] bg-black/[0.20]"
+                  className="absolute inset-[-12px] bg-black/[0.13]"
                   style={{
+                    // CRT-style scan lines: 1px line + 2px gap (3px period).
+                    // 3px divides the 12px scroll distance, so it still loops seamlessly.
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 12px)",
-                    backgroundSize: "100% 12px",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 3px)",
+                    backgroundSize: "100% 3px",
                   }}
                 />
               </motion.div>

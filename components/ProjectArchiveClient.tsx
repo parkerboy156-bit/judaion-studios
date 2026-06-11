@@ -153,27 +153,31 @@ export default function ProjectArchive() {
             >
               <Link href="/archivecatalogue" className="absolute inset-0 cursor-pointer" />
 
-              {/* Faint fill on hover */}
+              {/* Peek-only faint black fill — draws a little attention during
+                  the peek WITHOUT the scan-line texture (scan lines stay
+                  hover-only). Tune the bg-black/[..] value for darkness. */}
               <motion.div
-                animate={{ opacity: hitboxHovered ? 1 : 0 }}
-                transition={{ duration: 0.25 }}
-                className="absolute inset-0  pointer-events-none"
+                animate={{ opacity: peekOn && !hitboxHovered ? 1 : 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute inset-0 pointer-events-none bg-black/[0.08]"
               />
 
-              {/* Scan lines — fade in on hover (and during the intro peek) */}
+              {/* Scan lines — HOVER ONLY (kept out of the peek so the peek shows
+                  just the border lines + faint fill, not a filled rectangle). */}
               <motion.div
-                animate={{ opacity: revealTarget }}
+                animate={{ opacity: hitboxHovered ? 1 : 0 }}
                 transition={{ duration: 0.35 }}
-                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.12]"
+                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.10]"
               >
                 <motion.div
                   animate={{ y: ["0px", "-12px"] }}
                   transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
                   className="absolute inset-[-12px]"
                   style={{
+                    // CRT-style scan lines: 1px line + 2px gap (3px period).
                     backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 12px)",
-                    backgroundSize: "100% 12px",
+                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.20) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 3px)",
+                    backgroundSize: "100% 3px",
                   }}
                 />
               </motion.div>
@@ -271,7 +275,7 @@ export default function ProjectArchive() {
             style={{ left: x, top: y }}
             animate={{ opacity: hitboxHovered ? 1 : 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
+            className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
           >
             <img
               src="/right-click.png"
@@ -279,7 +283,7 @@ export default function ProjectArchive() {
               className="w-5 h-auto filter brightness-110"
             />
             <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
-              Click to enter
+              Enter The Archive
             </span>
           </motion.div>
         )}
