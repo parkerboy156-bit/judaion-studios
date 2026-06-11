@@ -72,7 +72,7 @@ export default function TheNarrative() {
         </div>
 
         {/* 2. THE CONTENT LAYER (Z-index 10 to stay above video) */}
-        <div className="relative z-10 w-full bg-transparent text-white font-brand-secondary-thin selection:bg-orange-600/30">
+        <div className="relative z-10 w-full bg-transparent text-white font-brand-secondary-thin selection:bg-orange-800/30">
           {/* SECTION 1: THE HERO (PRECISION LAYERED BLOCK) */}
           <section
             className="h-screen w-full flex flex-col justify-center px-10 lg:px-20 border-b border-white/10 relative overflow-hidden"
@@ -712,13 +712,13 @@ export default function TheNarrative() {
             <div className="relative group cursor-pointer mt-13 lg:mt-0">
               <Link
                 href="/contact"
-                className="relative z-10 overflow-hidden  p-5 transition-all duration-500 hover:border-orange-600/50 cursor-pointer"
+                className="relative z-10 overflow-hidden  p-5 transition-all duration-500 cursor-pointer"
               >
                 <img
                   src="/CTA.webp"
                   alt="Execute Protocol"
                   loading="lazy"
-                  className="w-64 lg:w-150 h-auto "
+                  className="w-100 lg:w-240 h-auto"
                 />
               </Link>
             </div>

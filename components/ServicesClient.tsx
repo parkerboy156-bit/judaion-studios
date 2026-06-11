@@ -9,11 +9,11 @@ export default function ServicesHome() {
   // MOUSE PARALLAX LOGIC (PRESERVED)
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
+  const mouseX = useSpring(x, { stiffness: 110, damping: 25 });
+  const mouseY = useSpring(y, { stiffness: 110, damping: 25 });
 
-  const bgMoveX = useTransform(mouseX, [0, 1920], ["1%", "-1%"]);
-  const bgMoveY = useTransform(mouseY, [0, 1080], ["1%", "-1%"]);
+  const bgMoveX = useTransform(mouseX, [0, 1920], ["1.6%", "-1.6%"]);
+  const bgMoveY = useTransform(mouseY, [0, 1080], ["1.6%", "-1.6%"]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     x.set(e.clientX);
@@ -27,7 +27,7 @@ export default function ServicesHome() {
   const HITBOXES = [
     {
       path: "/tier-1",
-      tag: "ASSET 1",
+      tag: "ASSET 3",
       name: "FOUNDATION",
       top: "18.5%",
       left: "11%",
@@ -37,7 +37,7 @@ export default function ServicesHome() {
     },
     {
       path: "/tier-2",
-      tag: "ASSET",
+      tag: "ASSET 4",
       name: "FRONT-DOOR",
       top: "18.5%",
       left: "38.5%",
@@ -47,8 +47,8 @@ export default function ServicesHome() {
     },
     {
       path: "/tier-3",
-      tag: "ASSET",
-      name: "ARCHITECTURE",
+      tag: "ASSET 5",
+      name: "THE ARCHITECTURE",
       top: "18.5%",
       left: "65.9%",
       width: "23.7%",
@@ -65,7 +65,7 @@ export default function ServicesHome() {
   const HITBOXES_MOBILE = [
     {
       path: "/tier-1",
-      tag: "ASSET 1",
+      tag: "ASSET 3",
       name: "FOUNDATION",
       top: "25%",
       left: "10.4%",
@@ -74,7 +74,7 @@ export default function ServicesHome() {
     },
     {
       path: "/tier-2",
-      tag: "ASSET",
+      tag: "ASSET 4",
       name: "FRONT-DOOR",
       top: "25%",
       left: "37.8%",
@@ -83,8 +83,8 @@ export default function ServicesHome() {
     },
     {
       path: "/tier-3",
-      tag: "ASSET",
-      name: "ARCHITECTURE",
+      tag: "ASSET 5",
+      name: "THE ARCHITECTURE",
       top: "25%",
       left: "65%",
       width: "25%",
@@ -117,8 +117,14 @@ export default function ServicesHome() {
 
   const [hoveredBox, setHoveredBox] = React.useState<string | null>(null);
   const [hoverCoords, setHoverCoords] = React.useState({ x: 0, y: 0 });
+  // Name of the hovered tier, shown in the cursor tag. Not cleared on leave so
+  // the label stays put while the tag fades out.
+  const [tagName, setTagName] = React.useState("");
 
   const [isMobile, setIsMobile] = React.useState(false);
+
+  // INTRO PEEK — which box is currently half-opening during the one-time sweep
+  const [peekBox, setPeekBox] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -126,6 +132,28 @@ export default function ServicesHome() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // One-time intro peek — sweeps the hitboxes once (tier 1 → 2 → 3) then stops.
+  // The posters sit close together, so a repeating/hover-gated peek would clash
+  // with real hovers; a single staggered sweep signals interactivity cleanly.
+  React.useEffect(() => {
+    if (isMobile) return;
+    const peekDuration = 650; // how long each box stays half-open
+    const gap = 450; // pause between boxes
+    let delay = 1200; // wait out the intro fade
+    const timers: number[] = [];
+    HITBOXES.forEach((box) => {
+      timers.push(window.setTimeout(() => setPeekBox(box.path), delay));
+      timers.push(
+        window.setTimeout(
+          () => setPeekBox((p) => (p === box.path ? null : p)),
+          delay + peekDuration,
+        ),
+      );
+      delay += peekDuration + gap;
+    });
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [isMobile]);
 
   return (
     <main className="relative bg-black">
@@ -177,33 +205,26 @@ export default function ServicesHome() {
             animate={{ opacity: isMobile ? 1 : 0.95 }}
             transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
           >
-            {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
-            <div
-              className={`absolute top-[09%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "mobile-inspect-fix-services" : ""}`}
-            >
-              <span className="text-[15px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile ? "TAP A TIER TO ENTER" : "CLICK ITEMS TO ENTER"}
-              </span>
-              {!isMobile && (
-                <img
-                  src="/right-click.png"
-                  alt="Inspect Icon"
-                  className="w-14 h-auto filter brightness-110"
-                />
-              )}
-              {isMobile && (
+            {/* MASTER INSTRUCTION LABEL — mobile only (desktop uses cursor tags) */}
+            {isMobile && (
+              <div className="absolute top-[13%] left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none mobile-inspect-fix-services">
+                <span className="text-[16px] tracking-[0.3em] uppercase text-white font-brand-cn whitespace-nowrap">
+                  TAP A TIER TO ENTER
+                </span>
                 <img
                   src="/tap-icon.png"
                   alt="Tap Icon"
                   className="w-9 h-auto filter brightness-110"
                 />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* --- HIT BOXES with selection-box hover effect — %-positioned children of bg layer (DESKTOP ONLY) --- */}
             {!isMobile &&
               HITBOXES.map((box) => {
                 const active = hoveredBox === box.path;
+                // Borders + scan-lines draw to half during this box's peek.
+                const reveal = active ? 1 : peekBox === box.path ? 0.5 : 0;
                 return (
                   <div
                     key={box.path}
@@ -215,7 +236,10 @@ export default function ServicesHome() {
                       height: box.height,
                       transform: `rotate(${box.rotate})`,
                     }}
-                    onMouseEnter={() => setHoveredBox(box.path)}
+                    onMouseEnter={() => {
+                      setHoveredBox(box.path);
+                      setTagName(box.name);
+                    }}
                     onMouseLeave={() => setHoveredBox(null)}
                     onMouseMove={(e) =>
                       setHoverCoords({
@@ -229,9 +253,9 @@ export default function ServicesHome() {
                       className="absolute inset-0 cursor-pointer"
                     />
 
-                    {/* Scan lines — fade in on hover, scroll upward continuously */}
+                    {/* Scan lines — fade in on hover (half during the intro peek) */}
                     <motion.div
-                      animate={{ opacity: active ? 1 : 0 }}
+                      animate={{ opacity: reveal }}
                       transition={{ duration: 0.35 }}
                       className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.15]"
                     >
@@ -253,7 +277,7 @@ export default function ServicesHome() {
 
                     {/* Edge lines */}
                     <motion.div
-                      animate={{ scaleX: active ? 1 : 0 }}
+                      animate={{ scaleX: reveal }}
                       transition={{
                         duration: SELECTION.lineDuration,
                         ease: "easeOut",
@@ -265,7 +289,7 @@ export default function ServicesHome() {
                       }}
                     />
                     <motion.div
-                      animate={{ scaleX: active ? 1 : 0 }}
+                      animate={{ scaleX: reveal }}
                       transition={{
                         duration: SELECTION.lineDuration,
                         ease: "easeOut",
@@ -277,7 +301,7 @@ export default function ServicesHome() {
                       }}
                     />
                     <motion.div
-                      animate={{ scaleY: active ? 1 : 0 }}
+                      animate={{ scaleY: reveal }}
                       transition={{
                         duration: SELECTION.lineDuration,
                         ease: "easeOut",
@@ -289,7 +313,7 @@ export default function ServicesHome() {
                       }}
                     />
                     <motion.div
-                      animate={{ scaleY: active ? 1 : 0 }}
+                      animate={{ scaleY: reveal }}
                       transition={{
                         duration: SELECTION.lineDuration,
                         ease: "easeOut",
@@ -477,6 +501,27 @@ export default function ServicesHome() {
                 </motion.div>
               ))}
           </motion.div>
+
+          {/* Cursor-attached tag — desktop only, shown while hovering any tier.
+              Outside the parallax layer so its fixed position tracks the viewport.
+              Same formatting as the contact / project archive pages. */}
+          {!isMobile && (
+            <motion.div
+              style={{ left: x, top: y }}
+              animate={{ opacity: hoveredBox ? 1 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
+            >
+              <img
+                src="/right-click.png"
+                alt=""
+                className="w-5 h-auto filter brightness-110"
+              />
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+                Enter {tagName}
+              </span>
+            </motion.div>
+          )}
 
           {/* --- FLOOR NAVIGATION (PRESERVED) --- */}
 

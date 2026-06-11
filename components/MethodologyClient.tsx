@@ -56,11 +56,11 @@ export default function MethodologyPage() {
   // Mouse Parallax (Disabled on Mobile)
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
+  const mouseX = useSpring(x, { stiffness: 110, damping: 25 });
+  const mouseY = useSpring(y, { stiffness: 110, damping: 25 });
 
-  const bgMoveX = useTransform(mouseX, [0, 1920], ["1%", "-1%"]);
-  const bgMoveY = useTransform(mouseY, [0, 1080], ["1%", "-1%"]);
+  const bgMoveX = useTransform(mouseX, [0, 1920], ["1.6%", "-1.6%"]);
+  const bgMoveY = useTransform(mouseY, [0, 1080], ["1.6%", "-1.6%"]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isMobile) return;
@@ -278,7 +278,7 @@ export default function MethodologyPage() {
               alt={isMobile ? "Pinch and Zoom" : "Scroll Up"}
               className="w-15 h-15 opacity-80 method-instruction-icon-mobile"
             />
-            <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 font-brand-secondary-thin whitespace-nowrap">
+            <span className="text-[17px] tracking-[0.5em] uppercase text-white/80 font-brand-cn whitespace-nowrap">
               {isMobile
                 ? "Pinch to Zoom "
                 : isZoomed

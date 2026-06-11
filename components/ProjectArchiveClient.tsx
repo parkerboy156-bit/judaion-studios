@@ -39,12 +39,35 @@ export default function ProjectArchive() {
   const [hitboxHovered, setHitboxHovered] = useState(false);
   const [hoverCoords, setHoverCoords] = useState({ x: 0, y: 0 });
 
+  // INTRO PEEK — half-opens the hitbox on load to signal interactivity
+  const [peekOn, setPeekOn] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Replays a partial "peek" of the selection box until the user first hovers,
+  // telegraphing that the region is interactive. Desktop only.
+  useEffect(() => {
+    if (isMobile || hasInteracted) return;
+    const peek = () => {
+      setPeekOn(true);
+      window.setTimeout(() => setPeekOn(false), 650); // hold half-open briefly
+    };
+    const start = window.setTimeout(peek, 1200); // wait out the intro fade
+    const loop = window.setInterval(peek, 3200); // replay every few seconds
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(loop);
+    };
+  }, [isMobile, hasInteracted]);
+
+  // Reveal target: full on hover, ~half during the intro peek, otherwise hidden.
+  const revealTarget = hitboxHovered ? 1 : peekOn ? 0.6 : 0;
 
   // MOUSE PARALLAX LOGIC
   const x = useMotionValue(0);
@@ -120,7 +143,11 @@ export default function ProjectArchive() {
                 height: HITBOX.height,
                 transform: `rotate(${HITBOX.rotate})`,
               }}
-              onMouseEnter={() => setHitboxHovered(true)}
+              onMouseEnter={() => {
+                setHitboxHovered(true);
+                setHasInteracted(true); // stop the intro peek loop
+                setPeekOn(false);
+              }}
               onMouseLeave={() => setHitboxHovered(false)}
               onMouseMove={(e) => { setHoverCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) }); }}
             >
@@ -133,9 +160,9 @@ export default function ProjectArchive() {
                 className="absolute inset-0  pointer-events-none"
               />
 
-              {/* Scan lines — fade in on hover, scroll upward continuously */}
+              {/* Scan lines — fade in on hover (and during the intro peek) */}
               <motion.div
-                animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                animate={{ opacity: revealTarget }}
                 transition={{ duration: 0.35 }}
                 className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.12]"
               >
@@ -153,28 +180,28 @@ export default function ProjectArchive() {
 
               {/* Top line */}
               <motion.div
-                animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                animate={{ scaleX: revealTarget }}
                 transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
                 className="absolute top-0 left-0 right-0 h-px pointer-events-none"
                 style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
               />
               {/* Bottom line */}
               <motion.div
-                animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                animate={{ scaleX: revealTarget }}
                 transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
                 className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
                 style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
               />
               {/* Left line */}
               <motion.div
-                animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                animate={{ scaleY: revealTarget }}
                 transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
                 className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
                 style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
               />
               {/* Right line */}
               <motion.div
-                animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                animate={{ scaleY: revealTarget }}
                 transition={{ duration: HITBOX.lineDuration, ease: "easeOut" }}
                 className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
                 style={{ transformOrigin: "center", backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})` }}
@@ -225,23 +252,37 @@ export default function ProjectArchive() {
             </div>
           )}
 
-          {/* INSPECT INSTRUCTION */}
-          {isMobile ? (
+          {/* INSPECT INSTRUCTION — mobile only (desktop uses the cursor tag) */}
+          {isMobile && (
             <div className="absolute top-[63%] left-[65%] flex items-center space-x-3 pointer-events-none mobile-inspect-fix">
               <img src="/tap-icon.png" alt="Tap Icon" className="w-12 h-auto filter brightness-110" />
-              <span className="text-[13px] tracking-[0.7em] uppercase text-white font-brand-secondary-heavy whitespace-nowrap">
+              <span className="text-[13px] tracking-[0.3em] uppercase text-white font-brand-cn whitespace-nowrap">
                 TAP ITEM TO INSPECT
               </span>
             </div>
-          ) : (
-            <div className="absolute top-[68%] left-[72%] flex items-center pointer-events-none">
-              <span className="text-[11px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                CLICK ITEM TO ENTER
-              </span>
-              <img src="/right-click.png" alt="Inspect Icon" className="w-14 h-auto filter brightness-110" />
-            </div>
           )}
         </motion.div>
+
+        {/* Cursor-attached tag — desktop only, shown on hitbox hover.
+            Sits OUTSIDE the parallax wrapper so its fixed position tracks the
+            viewport (not the scaled layer). Same formatting as the contact page. */}
+        {!isMobile && (
+          <motion.div
+            style={{ left: x, top: y }}
+            animate={{ opacity: hitboxHovered ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
+          >
+            <img
+              src="/right-click.png"
+              alt=""
+              className="w-5 h-auto filter brightness-110"
+            />
+            <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+              Click to enter
+            </span>
+          </motion.div>
+        )}
 
         {/* --- MOBILE NAVIGATION --- */}
         {isMobile && (

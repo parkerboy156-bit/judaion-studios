@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import homeBgAvif from "@/public/home-bg.avif";
 import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
@@ -29,6 +30,12 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
   const [hasSensorPermission] = useState(false);
   const [doorHovered, setDoorHovered] = useState(false);
   const [doorCoords, setDoorCoords] = useState({ x: 0, y: 0 });
+  // INTRO PEEK — half-opens the door hitbox on a loop (desktop only). On this
+  // page (the site entry point) it keeps looping even after the first hover.
+  const [peekOn, setPeekOn] = useState(false);
+  // Portal target only exists on the client — gate to avoid SSR mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Detect if the user is on mobile/tablet
   useEffect(() => {
@@ -38,15 +45,32 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Replays a partial "peek" of the door hitbox on a continuous loop, signalling
+  // interactivity. Hover always overrides it (doorOn wins), so it only ever
+  // shows when the cursor is away from the door. Desktop only.
+  useEffect(() => {
+    if (isMobile) return;
+    const peek = () => {
+      setPeekOn(true);
+      window.setTimeout(() => setPeekOn(false), 650);
+    };
+    const start = window.setTimeout(peek, 1200);
+    const loop = window.setInterval(peek, 3200);
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(loop);
+    };
+  }, [isMobile]);
+
   // --- MOUSE TRACKING ---
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
+  const mouseX = useSpring(x, { stiffness: 110, damping: 25 });
+  const mouseY = useSpring(y, { stiffness: 110, damping: 25 });
 
   // Parallax: Matches the background image movement
-  const moveX = useTransform(mouseX, [0, 1920], ["1.5%", "-1.5%"]);
-  const moveY = useTransform(mouseY, [0, 1080], ["1.5%", "-1.5%"]);
+  const moveX = useTransform(mouseX, [0, 1920], ["1.6%", "-1.6%"]);
+  const moveY = useTransform(mouseY, [0, 1080], ["1.6%", "-1.6%"]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isMobile) return; // Ignore mouse movements on touch devices
@@ -92,8 +116,16 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
     identity: "top-[19%] left-[74%]",
   };
 
-  // Selection box shows on hover (desktop) and is permanently on (mobile).
-  const doorActive = true;
+  // Full reveal: always-on (mobile) or on hover (desktop). Drives corners,
+  // coordinates and the label (these never appear during the intro peek).
+  const doorOn = isMobile || doorHovered;
+  // Borders: full when on, ~half-drawn during the intro peek, else off.
+  const revealTarget = doorOn ? 1 : peekOn ? 0.5 : 0;
+  // Intro peek active (not a real hover). During the peek we make the lines
+  // pure white and the panel darker so they read on bright compositions.
+  const isPeek = !doorOn && peekOn;
+  // Scan-line tint opacity — kept strong (not halved) during the peek.
+  const scanTarget = doorOn ? 1 : peekOn ? 0.9 : 0;
 
   return (
     <div className="relative bg-black overflow-hidden">
@@ -127,26 +159,6 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             isMobile ? "w-[300vw]" : "w-full"
           }`}
         >
-          {/* TOP HUD: SYSTEM STATS */}
-          <motion.div
-            animate={{
-              opacity: hoveredIndex !== null ? 1 : 0,
-              y: hoveredIndex !== null ? 0 : -10,
-            }}
-            className="absolute top-12 left-0 w-full px-24 flex justify-between items-start z-20 pointer-events-none"
-          >
-            <div className="flex flex-col space-y-1 mt-2">
-              <span className="text-[7px] tracking-[0.4em] uppercase text-white/30 font-brand-secondary-thin">
-                Protocol 01 / JDS{" "}
-              </span>
-            </div>
-            <div className="flex flex-col items-end space-y-1 mt-1">
-              <span className="text-[7px] tracking-[0.4em] uppercase text-white/30 font-brand-secondary-thin">
-                Asset 01
-              </span>
-            </div>
-          </motion.div>
-
           {/* DYNAMIC BACKGROUND */}
           <motion.div
             onTap={() => isMobile && setHoveredIndex(null)}
@@ -201,28 +213,19 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               isMobile ? "w-[300vw]" : "w-full"
             }`}
           >
-            {/* MASTER INSTRUCTION LABEL (PRESERVED) */}
-            <div
-              className={`absolute left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none ${isMobile ? "top-[18%] mobile-inspect-fix-services" : "top-[9.2%]"}`}
-            >
-              <span className="text-[13px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
-                {isMobile ? "TAP  TO ENTER THE STUDIO" : "CLICK TO ENTER THE STUDIO"}
-              </span>
-              {!isMobile && (
-                <img
-                  src="/right-click.png"
-                  alt="Inspect Icon"
-                  className="w-14 h-auto filter brightness-110"
-                />
-              )}
-              {isMobile && (
+            {/* MASTER INSTRUCTION LABEL — mobile only (desktop uses the cursor tag) */}
+            {isMobile && (
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none top-[18%] mobile-inspect-fix-services">
+                <span className="text-[13px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
+                  TAP TO ENTER THE STUDIO
+                </span>
                 <img
                   src="/tap-icon.png"
                   alt="Tap Icon"
                   className="w-9 h-auto filter brightness-110"
                 />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* --- DOOR HITBOX → Enter the Studio (selection box, same as Archive/Services) --- */}
             <motion.div
@@ -250,11 +253,17 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute inset-0 z-20 cursor-pointer"
               />
 
-              {/* Scan lines — fade in (hover desktop / always-on mobile), scroll upward */}
+              {/* Scan lines — full when on, gently darker during peek, scroll up.
+                  Both opacity AND tint animate so the peek fades out smoothly. */}
               <motion.div
-                animate={{ opacity: doorActive ? 1 : 0 }}
-                transition={{ duration: 0.35 }}
-                className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.12]"
+                animate={{
+                  opacity: scanTarget,
+                  backgroundColor: isPeek
+                    ? "rgba(0,0,0,0.20)"
+                    : "rgba(0,0,0,0.12)",
+                }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute inset-0 overflow-hidden pointer-events-none"
               >
                 <motion.div
                   animate={{ y: ["0px", "-12px"] }}
@@ -274,7 +283,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
 
               {/* Edge lines */}
               <motion.div
-                animate={{ scaleX: doorActive ? 1 : 0 }}
+                animate={{ scaleX: revealTarget }}
                 transition={{
                   duration: DOOR_HITBOX.lineDuration,
                   ease: "easeOut",
@@ -282,11 +291,11 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute top-0 left-0 right-0 h-px pointer-events-none"
                 style={{
                   transformOrigin: "center",
-                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                  backgroundColor: `rgba(255,255,255,${isPeek ? 1 : DOOR_HITBOX.lineOpacity})`,
                 }}
               />
               <motion.div
-                animate={{ scaleX: doorActive ? 1 : 0 }}
+                animate={{ scaleX: revealTarget }}
                 transition={{
                   duration: DOOR_HITBOX.lineDuration,
                   ease: "easeOut",
@@ -294,11 +303,11 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
                 style={{
                   transformOrigin: "center",
-                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                  backgroundColor: `rgba(255,255,255,${isPeek ? 1 : DOOR_HITBOX.lineOpacity})`,
                 }}
               />
               <motion.div
-                animate={{ scaleY: doorActive ? 1 : 0 }}
+                animate={{ scaleY: revealTarget }}
                 transition={{
                   duration: DOOR_HITBOX.lineDuration,
                   ease: "easeOut",
@@ -306,11 +315,11 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
                 style={{
                   transformOrigin: "center",
-                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                  backgroundColor: `rgba(255,255,255,${isPeek ? 1 : DOOR_HITBOX.lineOpacity})`,
                 }}
               />
               <motion.div
-                animate={{ scaleY: doorActive ? 1 : 0 }}
+                animate={{ scaleY: revealTarget }}
                 transition={{
                   duration: DOOR_HITBOX.lineDuration,
                   ease: "easeOut",
@@ -318,7 +327,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
                 className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
                 style={{
                   transformOrigin: "center",
-                  backgroundColor: `rgba(255,255,255,${DOOR_HITBOX.lineOpacity})`,
+                  backgroundColor: `rgba(255,255,255,${isPeek ? 1 : DOOR_HITBOX.lineOpacity})`,
                 }}
               />
 
@@ -345,10 +354,10 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               ).map((pos, i) => (
                 <motion.div
                   key={i}
-                  animate={{ opacity: doorActive ? 1 : 0 }}
+                  animate={{ opacity: doorOn ? 1 : 0 }}
                   transition={{
                     duration: DOOR_HITBOX.cornerDuration,
-                    delay: doorActive ? DOOR_HITBOX.cornerDelay : 0,
+                    delay: doorOn ? DOOR_HITBOX.cornerDelay : 0,
                   }}
                   className="absolute bg-white pointer-events-none"
                   style={{
@@ -362,13 +371,13 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               {/* Right-side X/Y coordinate display */}
               <motion.div
                 animate={{
-                  opacity: doorActive ? 1 : 0,
-                  x: doorActive ? 0 : -4,
+                  opacity: doorOn ? 1 : 0,
+                  x: doorOn ? 0 : -4,
                 }}
                 transition={{
                   duration: 0.35,
                   ease: "easeOut",
-                  delay: doorActive ? 0.1 : 0,
+                  delay: doorOn ? 0.1 : 0,
                 }}
                 className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
                 style={{ left: "calc(100% + 10px)" }}
@@ -385,11 +394,11 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
 
               {/* Label caption */}
               <motion.div
-                animate={{ opacity: doorActive ? 1 : 0, y: doorActive ? 0 : 4 }}
+                animate={{ opacity: doorOn ? 1 : 0, y: doorOn ? 0 : 4 }}
                 transition={{
                   duration: 0.35,
                   ease: "easeOut",
-                  delay: doorActive ? 0.15 : 0,
+                  delay: doorOn ? 0.15 : 0,
                 }}
                 className="absolute left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap"
                 style={{ top: "calc(100% + 8px)" }}
@@ -402,6 +411,30 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             </motion.div>
           </motion.div>
 
+          {/* Cursor-attached tag — desktop only, shown while hovering the door.
+              Portaled to <body> so its fixed position escapes the drag/parallax
+              transforms. Same formatting as the other pages. */}
+          {mounted &&
+            !isMobile &&
+            createPortal(
+              <motion.div
+                style={{ left: x, top: y }}
+                animate={{ opacity: doorHovered ? 1 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
+              >
+                <img
+                  src="/right-click.png"
+                  alt=""
+                  className="w-5 h-auto filter brightness-110"
+                />
+                <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+                  Enter the studio
+                </span>
+              </motion.div>,
+              document.body,
+            )}
+
           {/* PERSISTENT BOTTOM HUD */}
           <div className="absolute bottom-12 left-0 w-full px-12 flex justify-between items-end z-20 pointer-events-none">
             <div className="flex flex-col space-y-1">
@@ -410,21 +443,6 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               </span>
               <div className="w-17 h-[0.5px] bg-white/60" />
             </div>
-
-            <motion.div
-              animate={{ opacity: hoveredIndex !== null ? 1 : 0 }}
-              className="flex items-center space-x-1 pb-1"
-            >
-              {["| JUDAION IS YOUR CREATIVE STRATEGIC PARTNER |"].map(
-                (item) => (
-                  <React.Fragment key={item}>
-                    <span className="text-[10px] tracking-[0.7em] uppercase text-white/80 font-light font-brand-secondary-thin">
-                      {item}
-                    </span>
-                  </React.Fragment>
-                ),
-              )}
-            </motion.div>
 
             <div className="w-16" />
           </div>
