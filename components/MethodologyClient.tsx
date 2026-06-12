@@ -42,10 +42,10 @@ const HITBOX = {
 // so left is measured across the full horizontal-scroll width. Tune freely.
 // ─────────────────────────────────────────────
 const HITBOX_MOBILE = {
-  top: "35.5%",
-  left: "46.8%",
+  top: "35%",
+  left: "46.7%",
   width: "21.5%",
-  height: "28%",
+  height: "29.3%",
   borderOpacity: 0.4, // visible target outline (0–1)
 };
 // ─────────────────────────────────────────────
@@ -591,34 +591,38 @@ export default function MethodologyPage() {
                         ▸ CURSOR on hover  → "cursor-pointer" on this div
                         ▸ Marker SIZE      → "w-[7px] h-[7px]" below
                         ▸ Marker COLOR     → "bg-white" below */}
-                  <div className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center cursor-pointer">
-                    {/* Pulse glow — idle only. Soft blurred halo that
-                          breathes in/out to signal "hover me". Tune: blur =
-                          softness, w/h = glow size, opacity peak = brightness,
+                  <div className="absolute -translate-x-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center cursor-pointer">
+                    {/* Persistent ring — ALWAYS visible so the node never fully
+                          disappears between pulses (this is what stops people
+                          missing them). Tune size via width/height, strength via
+                          border color/opacity. */}
+
+                    {/* Expanding ripple — idle only. A sharp ring that grows
+                          outward and fades (smooth, no flash) to catch the eye.
+                          Tune: scale max = spread, opacity peak = strength,
                           duration = speed. */}
                     {!open && (
                       <motion.div
-                        className="absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-white blur-[3px] pointer-events-none"
-                        style={{ x: "-50%", y: "-50%" }}
-                        animate={{
-                          opacity: [0, 0.5, 0],
-                          scale: [0.6, 1.8, 0.6],
-                        }}
+                        className="absolute left-1/2 top-1/2 rounded-full border border-white pointer-events-none blur-[0.5px]"
+                        style={{ x: "-50%", y: "-50%", width: 13, height: 13 }}
+                        animate={{ opacity: [0, 0.3, 0], scale: [1, 2.0, 2.6] }}
                         transition={{
-                          duration: 3.0,
+                          duration: 1.5,
                           repeat: Infinity,
-                          ease: "easeInOut",
+                          ease: "easeOut",
                         }}
                       />
                     )}
+
+                    {/* Solid centre dot */}
                     <motion.div
-                      // opacity: HOVERED ? IDLE ?  ← change 0.9 for idle opacity
+                      // opacity: HOVERED ? IDLE ?  ← change 1 for idle opacity
                       animate={{
-                        opacity: open ? 1 : 0.9,
-                        scale: open ? 1 : 0.85,
+                        opacity: 1,
+                        scale: open ? 1 : 0.9,
                       }}
                       transition={{ duration: 0.3 }}
-                      className="w-[7px] h-[7px] bg-white"
+                      className="w-[7px] h-[7px] rounded-md bg-white"
                     />
                   </div>
 
