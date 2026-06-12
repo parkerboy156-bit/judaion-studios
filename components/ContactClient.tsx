@@ -247,9 +247,22 @@ export default function Contact() {
                         <button
                           type="button"
                           onClick={() => setFormOpen(false)}
-                          className="lg:hidden fixed top-20 left-10 z-[210] flex items-center gap-2 font-brand-cn text-[10px] uppercase tracking-[0.25em] text-white/40 hover:text-white transition-colors cursor-pointer"
+                          aria-label="Close"
+                          className="lg:hidden fixed top-20 left-10 z-[210] flex items-center text-white/70 hover:text-white transition-colors cursor-pointer"
                         >
-                          ‹ Swipe or tap to close
+                          {/* Custom chevron — sharp corner (miter) + sharp/long ends. */}
+                          <svg
+                            width="8"
+                            height="44"
+                            viewBox="0 0 26 44"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="square"
+                            strokeLinejoin="miter"
+                          >
+                            <path d="M22 2 L4 22 L22 42" />
+                          </svg>
                         </button>
 
                         {/* Inner wrapper: min-h-full keeps the top/middle/bottom
@@ -257,7 +270,7 @@ export default function Contact() {
                             cleanly when content overflows (zoom-in / short screens).
                             Vertical padding lives HERE (not the scroll container) so
                             bottom padding is preserved when scrolled to the end. */}
-                        <div className="min-h-full flex flex-col justify-start lg:justify-between gap-y-8 lg:gap-y-10 pt-28 pb-16 lg:py-38">
+                        <div className="min-h-full flex flex-col justify-start lg:justify-between gap-y-8 lg:gap-y-10 pt-40 pb-16 lg:py-38">
                           {/* Heading — line + label (same as The Narrative) */}
                           <div className="w-full max-w-5xl mx-auto">
                             <div className="flex items-center gap-4">

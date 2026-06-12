@@ -217,12 +217,6 @@ export default function Tier3() {
       details: ["– Monthly technical check-ups and content updates."],
     },
     {
-      what: "BASIC COPYWRITING INTEGRATION",
-      details: [
-        "– Structuring “About Us” page and “Services” text to be persuasive, not just descriptive.",
-      ],
-    },
-    {
       what: "BRAND COLLATERAL UPDATES",
       details: [
         "– Refreshed market assets (Email Signatures, Letterheads) at 6-month intervals where necessary.",

@@ -5,10 +5,9 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import homeBgAvif from "@/public/home-bg.avif";
-import homeBgMobileAvif from "@/public/home-bg-mobile.avif";
-import homeBgWebp from "@/public/home-bg.webp";
-import homeBgMobilePng from "@/public/home-bg-mobile.webp";
+// Same background is used for desktop AND mobile (one shared image).
+import homeBgAvif from "@/public/home-bg-V1.2.avif";
+import homeBgWebp from "@/public/home-bg-V1.2.webp";
 
 // Door selection-box hitbox — same treatment as the Archive/Services boxes.
 // Box is centred on the door's top/left anchor; size as % of the layer. Tune freely.
@@ -157,7 +156,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
         <section
           onMouseMove={handleMouseMove}
           className={`relative h-screen bg-black overflow-hidden flex-shrink-0 ${
-            isMobile ? "w-[300vw]" : "w-full"
+            isMobile ? "w-[max(100vw,150vh)]" : "w-full"
           }`}
         >
           {/* DYNAMIC BACKGROUND */}
@@ -174,20 +173,13 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center"
           >
             <picture>
-              <source
-                srcSet={isMobile ? homeBgMobileAvif.src : homeBgAvif.src}
-                type="image/avif"
-              />
-
-              {!isMobile && (
-                <source srcSet={homeBgWebp.src} type="image/webp" />
-              )}
+              {/* One shared image for desktop + mobile (AVIF → WEBP fallback). */}
+              <source srcSet={homeBgAvif.src} type="image/avif" />
+              <source srcSet={homeBgWebp.src} type="image/webp" />
 
               {/* 3. The Final Component */}
               <img
-                // If mobile, we use the PNG. If desktop, we use WebP as the final 'src'.
-                // This is because the desktop browser will only reach this if AVIF fails.
-                src={isMobile ? homeBgMobilePng.src : homeBgWebp.src}
+                src={homeBgWebp.src}
                 alt="JDS Background"
                 className="object-cover object-center w-full h-full"
                 style={{
@@ -211,12 +203,12 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
             }}
             dragElastic={0.05}
             className={`absolute inset-0 z-10 pointer-events-none ${
-              isMobile ? "w-[300vw]" : "w-full"
+              isMobile ? "w-[max(100vw,150vh)]" : "w-full"
             }`}
           >
             {/* MASTER INSTRUCTION LABEL — mobile only (desktop uses the cursor tag) */}
             {isMobile && (
-              <div className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none top-[18%] mobile-inspect-fix-services">
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-3 opacity-80 pointer-events-none top-[19%] mobile-inspect-fix-services">
                 <span className="text-[13px] tracking-[0.6em] uppercase text-white font-brand-secondary-thin whitespace-nowrap">
                   TAP TO ENTER THE STUDIO
                 </span>
@@ -244,7 +236,7 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
               }
               className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-auto ${
                 isMobile
-                  ? `top-[53.7%] left-[147vw] ${DOOR_BOX.mobile}`
+                  ? `top-[53.7%] left-[50%] ${DOOR_BOX.mobile}`
                   : `top-[54.3%] left-[50%] ${DOOR_BOX.desktop}`
               }`}
             >

@@ -9,16 +9,54 @@ import {
   AnimatePresence,
 } from "framer-motion";
 import * as React from "react";
-import methodBgAvif from "@/public/method-bg.avif";
-import methodBgMobileAvif from "@/public/method-bg-mobile.avif";
-import methodBgPng from "@/public/method-bg.webp";
-import methodBgMobilePng from "@/public/method-bg-mobile.webp";
+// Same background is used for desktop AND mobile.
+import methodBgAvif from "@/public/method-bg-V2.1.avif";
+import methodBgPng from "@/public/method-bg-V2.1.webp";
 import Link from "next/link";
+
+// ─────────────────────────────────────────────
+// METHODOLOGY HITBOX — sits over the billboard, opens the carousel.
+// Position/size are % of the (scaled) image layer, so the box tracks the
+// billboard as the page zooms. Adjust these freely; the live X/Y readout on
+// hover helps you dial in the exact spot.
+// ─────────────────────────────────────────────
+const HITBOX = {
+  top: "31%",
+  left: "46.7%",
+  width: "21.6%",
+  height: "37%",
+  rotate: "0deg",
+
+  label: { tag: "ASSET 2", name: "METHODOLOGY" },
+
+  lineOpacity: 0.65, // selection-box border opacity (0–1)
+  handleSize: 5, // corner handle size (px)
+  lineDuration: 0.4,
+  cornerDelay: 0.35,
+  cornerDuration: 0.18,
+};
+
+// ─────────────────────────────────────────────
+// MOBILE HITBOX — always-on tap target over the billboard (opens the
+// carousel). Coords are % of the mobile image layer (the w-[300vw] strip),
+// so left is measured across the full horizontal-scroll width. Tune freely.
+// ─────────────────────────────────────────────
+const HITBOX_MOBILE = {
+  top: "35.5%",
+  left: "46.8%",
+  width: "21.5%",
+  height: "28%",
+  borderOpacity: 0.4, // visible target outline (0–1)
+};
+// ─────────────────────────────────────────────
 
 export default function MethodologyPage() {
   const { scrollYProgress } = useScroll();
   const [showProcess, setShowProcess] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
+  const [hitboxHovered, setHitboxHovered] = React.useState(false);
+  const [hoverCoords, setHoverCoords] = React.useState({ x: 0, y: 0 });
+  const [activeCallout, setActiveCallout] = React.useState<number | null>(null);
 
   // Detect Mobile and lock scroll position
   React.useEffect(() => {
@@ -33,7 +71,7 @@ export default function MethodologyPage() {
   }, []);
 
   // Desktop Zoom Logic
-  const scrollScale = useTransform(scrollYProgress, [1, 0], [1.02, 1.85]);
+  const scrollScale = useTransform(scrollYProgress, [1, 0], [1.04, 1.75]);
   const scrollOpacity = useTransform(
     scrollYProgress,
     [0, 0.5, 1],
@@ -68,6 +106,135 @@ export default function MethodologyPage() {
     y.set(e.clientY);
   };
 
+  // ───────────────────────────────────────────────────────────────────
+  // CALLOUTS — leader-line hotspots over the billboard. Hover a node →
+  // line draws + panel fades in. All copy is rendered always-in-DOM
+  // (opacity-animated, never unmounted) so it stays crawlable for SEO.
+  //
+  //  node       → marker position (% of the image layer, tracks the zoom)
+  //  side       → which way the line + panel extend ("left" | "right")
+  //  drop       → px the line falls before turning sideways
+  //  lineLength → px of the horizontal run
+  //  panelWidth → px width of the text panel
+  //  label      → bold heading line of the callout
+  //  body       → paragraph copy (edit the words here)
+  //
+  // ⮕ POSITIONS & COPY for each node live in this array (below).
+  // ⮕ FONTS / SIZES / COLORS are shared by all 3 nodes and live in the
+  //   render block — search "CALLOUT PANEL STYLES" further down this file.
+  // ───────────────────────────────────────────────────────────────────
+  const CALLOUTS: {
+    id: number;
+    node: { top: string; left: string };
+    nodeMobile?: { top: string; left: string }; // mobile-only position (falls back to node)
+    side: "left" | "right";
+    dir?: "up" | "down"; // vertical direction the line travels (default "down")
+    drop: number; // px the line travels (down OR up) before running sideways
+    lineLength: number; // px of the horizontal run
+    panelWidth: number;
+    label: string;
+    body: React.ReactNode;
+  }[] = [
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║ NODE 1 — LEFT of billboard  (panel opens to the RIGHT)        ║
+    // ╚══════════════════════════════════════════════════════════════╝
+    {
+      id: 1,
+      node: { top: "33%", left: "28%" }, // ← move NODE 1 here (desktop)
+      nodeMobile: { top: "37%", left: "29%" }, // ← move NODE 1 here (mobile)
+      side: "right",
+      drop: 90,
+      lineLength: 56,
+      panelWidth: 238,
+      label: " Your Creative Strategic Partner",
+      body: (
+        <>
+          JUDAION Studios is a Brand Architecture Studio that operates at the
+          intersection of Business vision and Cinematic rigour. We bridge the
+          gap between business vision and identity.
+        </>
+      ),
+    },
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║ NODE 2 — RIGHT of billboard  (panel opens to the LEFT)        ║
+    // ╚══════════════════════════════════════════════════════════════╝
+    {
+      id: 2,
+      node: { top: "33.3%", left: "43%" }, // ← move NODE 2 here (desktop)
+      nodeMobile: { top: "37%", left: "42%" }, // ← move NODE 2 here (mobile)
+      side: "left",
+      drop: 100,
+      lineLength: 70,
+      panelWidth: 230,
+      label: "Strategic Architect",
+      body: (
+        <>
+          More than designers, we are your Strategic Architect. We build the
+          systems and visual logic that give a brand authority, so your market
+          reads you as the obvious choice. Nothing is decorative, every decision
+          is structural.
+        </>
+      ),
+    },
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║ NODE 3 — lower billboard  (line goes UP, panel opens to the LEFT) ║
+    // ╚══════════════════════════════════════════════════════════════╝
+    {
+      id: 3,
+      node: { top: "65.8%", left: "43%" }, // ← move NODE 3 here (desktop)
+      nodeMobile: { top: "62%", left: "42%" }, // ← move NODE 3 here (mobile)
+      side: "left",
+      dir: "up",
+      drop: 100,
+      lineLength: 56,
+      panelWidth: 230,
+      label: "Consistent & High-Converting",
+      body: (
+        <>
+          We engineer for performance. The result is an identity that holds
+          consistent and high-converting under pressure at every scale, across
+          every platform, without losing its edge.
+        </>
+      ),
+    },
+  ];
+
+  const STEPS = [
+    {
+      id: "01",
+      title: "Extraction",
+      text: "We deep-dive into your business via our strategic questionnaire to extract your core DNA.",
+      img: "/extraction",
+    },
+    {
+      id: "02",
+      title: "Blueprint",
+      text: "We translate the raw data into a strategic visual anchor, used to guide the execution phase.",
+      img: "/blue-print",
+    },
+    {
+      id: "03",
+      title: "Execution",
+      text: "The development cycle, constant internal review against original objectives and presentation of logic-backed designs.",
+      img: "/execution",
+    },
+    {
+      id: "04",
+      title: "Handover",
+      text: "The structural signature is locked. Assets are released for deployment following the final clearnace of the balance.",
+      img: "/handover",
+    },
+  ];
+
+
+  React.useEffect(() => {
+    STEPS.forEach((s) => {
+      const img = new Image();
+      img.src = `${s.img}.avif`;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main className="relative bg-black">
       {/* SURGICAL MASK: Add this exact block to every new page */}
@@ -101,14 +268,11 @@ export default function MethodologyPage() {
           >
             <picture>
               {/* 1. Primary choice: AVIF (Desktop & Mobile) */}
-              <source
-                srcSet={isMobile ? methodBgMobileAvif.src : methodBgAvif.src}
-                type="image/avif"
-              />
+              <source srcSet={methodBgAvif.src} type="image/avif" />
 
-              {/* 2. Safety Net: PNG (Desktop & Mobile) */}
+              {/* 2. Safety Net: WEBP (Desktop & Mobile) */}
               <img
-                src={isMobile ? methodBgMobilePng.src : methodBgPng.src}
+                src={methodBgPng.src}
                 alt="Methodology Focus"
                 className="w-full h-full object-cover"
                 style={{
@@ -120,150 +284,640 @@ export default function MethodologyPage() {
               />
             </picture>
 
-            {/* --- TOP LEFT TEXT BLOCK --- */}
-            <div className="absolute method-text-block-mobile top-[42%] left-[53.5%] flex flex-col items-start max-w-[320px]">
-              <h2 className="text-[16px] tracking-[0.20em] uppercase text-white/90 leading-tight font-brand-other text-left ">
-                YOUR CREATIVE STRATEGIC PARTNER
-              </h2>
-              <div className="w-76 h-[1px] bg-white mt-[2px]" />
+            {/* TEXT BLOCK removed 2026-06-12 — preserved in
+                components/_methodology-removed-blocks.bak.txt pending the
+                hover-callout redesign on the V2.1 background. */}
 
-              <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
-                <span className="font-brand-cn text-white/60">
-                  JUDAION STUDIOS is a Graphic Design Studio that operates at
-                  the intersection of Business vision and Cinematic rigour. We
-                  bridge the gap between{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Business Vision
-                  </span>{" "}
-                  and{" "}
-                  <span className="font-brand-xbold-italic-cn text-white/90">
-                    Identity.
-                  </span>{" "}
-                </span>
-              </p>
-              <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
-                We act as your{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  Strategic Architect,
-                </span>{" "}
-                building systematic identities that provide Leadership,
-                Certainty and market authority.
-              </p>
-              <p className="text-[9px] tracking-[0.1em] uppercase text-white/60 font-light text-left leading-relaxed font-brand-cn mt-[14px]">
-                We ensure that Your Brand Remains Consistent, Professional and{" "}
-                <span className="font-brand-xbold-italic-cn text-white/90">
-                  High-converting.
-                </span>{" "}
-              </p>
-            </div>
-
-            {/* --- J ASSET: INTERACTIVE TRIGGER --- */}
-            <motion.div
-              className={`absolute method-j-trigger-mobile top-[36%] left-[65%] z-30 transition-all duration-500 ${
-                !isMobile && isZoomed
-                  ? "pointer-events-auto cursor-pointer"
-                  : "pointer-events-none"
-              }`}
-              onClick={() => isZoomed && setShowProcess(!showProcess)}
-              whileHover={!isMobile && isZoomed ? { scale: 1.05 } : {}}
-              whileTap={isZoomed ? { scale: 0.95 } : {}}
-            >
-              <img
-                src="/j-method-v2.0.webp"
-                alt="Brand Mark"
-                className="w-46 h-auto object-contain filter brightness-90"
-              />
-            </motion.div>
-          </motion.div>
-
-          {/* --- PORSCHE-STYLE HORIZONTAL DRAG SECTION --- */}
-          <AnimatePresence>
-            {showProcess && (
-              <motion.div
-                initial={{ y: "100%", opacity: 0 }}
-                animate={{ y: "0%", opacity: 1 }}
-                exit={{ y: "100%", opacity: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 120 }}
-                className="absolute bottom-0 left-0 w-full h-[150vh] bg-gradient-to-t from-[#000] via-black/90 to-transparent z-[60] flex flex-col justify-end overflow-hidden"
+            {/* --- METHODOLOGY HITBOX (desktop) — opens the carousel ---
+                Active only while zoomed in (matches the old J trigger). */}
+            {!isMobile && (
+              <div
+                className="absolute z-30"
+                style={{
+                  top: HITBOX.top,
+                  left: HITBOX.left,
+                  width: HITBOX.width,
+                  height: HITBOX.height,
+                  transform: `rotate(${HITBOX.rotate})`,
+                  pointerEvents: isZoomed ? "auto" : "none",
+                }}
+                onMouseEnter={() => setHitboxHovered(true)}
+                onMouseLeave={() => setHitboxHovered(false)}
+                onMouseMove={(e) =>
+                  setHoverCoords({
+                    x: Math.round(e.clientX),
+                    y: Math.round(e.clientY),
+                  })
+                }
+                onClick={() => isZoomed && setShowProcess(true)}
               >
-                <div
-                  className="absolute inset-0 z-0 cursor-default"
-                  onClick={() => setShowProcess(false)}
+                <div className="absolute inset-0 cursor-pointer" />
+
+                {/* Scan lines — hover only */}
+                <motion.div
+                  animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.10]"
+                >
+                  <motion.div
+                    animate={{ y: ["0px", "-12px"] }}
+                    transition={{
+                      duration: 1.1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute inset-[-12px]"
+                    style={{
+                      // CRT-style scan lines: 1px line + 2px gap (3px period).
+                      backgroundImage:
+                        "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 3px)",
+                      backgroundSize: "100% 3px",
+                    }}
+                  />
+                </motion.div>
+
+                {/* Selection-box border lines */}
+                <motion.div
+                  animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                  transition={{
+                    duration: HITBOX.lineDuration,
+                    ease: "easeOut",
+                  }}
+                  className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+                  style={{
+                    transformOrigin: "center",
+                    backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})`,
+                  }}
+                />
+                <motion.div
+                  animate={{ scaleX: hitboxHovered ? 1 : 0 }}
+                  transition={{
+                    duration: HITBOX.lineDuration,
+                    ease: "easeOut",
+                  }}
+                  className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+                  style={{
+                    transformOrigin: "center",
+                    backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})`,
+                  }}
+                />
+                <motion.div
+                  animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                  transition={{
+                    duration: HITBOX.lineDuration,
+                    ease: "easeOut",
+                  }}
+                  className="absolute top-0 bottom-0 left-0 w-px pointer-events-none"
+                  style={{
+                    transformOrigin: "center",
+                    backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})`,
+                  }}
+                />
+                <motion.div
+                  animate={{ scaleY: hitboxHovered ? 1 : 0 }}
+                  transition={{
+                    duration: HITBOX.lineDuration,
+                    ease: "easeOut",
+                  }}
+                  className="absolute top-0 bottom-0 right-0 w-px pointer-events-none"
+                  style={{
+                    transformOrigin: "center",
+                    backgroundColor: `rgba(255,255,255,${HITBOX.lineOpacity})`,
+                  }}
                 />
 
-                <div className="relative z-10 px-12 mb-8 flex justify-between items-end pointer-events-none">
-                  <span className="text-[12px] tracking-[0.6em] text-white/80 uppercase font-brand-secondary-thin">
-                    JUDAION METHODOLOGY | EST. 2025
+                {/* Corner handles */}
+                {(
+                  [
+                    {
+                      top: -HITBOX.handleSize / 2,
+                      left: -HITBOX.handleSize / 2,
+                    },
+                    {
+                      top: -HITBOX.handleSize / 2,
+                      right: -HITBOX.handleSize / 2,
+                    },
+                    {
+                      bottom: -HITBOX.handleSize / 2,
+                      left: -HITBOX.handleSize / 2,
+                    },
+                    {
+                      bottom: -HITBOX.handleSize / 2,
+                      right: -HITBOX.handleSize / 2,
+                    },
+                  ] as React.CSSProperties[]
+                ).map((pos, i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ opacity: hitboxHovered ? 1 : 0 }}
+                    transition={{
+                      duration: HITBOX.cornerDuration,
+                      delay: hitboxHovered ? HITBOX.cornerDelay : 0,
+                    }}
+                    className="absolute bg-white pointer-events-none"
+                    style={{
+                      width: HITBOX.handleSize,
+                      height: HITBOX.handleSize,
+                      ...pos,
+                    }}
+                  />
+                ))}
+
+                {/* X/Y coordinate readout (right of the box) */}
+                <motion.div
+                  animate={{
+                    opacity: hitboxHovered ? 1 : 0,
+                    x: hitboxHovered ? 0 : -4,
+                  }}
+                  transition={{
+                    duration: 0.35,
+                    ease: "easeOut",
+                    delay: hitboxHovered ? 0.1 : 0,
+                  }}
+                  className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
+                  style={{ left: "calc(100% + 10px)" }}
+                >
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.15em] whitespace-nowrap">
+                    <span className="text-white">X: </span>
+                    <span className="text-white/50">{hoverCoords.x} PX</span>
                   </span>
-                  <span className="text-white/90 text-[12px] tracking-[0.5em] uppercase font-brand-secondary-thin">
-                    Click above to close
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.15em] whitespace-nowrap">
+                    <span className="text-white">Y: </span>
+                    <span className="text-white/50">{hoverCoords.y} PX</span>
+                  </span>
+                </motion.div>
+
+                {/* Asset label — right of the box, anchored to the bottom */}
+                <motion.div
+                  animate={{
+                    opacity: hitboxHovered ? 1 : 0,
+                    x: hitboxHovered ? 0 : -4,
+                  }}
+                  transition={{
+                    duration: 0.35,
+                    ease: "easeOut",
+                    delay: hitboxHovered ? 0.15 : 0,
+                  }}
+                  className="absolute bottom-0 pointer-events-none"
+                  style={{ left: "calc(100% + 10px)" }}
+                >
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.2em] text-white whitespace-nowrap">
+                    {HITBOX.label.tag}:
+                    <span className="text-white/50">
+                      {" "}
+                      "{HITBOX.label.name}"
+                    </span>
+                  </span>
+                </motion.div>
+              </div>
+            )}
+
+            {/* --- METHODOLOGY HITBOX (mobile) — always-on tap target that
+                opens the carousel. Reposition via HITBOX_MOBILE at the top. */}
+            {isMobile && (
+              <div
+                className="absolute z-30"
+                style={{
+                  top: HITBOX_MOBILE.top,
+                  left: HITBOX_MOBILE.left,
+                  width: HITBOX_MOBILE.width,
+                  height: HITBOX_MOBILE.height,
+                }}
+                onClick={() => setShowProcess(true)}
+              >
+                {/* Active scan lines — always on (same CRT look as desktop hover) */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none bg-black/[0.10]">
+                  <motion.div
+                    animate={{ y: ["0px", "-12px"] }}
+                    transition={{
+                      duration: 1.1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute inset-[-12px]"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 3px)",
+                      backgroundSize: "100% 3px",
+                    }}
+                  />
+                </div>
+
+                {/* Always-visible selection outline so the target reads as tappable */}
+                <div
+                  className="absolute inset-0 pointer-events-none border"
+                  style={{
+                    borderColor: `rgba(255,255,255,${HITBOX_MOBILE.borderOpacity})`,
+                  }}
+                />
+                {/* Corner ticks */}
+                {(
+                  [
+                    { top: -3, left: -3 },
+                    { top: -3, right: -3 },
+                    { bottom: -3, left: -3 },
+                    { bottom: -3, right: -3 },
+                  ] as React.CSSProperties[]
+                ).map((pos, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-[6px] h-[6px] bg-white pointer-events-none"
+                    style={pos}
+                  />
+                ))}
+
+                {/* X/Y readout — top-right (same position as desktop) */}
+                <div
+                  className="absolute top-0 pointer-events-none flex flex-col gap-[3px]"
+                  style={{ left: "calc(100% + 10px)" }}
+                >
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.15em] whitespace-nowrap">
+                    <span className="text-white">X: </span>
+                    <span className="text-white/50">{HITBOX_MOBILE.left}</span>
+                  </span>
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.15em] whitespace-nowrap">
+                    <span className="text-white">Y: </span>
+                    <span className="text-white/50">{HITBOX_MOBILE.top}</span>
                   </span>
                 </div>
 
-                <motion.div
-                  drag="x"
-                  dragConstraints={{ left: -1050, right: 0 }}
-                  dragTransition={{
-                    power: 0.1,
-                    timeConstant: 350,
-                    modifyTarget: (target) => Math.round(target),
-                  }}
-                  dragElastic={0.05}
-                  className="relative z-10 flex space-x-6 px-12 cursor-grab active:cursor-grabbing mb-12"
+                {/* Asset label — bottom-right (same position as desktop) */}
+                <div
+                  className="absolute bottom-0 pointer-events-none"
+                  style={{ left: "calc(100% + 10px)" }}
                 >
-                  {[
-                    {
-                      id: "01",
-                      title: "Extraction",
-                      text: "We deep-dive into your business via our strategic questionnaire to extract your core DNA.",
-                      bg: "/extraction.png",
-                    },
-                    {
-                      id: "02",
-                      title: "Blueprint",
-                      text: "We translate the raw data into a strategic visual anchor, used to guide the execution phase.",
-                      bg: "/blue-print.png",
-                    },
-                    {
-                      id: "03",
-                      title: "Execution",
-                      text: "The development cycle, constant internal review against original objectives and presentation of logic-backed designs.",
-                      bg: "/execution.png",
-                    },
-                    {
-                      id: "04",
-                      title: "Handover",
-                      text: "The structural signature is locked. Assets are released for deployment following the final clearnace of the balance.",
-                      bg: "/handover.png",
-                    },
-                  ].map((step) => (
-                    <div
-                      key={step.id}
-                      className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/10 hover:border-white/40 rounded-sm duration-800"
+                  <span className="font-brand-cn text-[8px] uppercase tracking-[0.2em] text-white whitespace-nowrap">
+                    {HITBOX.label.tag}:
+                    <span className="text-white/50">
+                      {" "}
+                      "{HITBOX.label.name}"
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* --- LEADER-LINE CALLOUTS ---
+                Desktop: hover a node → line draws + paragraph fades in.
+                Mobile:  tap a node to toggle it open/closed.
+                Copy is always in the DOM (opacity only) so it stays crawlable.
+                Active only while zoomed in (desktop), always active on mobile. */}
+            {CALLOUTS.map((c) => {
+              const open = activeCallout === c.id;
+              const right = c.side === "right";
+              const up = c.dir === "up";
+              const elbowY = up ? -c.drop : c.drop; // y of the horizontal run
+              const pos = isMobile && c.nodeMobile ? c.nodeMobile : c.node;
+              return (
+                <div
+                  key={c.id}
+                  className="absolute z-40"
+                  style={{
+                    top: pos.top,
+                    left: pos.left,
+                    pointerEvents: isZoomed ? "auto" : "none",
+                  }}
+                  onMouseEnter={() => !isMobile && setActiveCallout(c.id)}
+                  onMouseLeave={() =>
+                    !isMobile &&
+                    setActiveCallout((p) => (p === c.id ? null : p))
+                  }
+                  onClick={() =>
+                    isMobile &&
+                    setActiveCallout((p) => (p === c.id ? null : c.id))
+                  }
+                >
+                  {/* Node marker + hover hit area (centered on the point).
+                        ▸ CURSOR on hover  → "cursor-pointer" on this div
+                        ▸ Marker SIZE      → "w-[7px] h-[7px]" below
+                        ▸ Marker COLOR     → "bg-white" below */}
+                  <div className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center cursor-pointer">
+                    {/* Pulse glow — idle only. Soft blurred halo that
+                          breathes in/out to signal "hover me". Tune: blur =
+                          softness, w/h = glow size, opacity peak = brightness,
+                          duration = speed. */}
+                    {!open && (
+                      <motion.div
+                        className="absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-white blur-[3px] pointer-events-none"
+                        style={{ x: "-50%", y: "-50%" }}
+                        animate={{
+                          opacity: [0, 0.5, 0],
+                          scale: [0.6, 1.8, 0.6],
+                        }}
+                        transition={{
+                          duration: 3.0,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    )}
+                    <motion.div
+                      // opacity: HOVERED ? IDLE ?  ← change 0.9 for idle opacity
+                      animate={{
+                        opacity: open ? 1 : 0.9,
+                        scale: open ? 1 : 0.85,
+                      }}
+                      transition={{ duration: 0.3 }}
+                      className="w-[7px] h-[7px] bg-white"
+                    />
+                  </div>
+
+                  {/* Leader line — elbow: travels up/down from the node,
+                        then runs out to the panel (drawn in sequence). */}
+                  <motion.div
+                    animate={{ scaleY: open ? 1 : 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="absolute left-0 w-px bg-white/50 pointer-events-none"
+                    style={{
+                      top: up ? -c.drop : 0,
+                      height: c.drop,
+                      transformOrigin: up ? "bottom" : "top",
+                    }}
+                  />
+                  <motion.div
+                    animate={{ scaleX: open ? 1 : 0 }}
+                    transition={{
+                      duration: 0.35,
+                      ease: "easeOut",
+                      delay: open ? 0.22 : 0,
+                    }}
+                    className="absolute h-px bg-white/50 pointer-events-none"
+                    style={{
+                      top: elbowY,
+                      width: c.lineLength,
+                      left: right ? 0 : -c.lineLength,
+                      transformOrigin: right ? "left" : "right",
+                    }}
+                  />
+
+                  {/* Text panel — sits at the elbow's horizontal run */}
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      top: elbowY,
+                      width: c.panelWidth,
+                      left: right ? c.lineLength + 8 : undefined,
+                      right: right ? undefined : c.lineLength + 8,
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {/* ░░░ CALLOUT PANEL STYLES — shared by NODES 1, 2 & 3 ░░░
+                          • Panel plate / blur / padding → the className below
+                            (bg-black/40, backdrop-blur, px-3 py-2.5)
+                          • Heading font/size           → the <h3> className
+                          • Paragraph font/size         → the <p> className
+                          Changing these affects ALL three callouts. */}
+                    <motion.div
+                      animate={{
+                        opacity: open ? 1 : 0,
+                        x: open ? 0 : right ? -6 : 6,
+                      }}
+                      transition={{
+                        duration: 0.4,
+                        ease: "easeOut",
+                        delay: open ? 0.4 : 0,
+                      }}
+                      className="flex items-stretch gap-3 bg-black/70 backdrop-blur-[5px] px-3 py-2.5 "
                     >
-                      <>
-                        <div
-                          className="absolute inset-0 z-0"
-                          style={{
-                            backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%), url(${step.bg})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
+                      <div className="text-left">
+                        {/* HEADING + underline grouped in w-fit so the line
+                              hugs the HEADER width (not the paragraph width). */}
+                        <div className="w-fit mb-[9px]">
+                          {/* HEADING (label) font/size/color */}
+                          <h3 className="text-[11px] tracking-[0.08em] uppercase text-white/90 leading-tight font-brand-bold mb-[2px]">
+                            {c.label}
+                          </h3>
+                          {/* Header underline — tweak color/spacing here */}
+                          <div className="h-px w-full bg-white" />
+                        </div>
+                        {/* PARAGRAPH (body) font/size/color */}
+                        <p className="text-[8.5px] tracking-[0em] text-white/55 leading-relaxed font-brand-secondary-thin text-justify">
+                          {c.body}
+                        </p>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+
+          {/* Cursor-attached tag — desktop only, on hitbox hover. Sits OUTSIDE
+              the scaled layer so its fixed position tracks the viewport. */}
+          {!isMobile && (
+            <motion.div
+              style={{ left: x, top: y }}
+              animate={{ opacity: hitboxHovered ? 1 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
+            >
+              <img
+                src="/right-click.png"
+                alt=""
+                className="w-5 h-auto filter brightness-110"
+              />
+              <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+                View The Methodology
+              </span>
+            </motion.div>
+          )}
+
+          {/* --- METHODOLOGY PROCESS ---
+              Desktop: Porsche-style horizontal drag carousel.
+              Mobile:  full-screen vertical stack that scrolls. */}
+          <AnimatePresence>
+            {showProcess &&
+              (isMobile ? (
+                /* ░░░ MOBILE — vertical stacked cards (fixed to viewport, so it
+                   escapes the 300vw horizontal-scroll strip) ░░░ */
+                <motion.div
+                  initial={{ y: "100%", opacity: 0 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  exit={{ y: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 120 }}
+                  className="fixed inset-0 w-screen h-screen bg-black/90 backdrop-blur-sm z-[100] flex flex-col overflow-y-auto overscroll-contain"
+                >
+                  {/* Sticky header — close on the LEFT (contact-page formatting) */}
+                  <div className="sticky top-0 z-10 flex items-center px-8 pt-25 pb-5">
+                    <button
+                      onClick={() => setShowProcess(false)}
+                      aria-label="Close"
+                      className="flex items-center text-white/70 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {/* Custom chevron — sharp corner (miter) + sharp/long ends.
+                          Lengthen arms: edit the path. Thickness: strokeWidth. */}
+                      <svg
+                        width="8"
+                        height="44"
+                        viewBox="0 0 26 44"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                        strokeLinecap="square"
+                        strokeLinejoin="miter"
+                      >
+                        <path d="M22 2 L4 22 L22 42" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Stacked cards */}
+                  <div className="flex flex-col gap-5 px-8 pb-16">
+                    {STEPS.map((step) => (
+                      <div
+                        key={step.id}
+                        className="group w-full h-[46vh] flex flex-col justify-end overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] rounded-sm duration-900"
+                      >
+                        <div className="absolute inset-0 z-0">
+                          {/* Real <img> (AVIF→WEBP) decodes async — no progressive
+                              "scanner" load like the old large background PNG. */}
+                          <picture>
+                            <source
+                              srcSet={`${step.img}.avif`}
+                              type="image/avif"
+                            />
+                            <img
+                              src={`${step.img}.webp`}
+                              alt=""
+                              decoding="async"
+                              loading="eager"
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          </picture>
+                          {/* Bottom-up dark gradient (unchanged) */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundImage:
+                                "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%)",
+                            }}
+                          />
+                        </div>
+                        {/* SCAN LINES — same as Narrative pillars (always on mobile) */}
+                        <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
+                          <div
+                            className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                            style={{
+                              backgroundImage:
+                                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                              backgroundSize: "100% 3px",
+                            }}
+                          />
+                        </div>
+                        <div className="relative z-10 flex flex-col justify-end h-full p-6">
+                          <h3 className="text-white text-[30px] tracking-[0.3em] uppercase mb-3 font-brand-other">
+                            {step.title}
+                          </h3>
+                          <p className="text-white/50 text-[12px] leading-relaxed font-brand-secondary-thin text-justify">
+                            <span className="font-brand-cn text-[16px] text-orange-600">
+                              *{" "}
+                            </span>
+                            {step.text}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                /* ░░░ DESKTOP — horizontal drag carousel ░░░ */
+                <motion.div
+                  initial={{ y: "100%", opacity: 0 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  exit={{ y: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 120 }}
+                  className="absolute bottom-0 left-0 w-full h-[150vh] bg-gradient-to-t from-[#000] via-black/90 to-transparent z-[60] flex flex-col justify-end overflow-hidden"
+                >
+                  <div
+                    className="absolute inset-0 z-0 cursor-default"
+                    onClick={() => setShowProcess(false)}
+                  />
+
+                  <div className="relative z-10 px-12 mb-8 flex justify-between items-center pointer-events-none gap-4">
+                    <span className="text-[12px] tracking-[0.6em] text-white/80 uppercase font-brand-secondary-thin">
+                      JUDAION METHODOLOGY | EST. 2025
+                    </span>
+                    {/* Close hint — styled like the cursor tags, icon on the right */}
+                    <div className="flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2">
+                      <img
+                        src="/right-click.png"
+                        alt=""
+                        className="w-5 h-auto filter brightness-110"
+                      />
+                      <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+                        Click above to close
+                      </span>
+                    </div>
+                  </div>
+
+                  <motion.div
+                    drag="x"
+                    dragConstraints={{ left: -1050, right: 0 }}
+                    dragTransition={{
+                      power: 0.1,
+                      timeConstant: 350,
+                      modifyTarget: (target) => Math.round(target),
+                    }}
+                    dragElastic={0.05}
+                    className="relative z-10 flex space-x-6 px-12 cursor-grab active:cursor-grabbing mb-12"
+                  >
+                    {STEPS.map((step) => (
+                      <div
+                        key={step.id}
+                        className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] rounded-sm duration-900 cursor-grab active:cursor-grabbing"
+                      >
+                        <div className="absolute inset-0 z-0">
+                          {/* Real <img> (AVIF→WEBP) decodes async — no progressive
+                              "scanner" load like the old large background PNG. */}
+                          <picture>
+                            <source
+                              srcSet={`${step.img}.avif`}
+                              type="image/avif"
+                            />
+                            <img
+                              src={`${step.img}.webp`}
+                              alt=""
+                              decoding="async"
+                              loading="eager"
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          </picture>
+                          {/* Bottom-up dark gradient (unchanged) */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundImage:
+                                "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%)",
+                            }}
+                          />
+                        </div>
+                        {/* SCAN LINES — same as Narrative pillars (fade in on hover) */}
+                        <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div
+                            className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                            style={{
+                              backgroundImage:
+                                "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                              backgroundSize: "100% 3px",
+                            }}
+                          />
+                        </div>
                         <div className="relative z-10 flex flex-col justify-end h-full p-8">
                           <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
                             {step.title}
                           </h3>
-                          <p className="text-white/50 text-[19px] tracking-[0em] leading-relaxed  font-brand-secondary-thin text-justify">
+                          <p className="text-white/50 text-[19px] tracking-[0em] leading-relaxed font-brand-secondary-thin text-justify">
+                            <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
+                              *{" "}
+                            </span>
                             {step.text}
                           </p>
                         </div>
-                      </>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            )}
+              ))}
           </AnimatePresence>
 
           {/* --- NAVIGATION & INSTRUCTIONS --- */}
@@ -274,13 +928,13 @@ export default function MethodologyPage() {
             className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-4 pointer-events-none method-instructions-mobile"
           >
             <img
-              src={isMobile ? "/pinch-icon.png" : "/scroll-up.png"}
-              alt={isMobile ? "Pinch and Zoom" : "Scroll Up"}
+              src={isMobile ? "/tap-icon.png" : "/scroll-up.png"}
+              alt={isMobile ? "Tap" : "Scroll Up"}
               className="w-15 h-15 opacity-80 method-instruction-icon-mobile"
             />
             <span className="text-[17px] tracking-[0.5em] uppercase text-white/80 font-brand-cn whitespace-nowrap">
               {isMobile
-                ? "Pinch to Zoom "
+                ? "Tap to view methodology"
                 : isZoomed
                   ? "Scroll Down to Exit"
                   : "Scroll Up to Inspect"}
