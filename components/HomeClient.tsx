@@ -162,7 +162,11 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
           {/* DYNAMIC BACKGROUND */}
           <motion.div
             onTap={() => isMobile && setHoveredIndex(null)}
-            style={{ x: moveX, y: moveY, scale: 1.03 }}
+            // Parallax transforms are DESKTOP-ONLY. On mobile there's no mouse,
+            // so moveX/moveY sit at a static 1.6% and the scale overscan would
+            // crop the image's right edge under object-cover. Keep mobile clean
+            // (no transform) so the full image fits the aspect-matched canvas.
+            style={isMobile ? {} : { x: moveX, y: moveY, scale: 1.03 }}
             animate={{
               opacity: hoveredIndex !== null ? 0.4 : 1,
               filter:
@@ -195,7 +199,9 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
 
           {/* PARALLAX CONTENT LAYER */}
           <motion.div
-            style={{ x: moveX, y: moveY }}
+            // Desktop: follow the mouse parallax. Mobile: no static offset, so
+            // the door/labels stay aligned with the (untransformed) background.
+            style={isMobile ? {} : { x: moveX, y: moveY }}
             drag={isMobile ? "x" : false}
             dragConstraints={{
               left: -2000, // Approximate window.innerWidth * 2 constraint preserved from original logic
