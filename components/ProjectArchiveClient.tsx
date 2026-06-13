@@ -111,9 +111,9 @@ export default function ProjectArchive() {
                 }
           }
           className={`${isMobile ? "absolute top-0 left-0 h-full w-auto" : "absolute inset-0"}`}
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: isMobile ? 1 : 0.95 }}
-          transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
+          transition={{ duration: 0.6, delay: 0, ease: "easeOut" }}
         >
           {/* MOBILE BG — real <img> defines the scroll width from its natural
               aspect (never cropped), so the page scrolls to the true image edge. */}
@@ -312,7 +312,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.webp"
+                  src="/down-stairs-last-floor.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -339,7 +339,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
-                  src="/next-floor.webp"
+                  src="/upstairs.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -372,7 +372,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.webp"
+                  src="/down-stairs-last-floor.webp"
                   className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, -5, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -399,7 +399,7 @@ export default function ProjectArchive() {
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
                 <motion.img
-                  src="/next-floor.webp"
+                  src="/upstairs.webp"
                   className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}

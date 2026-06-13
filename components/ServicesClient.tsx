@@ -156,9 +156,9 @@ export default function ServicesHome() {
               alt=""
               draggable={false}
               className="h-full w-auto max-w-none block select-none pointer-events-none"
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
-              transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
+              transition={{ duration: 0.6, delay: 0, ease: "easeOut" }}
             />
           )}
           <motion.div
@@ -176,9 +176,9 @@ export default function ServicesHome() {
                   }
             }
             className={`absolute inset-0 origin-center ${isMobile ? "pointer-events-none" : ""}`}
-            initial={{ opacity: 0 }}
+            initial={false}
             animate={{ opacity: isMobile ? 1 : 0.95 }}
-            transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
+            transition={{ duration: 0.6, delay: 0, ease: "easeOut" }}
           >
             {/* MASTER INSTRUCTION LABEL — mobile only (desktop uses cursor tags) */}
             {isMobile && (
@@ -544,7 +544,7 @@ export default function ServicesHome() {
               className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
             >
               <motion.img
-                src="/next-floor.webp"
+                src="/upstairs.webp"
                 className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
                 animate={{ x: [0, 5, 0] }}
                 transition={{

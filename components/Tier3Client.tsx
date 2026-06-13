@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import InspectionLoader from "./InspectionLoader";
 
 // Hover/scan-line target fragments (everything except the static bg + environment)
 const HOVER_SRCS = [
@@ -51,6 +52,17 @@ export default function Tier3() {
       img.src = src;
     });
   }, []);
+
+  // Minimum loader display so it doesn't flash on fast / cached loads.
+  const [minElapsed, setMinElapsed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMinElapsed(true), 1000);
+    return () => clearTimeout(t);
+  }, []);
+  const ready = assetsLoaded && minElapsed;
+  // Flipped only AFTER the loader has fully faded out, so the room's assets
+  // always assemble in view (never behind the loader).
+  const [entered, setEntered] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMutedRef = useRef(false);
 
@@ -250,6 +262,8 @@ export default function Tier3() {
 
   return (
     <main className="relative bg-black">
+      {/* Inspection loader — waits for the tier assets, then reveals. */}
+      <InspectionLoader show={!ready} onExited={() => setEntered(true)} />
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -434,8 +448,8 @@ export default function Tier3() {
           {/* BACK PANELS — fast spring, subtle ±5-6px */}
           <motion.div className="absolute inset-0 z-10 pointer-events-none select-none overflow-hidden" style={{ x: backLX, y: backLY, scale: 1.04 }}>
             <motion.img
-              initial={{ x: "-100%" }} animate={assetsLoaded ? { x: 0 } : { x: "-100%" }}
-              transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ x: "-100%" }} animate={entered ? { x: 0 } : { x: "-100%" }}
+              transition={{ duration: 2.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-black-back-left.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -443,8 +457,8 @@ export default function Tier3() {
           </motion.div>
           <motion.div className="absolute inset-0 z-10 pointer-events-none select-none overflow-hidden" style={{ x: backRX, y: backRY, scale: 1.04 }}>
             <motion.img
-              initial={{ x: "100%" }} animate={assetsLoaded ? { x: 0 } : { x: "100%" }}
-              transition={{ duration: 3.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ x: "100%" }} animate={entered ? { x: 0 } : { x: "100%" }}
+              transition={{ duration: 2.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-black-back-right.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -454,8 +468,8 @@ export default function Tier3() {
           {/* WALLS — medium spring, lateral emphasis, asymmetric */}
           <motion.div className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden" style={{ x: wallLX, y: wallLY, scale: 1.05 }}>
             <motion.img
-              initial={{ x: "-100%" }} animate={assetsLoaded ? { x: 0 } : { x: "-100%" }}
-              transition={{ duration: 3.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ x: "-100%" }} animate={entered ? { x: 0 } : { x: "-100%" }}
+              transition={{ duration: 3.0, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-left-wall.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -463,8 +477,8 @@ export default function Tier3() {
           </motion.div>
           <motion.div className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden" style={{ x: wallRX, y: wallRY, scale: 1.05 }}>
             <motion.img
-              initial={{ x: "100%" }} animate={assetsLoaded ? { x: 0 } : { x: "100%" }}
-              transition={{ duration: 3.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ x: "100%" }} animate={entered ? { x: 0 } : { x: "100%" }}
+              transition={{ duration: 2.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
               src="/tier3-right-wall.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -474,8 +488,8 @@ export default function Tier3() {
           {/* TOP — medium spring, vertical emphasis */}
           <motion.div className="absolute inset-0 z-30 pointer-events-none select-none overflow-hidden" style={{ x: topX, y: topY, scale: 1.05 }}>
             <motion.img
-              initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
-              transition={{ duration: 3.2, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ y: "-100%" }} animate={entered ? { y: 0 } : { y: "-100%" }}
+              transition={{ duration: 2.6, delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
               src="/tier3-top.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -485,9 +499,9 @@ export default function Tier3() {
           {/* TOP CHUNKS — slowest lag, strongest vertical, asymmetric */}
           <motion.div className="absolute inset-0 z-40 pointer-events-none select-none overflow-hidden" style={{ x: chunkLX, y: chunkLY, scale: 1.06 }}>
             <motion.img
-              initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
-              transition={{ duration: 4.6, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
-              onAnimationComplete={() => { if (assetsLoaded) setAnimationDone(true); }}
+              initial={{ y: "-100%" }} animate={entered ? { y: 0 } : { y: "-100%" }}
+              transition={{ duration: 3.7, delay: 1.0, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => { if (entered) setAnimationDone(true); }}
               src="/tier3-top-left-chunk.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -495,8 +509,8 @@ export default function Tier3() {
           </motion.div>
           <motion.div className="absolute inset-0 z-40 pointer-events-none select-none overflow-hidden" style={{ x: chunkRX, y: chunkRY, scale: 1.06 }}>
             <motion.img
-              initial={{ y: "-100%" }} animate={assetsLoaded ? { y: 0 } : { y: "-100%" }}
-              transition={{ duration: 3.8, delay: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ y: "-100%" }} animate={entered ? { y: 0 } : { y: "-100%" }}
+              transition={{ duration: 3.0, delay: 1.0, ease: [0.22, 1, 0.36, 1] }}
               src="/tier3-top-right-chunk.webp"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -525,21 +539,8 @@ export default function Tier3() {
             </motion.div>
           </motion.div>
 
-          {/* LOADING OVERLAY */}
-          <AnimatePresence>
-            {!assetsLoaded && (
-              <motion.div
-                key="loader"
-                initial={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center gap-4"
-              >
-                <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80" />
-                <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Right-column loader removed — the full-page InspectionLoader now
+              gates entry until all assets are preloaded. */}
         </div>
       </div>
     </main>

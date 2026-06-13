@@ -145,19 +145,8 @@ export default function Contact() {
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.5 }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
-          pointerEvents: "none",
-        }}
-      />
+      {/* SURGICAL MASK retired — the global elevator wipe (ClientShell) now
+          owns the fade-from-black on entry. */}
       <div
         onMouseMove={handleMouseMove}
         className={`relative w-full h-screen bg-[#0a0a0a] ${isMobile ? "overflow-x-auto overflow-y-hidden overscroll-x-none block" : "overflow-hidden"}`}

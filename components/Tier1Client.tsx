@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import InspectionLoader from "./InspectionLoader";
 
 export default function Tier1() {
   const router = useRouter();
@@ -37,6 +38,17 @@ export default function Tier1() {
       img.src = src;
     });
   }, []);
+
+  // Minimum loader display so it doesn't flash on fast / cached loads.
+  const [minElapsed, setMinElapsed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMinElapsed(true), 1000);
+    return () => clearTimeout(t);
+  }, []);
+  const ready = assetsLoaded && minElapsed;
+  // Flipped only AFTER the loader has fully faded out, so the room's assets
+  // always assemble in view (never behind the loader).
+  const [entered, setEntered] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMutedRef = useRef(false);
 
@@ -166,6 +178,8 @@ export default function Tier1() {
 
   return (
     <main className="relative bg-black">
+      {/* Inspection loader — waits for the tier assets, then reveals. */}
+      <InspectionLoader show={!ready} onExited={() => setEntered(true)} />
       {/* SURGICAL MASK: Add this exact block to every new page */}
       <motion.div
         initial={{ opacity: 1 }}
@@ -380,9 +394,9 @@ export default function Tier1() {
           >
             <motion.img
               initial={{ y: "100%", opacity: 0 }}
-              animate={assetsLoaded ? { y: 0, opacity: 1 } : { y: "100%", opacity: 0 }}
-              transition={{ duration: 3.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              onAnimationComplete={() => { if (assetsLoaded) setAnimationDone(true); }}
+              animate={entered ? { y: 0, opacity: 1 } : { y: "100%", opacity: 0 }}
+              transition={{ duration: 2.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => { if (entered) setAnimationDone(true); }}
               src="/tier1-foundation.webp"
               alt="Foundation Asset"
               className="absolute inset-0 w-full h-full object-cover object-left"
@@ -436,21 +450,8 @@ export default function Tier1() {
             className="absolute inset-0 w-full h-full object-cover object-left z-20 pointer-events-none"
           />
 
-          {/* LOADING OVERLAY */}
-          <AnimatePresence>
-            {!assetsLoaded && (
-              <motion.div
-                key="loader"
-                initial={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center gap-4"
-              >
-                <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80" />
-                <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Right-column loader removed — the full-page InspectionLoader now
+              gates entry until all assets are preloaded. */}
         </div>
       </div>
     </main>

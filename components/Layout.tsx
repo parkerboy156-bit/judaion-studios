@@ -1,11 +1,20 @@
 "use client"; // Mandatory for State and Framer Motion
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link"; // Replaced react-router-dom Link
+import { usePathname } from "next/navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close the menu on any route change so it never lingers over the new page
+  // (the elevator sweep swaps the route behind the veil — the menu closes
+  // while it's hidden, so the reveal lands on a clean page).
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   return (
     <div className="relative min-h-screen bg-[#0a0a0a] text-white">
@@ -29,28 +38,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col pointer-events-auto">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="group flex flex-col gap-[6px] w-8 focus:outline-none cursor-pointer z-[110]"
+            aria-label="Toggle menu"
+            aria-expanded={isOpen}
+            // p-3.5 + matching -m-3.5 enlarges the tap target to ~60×43px
+            // (mobile-reliable) WITHOUT moving the icon's visual position.
+            // touch-manipulation removes tap latency / double-tap-zoom ambiguity.
+            className="group flex p-3.5 -m-3.5 focus:outline-none cursor-pointer z-[110] touch-manipulation"
           >
-            <motion.span
-              animate={
-                isOpen
-                  ? { rotate: 45, y: 7, backgroundColor: "#fff" }
-                  : { rotate: 0, y: 0, backgroundColor: "#fff" }
-              }
-              className="w-full h-[1px] transition-colors duration-300"
-            />
-            <motion.span
-              animate={isOpen ? { opacity: 0 } : { opacity: 1 }}
-              className="w-full h-[1px] bg-white transition-colors duration-300"
-            />
-            <motion.span
-              animate={
-                isOpen
-                  ? { rotate: -45, y: -7, backgroundColor: "#fff" }
-                  : { rotate: 0, y: 0, backgroundColor: "#fff" }
-              }
-              className="w-full h-[1px] transition-colors duration-300"
-            />
+            <span className="flex flex-col gap-[6px] w-8">
+              <motion.span
+                animate={
+                  isOpen
+                    ? { rotate: 45, y: 7, backgroundColor: "#fff" }
+                    : { rotate: 0, y: 0, backgroundColor: "#fff" }
+                }
+                className="w-full h-[1px] transition-colors duration-300"
+              />
+              <motion.span
+                animate={isOpen ? { opacity: 0 } : { opacity: 1 }}
+                className="w-full h-[1px] bg-white transition-colors duration-300"
+              />
+              <motion.span
+                animate={
+                  isOpen
+                    ? { rotate: -45, y: -7, backgroundColor: "#fff" }
+                    : { rotate: 0, y: 0, backgroundColor: "#fff" }
+                }
+                className="w-full h-[1px] transition-colors duration-300"
+              />
+            </span>
           </button>
 
           <AnimatePresence>

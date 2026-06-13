@@ -37,19 +37,8 @@ export default function TheNarrative() {
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
-          pointerEvents: "none",
-        }}
-      />
+      {/* SURGICAL MASK retired — the global elevator wipe (ClientShell) now
+          owns the fade-from-black on entry. */}
       <div className="relative w-full min-h-screen bg-black ">
         {/* 1. THE FOOLPROOF VIDEO LAYER */}
         <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
@@ -85,15 +74,15 @@ export default function TheNarrative() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1, duration: 1 }}
-              className="absolute top-20 left-12 z-50 pointer-events-auto"
+              className="absolute top-23 left-13 z-50 pointer-events-auto"
             >
               <Link
                 href="/projectarchive"
                 className="flex flex-col items-start gap-2 lg:flex-row lg:items-center group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
                 <motion.img
-                  src="/last-floor-straight.webp"
-                  className="w-22 h-auto opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain shrink-0"
+                  src="/down-stairs-last-floor.webp"
+                  className="w-20 h-auto opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain shrink-0"
                   animate={{ x: [0, -5, 0] }}
                   transition={{
                     duration: 3,
@@ -101,11 +90,6 @@ export default function TheNarrative() {
                     ease: "easeInOut",
                   }}
                 />
-                <div className="flex flex-col items-start font-brand-secondary-thin text-left">
-                  <span className="text-[11px] tracking-[0.3em] uppercase text-white/40 font-light font-secondary-thin">
-                    [Previous Floor]
-                  </span>
-                </div>
               </Link>
             </motion.div>
 
@@ -597,7 +581,11 @@ export default function TheNarrative() {
                   Where Commitment Meets the Grid
                 </h2>
                 <span className="commitment-body-text hidden lg:block max-w-2xl text-left text-white/59 text-[14px] leading-[1.6] tracking-[0em] font-brand-secondary-thin text-justify">
-                  The result of personal discipline applied to digital precision. WE don't create brands based on aesthetics and trends. We build identities rooted in logic and structure designed to endure. The commitment to permanence is the commitment that lasts.
+                  The result of personal discipline applied to digital
+                  precision. WE don't create brands based on aesthetics and
+                  trends. We build identities rooted in logic and structure
+                  designed to endure. The commitment to permanence is the
+                  commitment that lasts.
                 </span>
               </div>
             </div>

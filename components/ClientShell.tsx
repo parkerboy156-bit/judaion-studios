@@ -1,11 +1,53 @@
 "use client";
 
-import React, { useState, createContext, useContext } from "react";
+import React, {
+  useState,
+  createContext,
+  useContext,
+  useRef,
+  useEffect,
+} from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import IntroLoader from "./IntroLoader";
-import { useEffect } from "react";
 
 const LoadingContext = createContext({ isLoaded: false });
 export const useLoading = () => useContext(LoadingContext);
+
+// ─────────────────────────────────────────────────────────────────────────
+// SPATIAL MAP — drives the elevator transition.
+//   FLOORS:      vertical spine. Higher index = higher floor. Moving between
+//                floors plays the two-phase sweep (ascend = up, descend = down).
+//   INSPECTIONS: tiers + catalogue. "Step in to inspect" pages that own their
+//                own entrance (loading screen) — the sweep is SKIPPED for them.
+// ─────────────────────────────────────────────────────────────────────────
+const FLOORS: Record<string, number> = {
+  "/": 0,
+  "/methodology": 1,
+  "/services": 2,
+  "/projectarchive": 3,
+  "/thenarrative": 4,
+  "/contact": 5, // roof
+};
+const INSPECTIONS = new Set([
+  "/tier-1",
+  "/tier-2",
+  "/tier-3",
+  "/archivecatalogue",
+]);
+
+const clean = (p: string) => p.replace(/\/+$/, "") || "/";
+
+type Phase = "cover" | "covered" | "reveal";
+type Transition = {
+  dir: "up" | "down";
+  phase: Phase;
+  href: string;
+  id: number;
+  // "sweep" = full intercepted cover→swap→reveal (clicks).
+  // "reveal" = reveal-only, no cover (browser back/forward — route already changed).
+  kind: "sweep" | "reveal";
+};
 
 export default function ClientShell({
   children,
@@ -13,20 +55,152 @@ export default function ClientShell({
   children: React.ReactNode;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const reduceMotion = useReducedMotion();
+
+  const [transition, setTransition] = useState<Transition | null>(null);
+
+  // Tracks the current path (feeds the click handler) AND detects "external"
+  // navigations — browser back/forward, or anything we didn't intercept. Those
+  // can't be covered (the route already changed), so they get a reveal-only
+  // sweep: the veil drops over the new page and sweeps away in the travel
+  // direction. Keeps back/forward consistent with the clicked sweeps.
+  const pathRef = useRef(pathname);
+  useEffect(() => {
+    const from = pathRef.current ? clean(pathRef.current) : null;
+    const to = clean(pathname);
+    pathRef.current = pathname;
+
+    // Skip first load, same path, or while a clicked sweep is already running.
+    if (!from || from === to || transition) return;
+
+    // Only floor→floor (inspections / off-map routes navigate plainly).
+    const inspection = INSPECTIONS.has(from) || INSPECTIONS.has(to);
+    const f = FLOORS[from];
+    const t = FLOORS[to];
+    if (inspection || f === undefined || t === undefined) return;
+
+    setTransition({
+      dir: t > f ? "up" : "down",
+      phase: "reveal",
+      href: to,
+      id: Date.now(),
+      kind: "reveal",
+    });
+  }, [pathname, transition]);
 
   useEffect(() => {
-    // GLOBAL DETECTION PROTOCOL
     const isGoogleApp = /GSA\/\d/.test(navigator.userAgent);
-
-    if (isGoogleApp) {
-      document.body.classList.add("is-google-app");
-    }
+    if (isGoogleApp) document.body.classList.add("is-google-app");
   }, []);
+
+  // ── Intercept floor→floor link clicks and run the two-phase sweep ────────
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      // Let the browser do its normal thing for modified / non-left clicks.
+      if (
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey ||
+        e.defaultPrevented
+      )
+        return;
+
+      const anchor = (e.target as HTMLElement | null)?.closest("a");
+      const href = anchor?.getAttribute("href");
+      if (!anchor || !href || !href.startsWith("/")) return;
+      if (anchor.target === "_blank") return;
+
+      const from = clean(pathRef.current);
+      const to = clean(href);
+      if (from === to) return;
+
+      // Only intercept pure floor→floor moves. Inspections (and anything not on
+      // the map) navigate normally and own their own entrance.
+      const inspection = INSPECTIONS.has(from) || INSPECTIONS.has(to);
+      const f = FLOORS[from];
+      const t = FLOORS[to];
+      if (inspection || f === undefined || t === undefined) return;
+
+      // Take over: stop Next's Link from navigating, run the sweep ourselves.
+      e.preventDefault();
+      e.stopPropagation();
+      setTransition({
+        dir: t > f ? "up" : "down",
+        phase: "cover",
+        href: to,
+        id: Date.now(),
+        kind: "sweep",
+      });
+    };
+
+    // Capture phase so we beat React's (root-bound) click handlers.
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
+  }, []);
+
+  // Once the veil has fully COVERED, the route push has already fired (below).
+  // Hold for a fixed beat, then always sweep away — so the cover→reveal cadence
+  // is identical on every navigation, independent of how fast the new route
+  // commits (that variability is what made it snap on fast pages / stall on
+  // slow ones). Static/prerendered routes commit well within this hold.
+  useEffect(() => {
+    if (transition?.phase !== "covered") return;
+    const id = window.setTimeout(() => {
+      setTransition((t) =>
+        t && t.phase === "covered" ? { ...t, phase: "reveal" } : t,
+      );
+    }, 260);
+    return () => window.clearTimeout(id);
+  }, [transition?.phase, transition?.id]);
+
+  const handleAnimComplete = () => {
+    if (!transition) return;
+    if (transition.phase === "cover") {
+      router.push(transition.href);
+      setTransition((t) => (t ? { ...t, phase: "covered" } : t));
+    } else if (transition.phase === "reveal") {
+      setTransition(null);
+    }
+  };
+
+  // Geometry: ascend enters from BELOW (rises up); descend enters from ABOVE
+  // (falls down). The veil covers at y:0, then continues off in the travel dir.
+  const up = transition?.dir !== "down";
+  const enterY = up ? "100%" : "-100%";
+  const exitY = up ? "-100%" : "100%";
+  const targetY = transition?.phase === "reveal" ? exitY : "0%";
 
   return (
     <LoadingContext.Provider value={{ isLoaded }}>
-      {/* The IntroLoader remains as it handles the very first entry */}
+      {/* The IntroLoader handles the very first entry */}
       <IntroLoader onComplete={() => setIsLoaded(true)} />
+
+      {/* ── ELEVATOR SWEEP ─────────────────────────────────────────────────
+          Two-phase: rises/falls to cover the page being left, the route swaps
+          while covered, then it continues sweeping to reveal the new floor.
+          Feathered edges keep it soft (not a hard slab). */}
+      {transition && (
+        <motion.div
+          key={transition.id}
+          initial={transition.kind === "reveal" ? { y: "0%" } : { y: enterY }}
+          animate={{ y: targetY }}
+          transition={{ duration: reduceMotion ? 0 : 0.9, ease: [0.76, 0, 0.24, 1] }}
+          onAnimationComplete={handleAnimComplete}
+          className="fixed inset-x-0 z-[9999]"
+          style={{
+            top: "-20vh",
+            height: "140vh",
+            background:
+              "linear-gradient(to bottom, transparent 0%, #000 13%, #000 87%, transparent 100%)",
+            pointerEvents: "auto", // block interaction during the sweep
+            willChange: "transform",
+          }}
+        />
+      )}
 
       <div
         style={{
@@ -34,9 +208,10 @@ export default function ClientShell({
           visibility: isLoaded ? "visible" : "hidden",
           backgroundColor: "black",
           minHeight: "100vh",
+          // Smooth first-load reveal after the IntroLoader.
+          transition: "opacity 0.6s ease",
         }}
       >
-        {/* All Framer Motion wrappers removed for raw testing */}
         {children}
       </div>
     </LoadingContext.Provider>

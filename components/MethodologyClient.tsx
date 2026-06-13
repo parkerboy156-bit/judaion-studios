@@ -226,7 +226,6 @@ export default function MethodologyPage() {
     },
   ];
 
-
   React.useEffect(() => {
     STEPS.forEach((s) => {
       const img = new Image();
@@ -237,19 +236,8 @@ export default function MethodologyPage() {
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK: Add this exact block to every new page */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 999, // Ensure it sits above all page content
-          pointerEvents: "none",
-        }}
-      />
+      {/* SURGICAL MASK retired — the global elevator wipe (ClientShell) now
+          owns the fade-from-black on entry. */}
       <div
         onMouseMove={handleMouseMove}
         className={`relative w-full bg-[#0a0a0a] ${isMobile ? "h-screen overflow-x-auto overflow-y-hidden overscroll-x-none" : "h-[300vh]"}`}
@@ -929,12 +917,18 @@ export default function MethodologyPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-4 pointer-events-none method-instructions-mobile"
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 pointer-events-none method-instructions-mobile"
           >
-            <img
+            <motion.img
               src={isMobile ? "/tap-icon.png" : "/scroll-up.png"}
               alt={isMobile ? "Tap" : "Scroll Up"}
-              className="w-15 h-15 opacity-80 method-instruction-icon-mobile"
+              className="w-18 h-18 opacity-80"
+              animate={{ y: [0, -6, 0] }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
             />
             <span className="text-[17px] tracking-[0.5em] uppercase text-white/80 font-brand-cn whitespace-nowrap">
               {isMobile

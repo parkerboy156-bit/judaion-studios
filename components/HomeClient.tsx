@@ -129,22 +129,8 @@ export default function Home({ isLoaded = true }: { isLoaded?: boolean }) {
 
   return (
     <div className="relative bg-black overflow-hidden">
-      {/* SURGICAL MASK: Only exists on this page, handles the fade-out from black */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.7 }}
-        onAnimationComplete={() => {
-          // Optional: remove from DOM if it interferes with clicks
-        }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "black",
-          zIndex: 99,
-          pointerEvents: "none",
-        }}
-      />
+      {/* SURGICAL MASK retired — the global elevator wipe (ClientShell) now
+          owns the fade-from-black on entry. */}
 
       <motion.div
         className={`relative h-screen bg-black select-none ${

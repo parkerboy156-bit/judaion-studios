@@ -412,7 +412,7 @@ export default function ArchiveCatalogue() {
                     className="w-full h-auto block object-cover grid-image-reveal"
                   />
                   {/* Hover overlay with title */}
-                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center p-6">
+                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-6">
                     <p className="font-brand-other text-white text-[16px] uppercase tracking-[0.15em] leading-tight text-center">
                       {item.title}
                     </p>
@@ -443,7 +443,7 @@ export default function ArchiveCatalogue() {
                     alt={item.title}
                     className={`w-full object-cover block grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
                   />
-                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex items-center justify-center px-4 py-2 backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-center justify-center px-4 py-2 backdrop-blur-sm">
                     <p className="font-brand-other text-white text-[13px] uppercase tracking-[0.1em] leading-tight text-center">
                       {item.title}
                     </p>
