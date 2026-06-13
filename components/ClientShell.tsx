@@ -10,6 +10,7 @@ import React, {
 import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import IntroLoader from "./IntroLoader";
+import RotateNotice from "./RotateNotice";
 
 const LoadingContext = createContext({ isLoaded: false });
 export const useLoading = () => useContext(LoadingContext);
@@ -118,8 +119,9 @@ export default function ClientShell({
       const to = clean(href);
       if (from === to) return;
 
-      // Only intercept pure floor→floor moves. Inspections (and anything not on
-      // the map) navigate normally and own their own entrance.
+      // Only intercept pure floor→floor moves. Inspections (tiers / catalogue)
+      // navigate plainly on entry (their loader owns it) and return via
+      // router.back() — so they never trigger the sweep.
       const inspection = INSPECTIONS.has(from) || INSPECTIONS.has(to);
       const f = FLOORS[from];
       const t = FLOORS[to];
@@ -176,6 +178,9 @@ export default function ClientShell({
 
   return (
     <LoadingContext.Provider value={{ isLoaded }}>
+      {/* Phone-landscape "rotate to portrait" prompt (CSS-gated, top of stack) */}
+      <RotateNotice />
+
       {/* The IntroLoader handles the very first entry */}
       <IntroLoader onComplete={() => setIsLoaded(true)} />
 

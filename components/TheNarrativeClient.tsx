@@ -308,12 +308,10 @@ export default function TheNarrative() {
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                     Most identities suffer from structural decay and the
                     accumulation of visual noise, trends and aesthetic volume
-                    designed to wow rather than to endure. We do not create
-                    "looks" — we architect permanence.
+                    designed to wow rather than to endure. We go beyond creating "pretty pictures". We architect monoliths engineered for authority and permanence.
                   </p>
                   <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Logic over aesthetics. Foundation over trends. The result of
-                    personal discipline applied to digital precision.
+                    Logic over aesthetics. Foundation over trends.
                   </p>
                 </div>
                 <div className="pt-4 border-t border-white/20">
@@ -581,11 +579,12 @@ export default function TheNarrative() {
                   Where Commitment Meets the Grid
                 </h2>
                 <span className="commitment-body-text hidden lg:block max-w-2xl text-left text-white/59 text-[14px] leading-[1.6] tracking-[0em] font-brand-secondary-thin text-justify">
-                  The result of personal discipline applied to digital
-                  precision. WE don't create brands based on aesthetics and
-                  trends. We build identities rooted in logic and structure
-                  designed to endure. The commitment to permanence is the
-                  commitment that lasts.
+                  Most designers create visuals in a vacuum and don't take the
+                  time to understand your brands mission or vision which leads
+                  to a disconnect which costs trust and leaves you with a brand
+                  that fails to convert. We build identities rooted in logic and
+                  structure designed to endure. The commitment to permanence is
+                  the commitment that lasts.
                 </span>
               </div>
             </div>
@@ -654,7 +653,7 @@ export default function TheNarrative() {
 
                 <p className="text-white/60 text-sm lg:text-base leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                   Zion Judah Parker is the architect of the JUDAION system. His
-                  methodology focuses on Extracting the core Truth of an
+                  methodology focuses on extracting the core truth of an
                   organisation to build identities backed by Structural Logic.
                   Guided by a philosophy of permanence, he engineers enduring
                   brand foundations for founders who require their visual
@@ -666,7 +665,7 @@ export default function TheNarrative() {
               <div className="pt-8 border-t border-white/20">
                 <span className="operational-lead text-[10px] tracking-[0.16em] uppercase text-white/30 font-brand-secondary-thin">
                   JUDAION (Pty) Ltd is a registered studio in the Republic of
-                  South Africa. All rights reserved. &copy; 2025
+                  South Africa. All rights reserved. &copy; 2026
                 </span>
               </div>
             </div>

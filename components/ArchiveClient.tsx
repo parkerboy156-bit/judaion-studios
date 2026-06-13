@@ -4,8 +4,10 @@ import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ArchiveCatalogue() {
+  const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -299,9 +301,11 @@ export default function ArchiveCatalogue() {
             <div className="flex items-end justify-between w-full relative"></div>
 
             <div className="flex items-end gap-5">
-              <Link
-                href="/projectarchive"
-                className="flex items-center cursor-pointer group mb-0 self-start"
+              {/* router.back() (like the tier returns) — a clean history-back
+                  to the cached Archive page: no sweep, no mount flash. */}
+              <button
+                onClick={() => router.back()}
+                className="flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
               >
                 <motion.img
                   src="/return-to.webp"
@@ -309,7 +313,7 @@ export default function ArchiveCatalogue() {
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />
-              </Link>
+              </button>
 
               <button
                 onClick={toggleAudio}

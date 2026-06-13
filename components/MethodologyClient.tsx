@@ -150,8 +150,8 @@ export default function MethodologyPage() {
       body: (
         <>
           JUDAION Studios is a Brand Architecture Studio that operates at the
-          intersection of Business vision and Cinematic rigour. We bridge the
-          gap between business vision and identity.
+          intersection of business vision and cinematic rigour. We bridge the
+          gap between business vision and visual identity.
         </>
       ),
     },
@@ -169,10 +169,10 @@ export default function MethodologyPage() {
       label: "Strategic Architect",
       body: (
         <>
-          More than designers, we are your Strategic Architect. We build the
-          systems and visual logic that give a brand authority, so your market
-          reads you as the obvious choice. Nothing is decorative, every decision
-          is structural.
+          More than designers, we act as your strategic architect, building
+          systems and engineering logical frameworks that give a brand
+          authority, so your market reads you as the obvious choice. Nothing is
+          decorative, every decision is structural.
         </>
       ),
     },
@@ -191,9 +191,9 @@ export default function MethodologyPage() {
       label: "Consistent & High-Converting",
       body: (
         <>
-          We engineer for performance. The result is an identity that holds
+          The result of working with us is an identity that holds
           consistent and high-converting under pressure at every scale, across
-          every platform, without losing its edge.
+          every platform, without losing it's edge. High torque and ultimate performance.
         </>
       ),
     },
