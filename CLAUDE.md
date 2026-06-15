@@ -5,7 +5,8 @@
 ## 🎯 Project Overview
 - **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Supabase, Oracle Cloud Storage[cite: 1].
 - **Architecture:** Page files (`app/<route>/page.tsx`) are thin server components that only import and render a corresponding `"use client"` shell from `components/<Page>Client.tsx` where all interactive logic resides[cite: 1].
-- **Entry Sequence:** `layout.tsx` → `<Providers>` → `<ClientShell>` → `<Layout>`[cite: 1]. Content stays hidden until `<IntroLoader>` completes its global fade-in animation[cite: 1].
+- **Routes:** `/` (Home), `/services`, `/thenarrative`, `/methodology`, `/contact`, `/projectarchive`, `/archivecatalogue`, `/tier-1`, `/tier-2`, `/tier-3`, `/login`, `/adminportal`.
+- **Entry Sequence:** `layout.tsx` → `<Providers>` → `<ClientShell>` → `<Layout>`[cite: 1]. Content stays hidden until `<IntroLoader>` completes its global fade-in animation[cite: 1]. `<RotateNotice>` renders globally and is visibility-controlled by a CSS landscape media query. `<InspectionLoader>` is a page-level full-screen loader (grain video + J-logo) used by Tier and Archive pages to gate their assemble animations.
 
 ---
 
@@ -66,8 +67,8 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
 - **Archive View Layout:** The project archive navigation uses independent containers with a blurred background overlay[cite: 1]. **Do not convert this into a standard modal UI approach.**[cite: 1]
 - **Archive Display Spacing:** Maintain a wide, spread-out layout in the asset browser[cite: 1]. Keep the expanded horizontal spacing/gaps intact[cite: 1].
 - **No Textures/Overlays:** Keep the dark UI clean[cite: 1]. Do not add noise textures or grain effects to the black UI hover overlays[cite: 1].
-- **No Zoom Features:** The asset focus view does not utilize image zooming features or pinch iconography (`pinch-icon.png`)[cite: 1]. Keep the layout structural and clean[cite: 1].
-- **Focus View Layout (`ArchiveClient`) — Two-Section Scroll:**
+- **No Zoom Features:** The asset focus view does not utilize image zooming features. Keep the layout structural and clean.
+- **Focus View Layout (`ArchiveClient`, route `/archivecatalogue`) — Two-Section Scroll:**
   - A full-screen overlay (`backdrop-blur + bg-black/88`) with a single scrollable container (`focusScrollRef`) using inertia-lerp scroll.
   - *Section 1 (sticky, 100vh):* Grain video bg. Fixed Exit button (top-left) and Music toggle (top-right). Main asset centred (image with J-logo loading placeholder, or `<video controls>`). Multi-asset thumbnail strip: `72×72px`, vertical `flex-col` on desktop / horizontal `flex-row` on mobile. Active thumb: `border-[1px] border-white`; inactive: `border-white/10 opacity-60`. Scroll hint bottom-right ("Scroll to Inspect" + animated arrow).
   - *Section 2 (details, scrolls in below Section 1):* Two-column desktop / stacked mobile. **Left:** "Project Description" heading + divider + `content` body text + optional Instagram/LinkedIn SVG links. **Right (`400px` desktop / full-width mobile):** product-details card with `archive-header.avif` bg and `bg-black/60` overlay — title, metadata rows (Category, Type, Number of Assets, Uploaded, File Type), feature checklist (orange `*` bullet), and CTA button (white bg, `box-icon.png` icon, "Project Archive '26" label). **Footer:** `archive-header.avif` bg, logo left, copyright right.
@@ -75,6 +76,12 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
 ---
 
 ## 📐 Page Structure & Mobile Patterns
+
+### `RotateNotice` — landscape phone overlay
+- Renders in `ClientShell` at all times; shown/hidden purely by a CSS media query `(orientation: landscape) and (max-height: 500px)`. Targets phones held sideways only — never tablets or desktop. No JS rotation API (iOS doesn't support it). Do not add JS logic here.
+
+### `InspectionLoader` — page-level asset gate
+- Full-screen overlay (grain video + J-logo + loader text). Driven by a `show` prop; `AnimatePresence` fades it out once parent assets are ready. `onExited` callback lets the parent start its assemble animation only *after* the fade completes. Used by Tier and Archive pages.
 
 ### Mobile horizontal-scroll background — `ServicesClient`, `ProjectArchiveClient`
 - Wide landscape bg shown full-height, scrolled horizontally on mobile.
