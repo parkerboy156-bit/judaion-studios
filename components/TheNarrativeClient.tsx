@@ -50,7 +50,7 @@ export default function TheNarrative() {
             loop
             playsInline
             preload="auto"
-            className="w-full h-full object-cover grayscale opacity-65"
+            className="w-full h-full object-cover opacity-65"
           >
             <source
               src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
@@ -654,7 +654,7 @@ export default function TheNarrative() {
                 <p className="text-white/60 text-sm lg:text-base leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
                   Zion Judah Parker is the architect of the JUDAION system. His
                   methodology focuses on extracting the core truth of an
-                  organisation to build identities backed by Structural Logic.
+                  organisation to build identities backed by structural logic.
                   Guided by a philosophy of permanence, he engineers enduring
                   brand foundations for founders who require their visual
                   presence to operate with absolute authority.
