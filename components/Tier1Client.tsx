@@ -390,7 +390,7 @@ export default function Tier1() {
           {/* LAYER 10: FOUNDATION ASSET — entry animation + parallax */}
           <motion.div
             className="absolute inset-0 z-10 select-none pointer-events-none overflow-hidden"
-            style={{ x: foundX, y: foundY, scale: 1.05 }}
+            style={{ x: foundX, y: foundY, scale: 1.04 }}
           >
             <motion.img
               initial={{ y: "100%", opacity: 0 }}

@@ -168,7 +168,7 @@ export default function ServicesHome() {
                 : {
                     x: bgMoveX,
                     y: bgMoveY,
-                    scale: 1.05,
+                    scale: 1.04,
                     backgroundImage: `url(${servicesBgAvif.src})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
