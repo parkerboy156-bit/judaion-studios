@@ -126,6 +126,38 @@ function PosterCard({
     onHoverChange(false);
   };
 
+  // Mobile gyroscope tilt — maps device orientation onto the same px/py the
+  // mouse would set, so the poster physically reacts to tilting the phone (the
+  // tilt/reflection/shadow machinery is reused as-is). Top image card only.
+  // First reading becomes the neutral baseline, so the resting hand angle = flat.
+  // iOS permission is requested up-front from a gesture (see onFirstInteraction).
+  useEffect(() => {
+    if (!isMobile || !tiltActive) return;
+    if (typeof window === "undefined" || !("DeviceOrientationEvent" in window))
+      return;
+
+    let base: { beta: number; gamma: number } | null = null;
+    const RANGE = 22; // degrees of tilt to reach full deflection
+    const clamp = (v: number) => Math.max(-0.5, Math.min(0.5, v));
+
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      if (!base) base = { beta: e.beta, gamma: e.gamma };
+      px.set(clamp((e.gamma - base.gamma) / RANGE)); // left-right
+      py.set(clamp((e.beta - base.beta) / RANGE)); // front-back
+      setHovered(true); // surface the reflection while tilting
+    };
+
+    window.addEventListener("deviceorientation", onOrient);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrient);
+      setHovered(false);
+      px.set(0);
+      py.set(0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, tiltActive]);
+
   const slot = slotFor(depth);
   const maxH = isMobile ? "44vh" : "80vh";
   const maxW = isMobile ? "82vw" : "62vw";
@@ -395,6 +427,17 @@ export default function ArchiveCatalogue() {
       if (started) return;
       started = true;
       document.removeEventListener("click", onFirstInteraction);
+      // iOS 13+ gates device-orientation behind a permission prompt that must be
+      // triggered from a user gesture — request it here on the first tap so the
+      // mobile poster gyroscope tilt can receive events.
+      const DOE = (typeof DeviceOrientationEvent !== "undefined"
+        ? DeviceOrientationEvent
+        : null) as unknown as
+        | { requestPermission?: () => Promise<string> }
+        | null;
+      if (DOE && typeof DOE.requestPermission === "function") {
+        DOE.requestPermission().catch(() => {});
+      }
       audio
         .play()
         .then(() => {
@@ -949,7 +992,11 @@ export default function ArchiveCatalogue() {
               {/* Single scrollable container — two sections stacked */}
               <div
                 ref={focusScrollRef}
-                className="h-full overflow-y-auto"
+                // overflow-x-hidden clips the poster deck's transform overflow
+                // (x-offsets + rotation), which otherwise causes a horizontal
+                // overscroll bounce on mobile AND makes Section 2's
+                // backdrop-filter mis-render as a flat black bar on desktop.
+                className="h-full overflow-y-auto overflow-x-hidden overscroll-x-none"
                 style={{ scrollbarWidth: "none" }}
               >
                 {/*
@@ -1046,10 +1093,10 @@ export default function ArchiveCatalogue() {
                   className="relative min-h-screen border-t border-white/10 flex flex-col"
                   style={{
                     zIndex: 2,
-                    backdropFilter: "blur(12px)",
+                    backdropFilter: "blur(18px)",
                     WebkitBackdropFilter: "blur(15px)",
                     background:
-                      "linear-gradient(to bottom, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.60) 100%)",
+                      "linear-gradient(to bottom, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.80) 100%)",
                   }}
                 >
                   {/* flex-1 wrapper grows to fill section, pushing footer to the bottom */}
