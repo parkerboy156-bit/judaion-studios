@@ -1362,3 +1362,14 @@
   content: "establishing authority...";
   animation: loadingDotsAuthority 1.2s steps(1) infinite;
 }
+/* Title-driven loader — shows the project title (via data-title) with the same
+   animated dots. Used by the archive focus-view asset loader. */
+@keyframes loadingDotsTitle {
+  0%,20%  { content: attr(data-title) ".";   }
+  40%     { content: attr(data-title) "..";  }
+  60%,100%{ content: attr(data-title) "..."; }
+}
+.loader-title::after {
+  content: attr(data-title) "...";
+  animation: loadingDotsTitle 1.2s steps(1) infinite;
+}

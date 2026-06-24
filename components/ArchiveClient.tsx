@@ -2,9 +2,334 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  useMotionTemplate,
+} from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+const VIDEO_EXTS = ["mp4", "webm", "ogg"];
+const isVideoUrl = (url: string) =>
+  VIDEO_EXTS.includes(url?.split(".").pop()?.toLowerCase() || "");
+
+// Scattered "loose pile" slots by depth (0 = top, face-up & interactive).
+// Alternating x + rotation reads as a dropped stack rather than a staircase.
+const STACK_SLOTS = [
+  { x: 0, y: 0, rotate: 0, scale: 1 },
+  { x: 30, y: 22, rotate: 3, scale: 0.96 },
+  { x: -28, y: 36, rotate: -2.6, scale: 0.92 },
+  { x: 22, y: 50, rotate: 2.2, scale: 0.89 },
+  { x: -18, y: 62, rotate: -1.8, scale: 0.86 },
+];
+const slotFor = (depth: number) =>
+  STACK_SLOTS[Math.min(depth, STACK_SLOTS.length - 1)];
+
+/**
+ * PosterCard — one poster in the stack. Each card keeps its OWN aspect ratio
+ * (`object-contain`, centred on the shared stage), so a landscape and a
+ * portrait asset coexist without letterboxing — the deck outline is naturally
+ * irregular, like a real pile of different-sized prints. Only the top card
+ * (depth 0) runs the hover tilt + fixed-light reflection; the rest sit static,
+ * dimmed, offset for depth. A video shows its first frame while stacked and
+ * becomes a playable <video controls> once it reaches the top.
+ */
+function PosterCard({
+  url,
+  title,
+  depth,
+  isTop,
+  isMobile,
+  onClick,
+  onVideoPlay,
+  onVideoRestore,
+  onHoverChange,
+}: {
+  url: string;
+  title: string;
+  depth: number;
+  isTop: boolean;
+  isMobile: boolean;
+  onClick: () => void;
+  onVideoPlay: () => void;
+  onVideoRestore: () => void;
+  onHoverChange: (h: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hovered, setHovered] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const vid = isVideoUrl(url);
+  // Only the top image card tilts — videos stay flat so the native controls
+  // aren't skewed by the 3D transform.
+  const tiltActive = isTop && !vid;
+
+  // When a video card leaves the top (flipped to back) or unmounts, stop its
+  // playback and restore the bg music. Prevents the music staying ducked and
+  // kills any orphaned audio from the unmounting <video> (the double-play bug).
+  useEffect(() => {
+    if (isTop) return;
+    videoRef.current?.pause();
+    onVideoRestore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTop]);
+  useEffect(() => {
+    return () => onVideoRestore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pointer position normalised to −0.5…0.5 across the card.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const spring = { stiffness: 140, damping: 16, mass: 0.9 };
+  const sx = useSpring(px, spring);
+  const sy = useSpring(py, spring);
+
+  // Balanced-but-heavy tilt — ~7° max.
+  const MAX = 7;
+  const rotateY = useTransform(sx, [-0.5, 0.5], [-MAX, MAX]);
+  const rotateX = useTransform(sy, [-0.5, 0.5], [MAX, -MAX]);
+
+  // Fixed-light reflection — diagonal band driven by the tilt (inverted), so it
+  // sweeps like a reflection of a stationary source, never glued to the cursor.
+  const glareCenter = useTransform(
+    [sx, sy],
+    ([x, y]: number[]) => 50 - x * 55 - y * 15,
+  );
+  const gA = useTransform(glareCenter, (v) => `${v - 22}%`);
+  const gB = useTransform(glareCenter, (v) => `${v}%`);
+  const gC = useTransform(glareCenter, (v) => `${v + 22}%`);
+  const glare = useMotionTemplate`linear-gradient(115deg, transparent ${gA}, rgba(255,255,255,0.60) ${gB}, transparent ${gC})`;
+
+  // Lift shadow offsets opposite the tilt → "raised off the wall".
+  const shadowX = useTransform(sx, [-0.5, 0.5], [22, -22]);
+  const shadowY = useTransform(sy, [-0.5, 0.5], [22, -22]);
+  const dropShadow = useMotionTemplate`drop-shadow(${shadowX}px ${shadowY}px 28px rgba(0,0,0,0.5))`;
+
+  const onMove = (e: React.MouseEvent) => {
+    if (!tiltActive) return;
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    px.set((e.clientX - r.left) / r.width - 0.5);
+    py.set((e.clientY - r.top) / r.height - 0.5);
+  };
+  const reset = () => {
+    setHovered(false);
+    px.set(0);
+    py.set(0);
+    onHoverChange(false);
+  };
+
+  const slot = slotFor(depth);
+  const maxH = isMobile ? "44vh" : "80vh";
+  const maxW = isMobile ? "82vw" : "62vw";
+  const mediaStyle: React.CSSProperties = {
+    maxHeight: maxH,
+    maxWidth: maxW,
+    opacity: loaded || vid ? 1 : 0,
+    transition: "opacity 0.4s ease",
+  };
+
+  return (
+    <motion.div
+      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+      style={{ zIndex: 100 - depth }}
+      initial={false}
+      animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale: slot.scale }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+    >
+      <div className="pointer-events-none" style={{ perspective: 1200 }}>
+        <motion.div
+          ref={ref}
+          onMouseEnter={() => {
+            if (tiltActive) {
+              setHovered(true);
+              onHoverChange(true);
+            }
+          }}
+          onMouseLeave={reset}
+          onMouseMove={onMove}
+          // Top video: no flip-on-click so the native controls work; flip it
+          // away by bringing another card forward. Everything else is clickable.
+          onClick={isTop && vid ? undefined : onClick}
+          style={{
+            rotateX: tiltActive ? rotateX : 0,
+            rotateY: tiltActive ? rotateY : 0,
+            filter: tiltActive
+              ? dropShadow
+              : "drop-shadow(0 12px 24px rgba(0,0,0,0.45))",
+            transformStyle: "preserve-3d",
+          }}
+          className={`relative pointer-events-auto will-change-transform ${
+            isTop && vid ? "" : "cursor-pointer"
+          }`}
+        >
+          {vid && isTop ? (
+            <video
+              key={`top-${url}`}
+              ref={videoRef}
+              src={url}
+              controls
+              preload="auto"
+              className="object-contain block"
+              style={mediaStyle}
+              onPlay={onVideoPlay}
+              onPause={onVideoRestore}
+              onEnded={onVideoRestore}
+            />
+          ) : vid ? (
+            <video
+              key={`peek-${url}`}
+              src={`${url}#t=0.1`}
+              muted
+              playsInline
+              preload="metadata"
+              className="object-contain block"
+              style={mediaStyle}
+            />
+          ) : (
+            <img
+              src={url}
+              alt={title}
+              draggable={false}
+              className="object-contain block select-none"
+              style={mediaStyle}
+              onLoad={() => setLoaded(true)}
+            />
+          )}
+
+          {/* Non-top cards: dim for depth + a hairline edge so the pile reads */}
+          {!isTop && (
+            <div className="absolute inset-0 bg-black/45 border border-white/10 pointer-events-none" />
+          )}
+
+          {/* Fixed-light reflection band — top image card only (videos keep
+              their own surface). soft-light keeps it matte (satin paper). */}
+          {isTop && !vid && (
+            <motion.div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: glare,
+                mixBlendMode: "soft-light",
+                opacity: hovered ? 0.6 : 0,
+                transition: "opacity 0.4s ease",
+              }}
+            />
+          )}
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * PosterStack — the focus-view asset deck (replaces the old thumbnail strip).
+ * `order[0]` is the top card. Click the top poster to flip it to the back;
+ * click any peeking card behind to bring it forward. Cards keep stable keys so
+ * framer tweens each to its new slot on reorder. The stage is a fixed centred
+ * box; cards are absolutely centred within it, so mixed orientations all pivot
+ * around the same point.
+ */
+function PosterStack({
+  urls,
+  title,
+  isMobile,
+  onVideoPlay,
+  onVideoRestore,
+}: {
+  urls: string[];
+  title: string;
+  isMobile: boolean;
+  onVideoPlay: () => void;
+  onVideoRestore: () => void;
+}) {
+  const [order, setOrder] = useState<number[]>(() => urls.map((_, i) => i));
+  const multi = urls.length > 1;
+
+  // Cursor-attached tag — same pattern as the Project Archive hitbox hover tag.
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const [showTag, setShowTag] = useState(false);
+  const onStageMove = (e: React.MouseEvent) => {
+    x.set(e.clientX);
+    y.set(e.clientY);
+  };
+
+  const onCardClick = (assetIndex: number, depth: number) => {
+    if (depth === 0) {
+      // Flip the top poster to the back of the deck.
+      setOrder((prev) =>
+        prev.length < 2 ? prev : [...prev.slice(1), prev[0]],
+      );
+    } else {
+      // Bring a peeking card to the front.
+      setOrder((prev) => [assetIndex, ...prev.filter((i) => i !== assetIndex)]);
+    }
+  };
+
+  const stageStyle: React.CSSProperties = isMobile
+    ? { width: "86vw", height: "52vh" }
+    : { width: "64vw", height: "80vh" };
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={stageStyle}
+      onMouseMove={onStageMove}
+    >
+      {order.map((assetIndex, depth) => (
+        <PosterCard
+          key={urls[assetIndex]}
+          url={urls[assetIndex]}
+          title={title}
+          depth={depth}
+          isTop={depth === 0}
+          isMobile={isMobile}
+          onClick={() => onCardClick(assetIndex, depth)}
+          onVideoPlay={onVideoPlay}
+          onVideoRestore={onVideoRestore}
+          onHoverChange={(h) => setShowTag(h && multi)}
+        />
+      ))}
+
+      {/* Cursor-attached flip tag — desktop, shown while hovering the top
+          poster (formatted like the Project Archive hitbox tag). */}
+      {!isMobile && multi && (
+        <motion.div
+          style={{ left: x, top: y }}
+          animate={{ opacity: showTag ? 1 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed top-0 left-0 z-[210] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
+        >
+          <img
+            src="/right-click.png"
+            alt=""
+            className="w-5 h-auto filter brightness-110"
+          />
+          <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+            Click to flip · {order[0] + 1}/{urls.length} Asset
+          </span>
+        </motion.div>
+      )}
+
+      {/* Mobile keeps a static caption (no cursor to attach a tag to). */}
+      {isMobile && multi && (
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
+          <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/35 whitespace-nowrap">
+            Tap to flip · {order[0] + 1}/{urls.length} Asset
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ArchiveCatalogue() {
   const router = useRouter();
@@ -13,10 +338,9 @@ export default function ArchiveCatalogue() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
   const [, setIsPlaying] = useState(false);
-  const [currentAssetIndex, setCurrentAssetIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
   const focusScrollRef = useRef<HTMLDivElement>(null);
@@ -117,6 +441,30 @@ export default function ArchiveCatalogue() {
     }
   }
 
+  // Duck the background music while a focus-view video plays, restore after.
+  function handleVideoPlay() {
+    const audio = audioRef.current;
+    if (audio && !isMutedRef.current) {
+      audio.muted = true;
+      audio.volume = 0;
+      audioSuppressedByVideoRef.current = true;
+      setIsAudioOn(false);
+    }
+  }
+  function handleVideoRestore() {
+    const audio = audioRef.current;
+    if (audio && audioSuppressedByVideoRef.current) {
+      audio.muted = false;
+      audio.volume = 0.35;
+      isMutedRef.current = false;
+      audioSuppressedByVideoRef.current = false;
+      setIsAudioOn(true);
+      // iOS pauses the background <audio> entirely when a video with sound
+      // plays — muting alone won't bring it back, so explicitly resume.
+      audio.play().catch(() => {});
+    }
+  }
+
   // Lock page scroll + ESC to close while the focus view is open
   useEffect(() => {
     document.body.style.overflow = selectedProject ? "hidden" : "";
@@ -176,16 +524,54 @@ export default function ArchiveCatalogue() {
     };
   }, [selectedProject]);
 
+  // Gate the focus view behind a loader until ALL of the project's assets are
+  // ready — physical objects don't pop in piecemeal. Mirrors the initial-archive
+  // loader treatment. A small min-delay avoids a jarring loader flash on cached
+  // assets; `cancelled` guards against the user closing/switching mid-load.
   useEffect(() => {
-    if (selectedProject && Array.isArray(selectedProject.file_url)) {
-      selectedProject.file_url.forEach((url: string) => {
-        const extension = url.split(".").pop()?.toLowerCase();
-        if (["jpg", "jpeg", "png", "webp", "avif"].includes(extension || "")) {
+    if (!selectedProject) return;
+    let cancelled = false;
+    setFocusLoading(true);
+
+    const urls = (
+      Array.isArray(selectedProject.file_url)
+        ? selectedProject.file_url
+        : [selectedProject.file_url]
+    ).filter(Boolean);
+
+    const loadAsset = (url: string) =>
+      new Promise<void>((resolve) => {
+        if (isVideoUrl(url)) {
+          const v = document.createElement("video");
+          v.muted = true;
+          v.preload = "auto";
+          v.onloadeddata = () => resolve();
+          v.onerror = () => resolve();
+          v.src = url;
+        } else {
           const img = new Image();
+          img.onload = img.onerror = () => resolve();
           img.src = url;
         }
       });
-    }
+
+    // Linger ~1.5s minimum so the project title is readable, but no longer —
+    // long enough to register what's loading, short enough to not annoy.
+    const minDelay = new Promise((r) => setTimeout(r, 1500));
+    // Safety valve: never trap the user on the loader if an asset stalls without
+    // firing load/error (rare, but a broken URL or hung connection shouldn't
+    // block the whole view). Reveal anyway after maxWait.
+    const maxWait = new Promise((r) => setTimeout(r, 8000));
+    Promise.race([
+      Promise.all([...urls.map(loadAsset), minDelay]),
+      maxWait,
+    ]).then(() => {
+      if (!cancelled) setFocusLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProject]);
 
   async function fetchData() {
@@ -397,12 +783,11 @@ export default function ArchiveCatalogue() {
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-7 group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 rounded"
+                  className="break-inside-avoid mb-7 group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10"
                   onClick={() => {
+                    setFocusLoading(true);
                     setSelectedProject(item);
                     setIsPlaying(false);
-                    setCurrentAssetIndex(0);
-                    setImageLoading(true);
                   }}
                 >
                   {/* Main image — no thumbnail overlay, full bleed */}
@@ -430,12 +815,11 @@ export default function ArchiveCatalogue() {
               {filtered.map((item, index) => (
                 <div
                   key={item.id}
-                  className={`group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 rounded ${index % 5 === 0 ? "col-span-2" : ""}`}
+                  className={`group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 ${index % 5 === 0 ? "col-span-2" : ""}`}
                   onClick={() => {
+                    setFocusLoading(true);
                     setSelectedProject(item);
                     setIsPlaying(false);
-                    setCurrentAssetIndex(0);
-                    setImageLoading(true);
                   }}
                 >
                   <img
@@ -481,6 +865,43 @@ export default function ArchiveCatalogue() {
                 background: "rgba(0,0,0,0.88)",
               }}
             >
+              {/* Asset loader — gates the reveal until all assets are ready, so
+                  the deck never pops in piecemeal. Same treatment as the
+                  initial-archive loader; fades out over the prepared scene. */}
+              <AnimatePresence>
+                {focusLoading && (
+                  <motion.div
+                    key="focus-loader"
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="absolute inset-0 z-[260] flex flex-col items-center justify-center gap-6 bg-black"
+                  >
+                    <video
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
+                    >
+                      <source
+                        src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+                        type="video/mp4"
+                      />
+                    </video>
+                    <img
+                      src="/j-logo.svg"
+                      alt="Loading"
+                      className="loader-j opacity-80 relative z-10"
+                    />
+                    <span
+                      data-title={selectedProject.title}
+                      className="loader-title font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10 text-center px-6"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Exit — fixed top left, always visible while scrolling */}
               <button
                 onClick={() => setSelectedProject(null)}
@@ -538,173 +959,71 @@ export default function ArchiveCatalogue() {
                   className="relative flex items-center justify-center sticky top-0 bg-black"
                   style={{ height: "100vh", minHeight: "100vh", zIndex: 1 }}
                 >
-                  {/* Grain video background */}
+                  {/* Grain video background — dropped to atmosphere level so the
+                      spotlight reads, not the void */}
                   <video
                     autoPlay
                     loop
                     muted
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none"
+                    className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none"
                   >
                     <source
                       src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
                       type="video/mp4"
                     />
                   </video>
-                  {/* Image + selector row */}
+                  {/* ── GALLERY LIGHTING (layered to read as a lit room, not a
+                      void) — corners deepened, a soft pool behind the deck lit
+                      from the upper-left to match the poster's fixed-light
+                      reflection, and a faint floor pool so it reads as standing
+                      on a surface rather than floating. ── */}
+                  {/* Edge vignette — deepen the corners so the pool reads */}
                   <div
-                    className={`flex items-center justify-center gap-5 px-16 w-full h-full ${isMobile ? "flex-col gap-4 px-6 pt-16 pb-20" : ""}`}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(125% 115% at 50% 42%, rgba(0,0,0,0) 48%, rgba(0,0,0,0.62) 100%)",
+                    }}
+                  />
+                  {/* Spotlight pool behind the deck */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(55% 50% at 48% 38%, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.055) 34%, rgba(0,0,0,0) 70%)",
+                    }}
+                  />
+                  {/* Floor pool — faint glow low-centre = lit surface underfoot */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(44% 20% at 50% 84%, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 72%)",
+                    }}
+                  />
+                  {/* Poster stack — the deck IS the selector (replaces strip) */}
+                  <div
+                    className={`flex items-center justify-center w-full h-full ${isMobile ? "px-6 pt-16 pb-20" : "px-16"}`}
                   >
-                    {/* ── MAIN ASSET ── */}
-                    <div
-                      className={`relative flex items-center justify-center ${isMobile ? "w-full flex-1" : "h-[80vh] max-w-[70vw] flex-shrink-0"}`}
-                    >
-                      {(() => {
-                        const url = Array.isArray(selectedProject.file_url)
-                          ? selectedProject.file_url[currentAssetIndex]
-                          : selectedProject.file_url;
-                        const ext = url?.split(".").pop()?.toLowerCase();
-                        if (["mp4", "webm", "ogg"].includes(ext || "")) {
-                          return (
-                            <video
-                              key={url}
-                              src={url}
-                              controls
-                              className="object-contain max-h-full max-w-full border border-white/20 shadow-2xl rounded-sm"
-                              preload="auto"
-                              onPlay={() => {
-                                const audio = audioRef.current;
-                                if (audio && !isMutedRef.current) {
-                                  audio.muted = true;
-                                  audio.volume = 0;
-                                  audioSuppressedByVideoRef.current = true;
-                                  setIsAudioOn(false);
-                                }
-                              }}
-                              onPause={() => {
-                                const audio = audioRef.current;
-                                if (
-                                  audio &&
-                                  audioSuppressedByVideoRef.current
-                                ) {
-                                  audio.muted = false;
-                                  audio.volume = 0.35;
-                                  isMutedRef.current = false;
-                                  audioSuppressedByVideoRef.current = false;
-                                  setIsAudioOn(true);
-                                  // iOS pauses the background <audio> entirely
-                                  // when a video with sound plays — muting alone
-                                  // won't bring it back, so explicitly resume.
-                                  audio.play().catch(() => {});
-                                }
-                              }}
-                              onEnded={() => {
-                                const audio = audioRef.current;
-                                if (
-                                  audio &&
-                                  audioSuppressedByVideoRef.current
-                                ) {
-                                  audio.muted = false;
-                                  audio.volume = 0.35;
-                                  isMutedRef.current = false;
-                                  audioSuppressedByVideoRef.current = false;
-                                  setIsAudioOn(true);
-                                  // iOS pauses the background <audio> entirely
-                                  // when a video with sound plays — muting alone
-                                  // won't bring it back, so explicitly resume.
-                                  audio.play().catch(() => {});
-                                }
-                              }}
-                            />
-                          );
-                        }
-                        return (
-                          <div key={url} className="relative flex items-center justify-center" style={{ maxHeight: isMobile ? "48vh" : "83vh" }}>
-                            {imageLoading && (
-                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                                <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80" />
-                                <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
-                              </div>
-                            )}
-                            <img
-                              src={url}
-                              alt={selectedProject.title}
-                              className="object-contain max-h-full max-w-full border border-white/20 shadow-2xl rounded-sm"
-                              style={{ maxHeight: isMobile ? "48vh" : "83vh", opacity: imageLoading ? 0 : 1, transition: "opacity 0.3s ease" }}
-                              onLoad={() => setImageLoading(false)}
-                            />
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* ── THUMBNAIL SELECTOR STRIP ── */}
-                    {Array.isArray(selectedProject.file_url) &&
-                      selectedProject.file_url.length > 1 && (
-                        <div
-                          className={`flex shrink-0 ${isMobile ? "flex-row gap-3 overflow-x-auto w-full justify-center" : "flex-col gap-3 overflow-y-auto max-h-[80vh]"}`}
-                          style={{ scrollbarWidth: "none" }}
-                        >
-                          {selectedProject.file_url.map(
-                            (url: string, idx: number) => {
-                              const ext = url?.split(".").pop()?.toLowerCase();
-                              const isVid = ["mp4", "webm", "ogg"].includes(
-                                ext || "",
-                              );
-                              const isActive = idx === currentAssetIndex;
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    setCurrentAssetIndex(idx);
-                                    setImageLoading(true);
-                                  }}
-                                  className={`w-[72px] h-[72px] shrink-0 relative overflow-hidden cursor-pointer transition-all duration-200 ${
-                                    isActive
-                                      ? "border-[1px] border-white opacity-100"
-                                      : "border border-white/10 opacity-60 hover:opacity-80 hover:border-white/30"
-                                  }`}
-                                >
-                                  {isVid ? (
-                                    <>
-                                      <video
-                                        src={`${url}#t=0.1`}
-                                        muted
-                                        playsInline
-                                        preload="metadata"
-                                        className="w-full h-full object-cover"
-                                      />
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                        <svg
-                                          width="12"
-                                          height="12"
-                                          viewBox="0 0 24 24"
-                                          fill="white"
-                                          opacity="0.8"
-                                        >
-                                          <polygon points="5,3 19,12 5,21" />
-                                        </svg>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <img
-                                      src={url}
-                                      alt={`Asset ${idx + 1}`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  )}
-                                </button>
-                              );
-                            },
-                          )}
-                        </div>
-                      )}
+                    <PosterStack
+                      key={selectedProject.id}
+                      urls={
+                        Array.isArray(selectedProject.file_url)
+                          ? selectedProject.file_url
+                          : [selectedProject.file_url]
+                      }
+                      title={selectedProject.title}
+                      isMobile={isMobile}
+                      onVideoPlay={handleVideoPlay}
+                      onVideoRestore={handleVideoRestore}
+                    />
                   </div>
 
                   {/* Scroll hint — bottom right of section 1 */}
                   <div className="absolute bottom-8 right-6 flex items-center pointer-events-none">
                     <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.3em] uppercase text-white/30">
-                      [Scroll to Inspect]
+                      [PROJ. DESCRIPTION]
                     </span>
                     <motion.img
                       src="/scroll-up.png"
@@ -899,7 +1218,9 @@ export default function ArchiveCatalogue() {
                                   Uploaded
                                 </span>
                                 <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
-                                  {new Date(selectedProject.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                  {selectedProject.created_at
+                                    ? new Date(selectedProject.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                                    : "—"}
                                 </span>
                               </div>
                               <div className="flex justify-between items-start py-1">
