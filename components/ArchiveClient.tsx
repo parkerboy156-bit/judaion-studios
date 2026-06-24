@@ -137,7 +137,7 @@ function PosterCard({
       return;
 
     let base: { beta: number; gamma: number } | null = null;
-    const RANGE = 22; // degrees of tilt to reach full deflection
+    const RANGE = 14; // degrees of tilt to reach full deflection (lower = more sensitive)
     const clamp = (v: number) => Math.max(-0.5, Math.min(0.5, v));
 
     const onOrient = (e: DeviceOrientationEvent) => {
