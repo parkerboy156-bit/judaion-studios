@@ -137,14 +137,24 @@ function PosterCard({
       return;
 
     let base: { beta: number; gamma: number } | null = null;
-    const RANGE = 14; // degrees of tilt to reach full deflection (lower = more sensitive)
+    const sm = { beta: 0, gamma: 0 }; // low-pass smoothed reading
+    const RANGE = 10; // degrees of tilt to reach full deflection (lower = more reactive)
+    const SMOOTH = 0.18; // input low-pass factor (lower = smoother / less twitchy)
     const clamp = (v: number) => Math.max(-0.5, Math.min(0.5, v));
 
     const onOrient = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return;
-      if (!base) base = { beta: e.beta, gamma: e.gamma };
-      px.set(clamp((e.gamma - base.gamma) / RANGE)); // left-right
-      py.set(clamp((e.beta - base.beta) / RANGE)); // front-back
+      if (!base) {
+        base = { beta: e.beta, gamma: e.gamma };
+        sm.beta = e.beta;
+        sm.gamma = e.gamma;
+      }
+      // Low-pass the raw sensor first — kills the jitter that a low RANGE would
+      // otherwise amplify, so it stays reactive without feeling twitchy.
+      sm.gamma += (e.gamma - sm.gamma) * SMOOTH;
+      sm.beta += (e.beta - sm.beta) * SMOOTH;
+      px.set(clamp((sm.gamma - base.gamma) / RANGE)); // left-right
+      py.set(clamp((sm.beta - base.beta) / RANGE)); // front-back
       setHovered(true); // surface the reflection while tilting
     };
 
