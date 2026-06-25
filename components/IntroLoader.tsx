@@ -11,7 +11,24 @@ export default function IntroLoader({
   const [shouldShow, setShouldShow] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
+  // Poster stays over the video until playback truly starts — so a blocked
+  // autoplay (Low Power Mode etc.) shows branding, never Safari's broken play
+  // button. Hidden the moment the video fires `playing`.
+  const [posterShown, setPosterShown] = useState(true);
+  const desktopPoster = "/intro-frame.avif";
+  const mobilePoster = "/intro-frame-mobile.avif";
+  const [posterSrc, setPosterSrc] = useState(desktopPoster);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Callback ref: force-mute the instant the node exists. React doesn't reliably
+  // apply the `muted` attribute (esp. via SSR), and Safari refuses muted
+  // autoplay unless the element is *genuinely* muted at play time — this guarantees it.
+  const setVideoRef = (node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node) {
+      node.muted = true;
+      node.defaultMuted = true;
+    }
+  };
   const mobileVideoSrc =
     "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/V2.0JDS%20Introloader%20ALT%20Mobile.mp4";
   const desktopVideoSrc =
@@ -23,6 +40,7 @@ export default function IntroLoader({
     const isMobile = window.matchMedia("(max-width: 1023px)").matches;
     if (isMobile) {
       setActiveVideoSrc(mobileVideoSrc);
+      setPosterSrc(mobilePoster);
     }
   }, []);
 
@@ -80,7 +98,11 @@ export default function IntroLoader({
     const REVEAL_MS = 900;
     const startTimer = setTimeout(() => {
       video.currentTime = 0;
-      video.play().catch(() => {});
+      video.muted = true; // re-assert before play — Safari blocks autoplay otherwise
+      video.play().catch(() => {
+        // Autoplay blocked (e.g. Low Power Mode) — leave the poster up so the
+        // intro reads as branded, not broken. User still enters via the nav.
+      });
     }, REVEAL_MS);
     return () => clearTimeout(startTimer);
   }, [isFinished, activeVideoSrc]);
@@ -158,14 +180,31 @@ export default function IntroLoader({
           </motion.div>
 
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             src={activeVideoSrc}
             muted
             loop
             autoPlay
             playsInline
             preload="auto"
+            poster={posterSrc}
+            onPlaying={() => setPosterShown(false)}
             className="absolute inset-0 w-full h-full object-cover mix-blend-screen pointer-events-none opacity-[0.90]"
+          />
+
+          {/* Poster fallback — covers the video until it actually plays, hiding
+              Safari's blocked-autoplay button. Tapping it manually starts the
+              clip (covers Low Power Mode). Fades out the moment playback begins. */}
+          <img
+            src={posterSrc}
+            alt=""
+            onClick={() => videoRef.current?.play().catch(() => {})}
+            style={{
+              opacity: posterShown ? 0.9 : 0,
+              pointerEvents: posterShown ? "auto" : "none",
+              transition: "opacity 0.6s ease",
+            }}
+            className="absolute inset-0 w-full h-full object-cover mix-blend-screen z-[5] cursor-pointer"
           />
         </motion.div>
       </motion.div>
