@@ -65,9 +65,10 @@ function PosterCard({
   const [loaded, setLoaded] = useState(false);
 
   const vid = isVideoUrl(url);
-  // Only the top image card tilts — videos stay flat so the native controls
-  // aren't skewed by the 3D transform.
-  const tiltActive = isTop && !vid;
+  // Tilt + reflection are a desktop-only (mouse) flourish. Mobile is left flat:
+  // the gyroscope version required iOS motion permission, which re-prompts on
+  // every visit — not worth the nag. Videos stay flat too (native controls).
+  const tiltActive = isTop && !vid && !isMobile;
 
   // When a video card leaves the top (flipped to back) or unmounts, stop its
   // playback and restore the bg music. Prevents the music staying ducked and
@@ -125,48 +126,6 @@ function PosterCard({
     py.set(0);
     onHoverChange(false);
   };
-
-  // Mobile gyroscope tilt — maps device orientation onto the same px/py the
-  // mouse would set, so the poster physically reacts to tilting the phone (the
-  // tilt/reflection/shadow machinery is reused as-is). Top image card only.
-  // First reading becomes the neutral baseline, so the resting hand angle = flat.
-  // iOS permission is requested up-front from a gesture (see onFirstInteraction).
-  useEffect(() => {
-    if (!isMobile || !tiltActive) return;
-    if (typeof window === "undefined" || !("DeviceOrientationEvent" in window))
-      return;
-
-    let base: { beta: number; gamma: number } | null = null;
-    const sm = { beta: 0, gamma: 0 }; // low-pass smoothed reading
-    const RANGE = 10; // degrees of tilt to reach full deflection (lower = more reactive)
-    const SMOOTH = 0.18; // input low-pass factor (lower = smoother / less twitchy)
-    const clamp = (v: number) => Math.max(-0.5, Math.min(0.5, v));
-
-    const onOrient = (e: DeviceOrientationEvent) => {
-      if (e.beta == null || e.gamma == null) return;
-      if (!base) {
-        base = { beta: e.beta, gamma: e.gamma };
-        sm.beta = e.beta;
-        sm.gamma = e.gamma;
-      }
-      // Low-pass the raw sensor first — kills the jitter that a low RANGE would
-      // otherwise amplify, so it stays reactive without feeling twitchy.
-      sm.gamma += (e.gamma - sm.gamma) * SMOOTH;
-      sm.beta += (e.beta - sm.beta) * SMOOTH;
-      px.set(clamp((sm.gamma - base.gamma) / RANGE)); // left-right
-      py.set(clamp((sm.beta - base.beta) / RANGE)); // front-back
-      setHovered(true); // surface the reflection while tilting
-    };
-
-    window.addEventListener("deviceorientation", onOrient);
-    return () => {
-      window.removeEventListener("deviceorientation", onOrient);
-      setHovered(false);
-      px.set(0);
-      py.set(0);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, tiltActive]);
 
   const slot = slotFor(depth);
   const maxH = isMobile ? "44vh" : "80vh";
@@ -251,9 +210,9 @@ function PosterCard({
             <div className="absolute inset-0 bg-black/45 border border-white/10 pointer-events-none" />
           )}
 
-          {/* Fixed-light reflection band — top image card only (videos keep
-              their own surface). soft-light keeps it matte (satin paper). */}
-          {isTop && !vid && (
+          {/* Fixed-light reflection band — desktop top image card only (videos
+              keep their own surface). soft-light keeps it matte (satin paper). */}
+          {tiltActive && (
             <motion.div
               aria-hidden
               className="absolute inset-0 pointer-events-none"
@@ -437,17 +396,6 @@ export default function ArchiveCatalogue() {
       if (started) return;
       started = true;
       document.removeEventListener("click", onFirstInteraction);
-      // iOS 13+ gates device-orientation behind a permission prompt that must be
-      // triggered from a user gesture — request it here on the first tap so the
-      // mobile poster gyroscope tilt can receive events.
-      const DOE = (typeof DeviceOrientationEvent !== "undefined"
-        ? DeviceOrientationEvent
-        : null) as unknown as
-        | { requestPermission?: () => Promise<string> }
-        | null;
-      if (DOE && typeof DOE.requestPermission === "function") {
-        DOE.requestPermission().catch(() => {});
-      }
       audio
         .play()
         .then(() => {
