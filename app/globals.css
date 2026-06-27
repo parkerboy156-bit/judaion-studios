@@ -1373,3 +1373,48 @@
   content: attr(data-title) "...";
   animation: loadingDotsTitle 1.2s steps(1) infinite;
 }
+/* Catalogue loader — flips through "physical archive" status phrases while the
+   catalogue assets load, reinforcing the tactile-archive vibe. Each phrase gets
+   its own animating dots (.  ..  ...) before the next phrase swaps in. */
+@keyframes catalogueShuffle {
+  0%   { content: "organising files."; }
+  5%   { content: "organising files.."; }
+  10%  { content: "organising files..."; }
+  20%  { content: "indexing assets."; }
+  25%  { content: "indexing assets.."; }
+  30%  { content: "indexing assets..."; }
+  40%  { content: "retrieving records."; }
+  45%  { content: "retrieving records.."; }
+  50%  { content: "retrieving records..."; }
+  60%  { content: "cataloguing works."; }
+  65%  { content: "cataloguing works.."; }
+  70%  { content: "cataloguing works..."; }
+  80%  { content: "pulling the archive."; }
+  85%  { content: "pulling the archive.."; }
+  90%  { content: "pulling the archive..."; }
+}
+.loader-text-catalogue::after {
+  content: "organising files.";
+  animation: catalogueShuffle 4s steps(1) infinite;
+}
+
+/* ============================================================ */
+/* DOSSIER TEXTURE — physical cardstock for the archive PDF cover.   */
+/* Intentionally NOT "clean dark UI" — texture sells the object.     */
+/* feTurbulence grain (overlay-blended) + emboss + warm dark stock.  */
+/* ============================================================ */
+.dossier-texture {
+  background-color: #242424;
+  /* Real greyscale paper scan (kept monochrome to match JUDAION), darkened by a
+     flat veil so it reads as dark cardstock with white text still legible.
+     Tune the veil alpha (0.6) for darker/lighter; lower = texture stands out more. */
+  background-image:
+    linear-gradient(rgba(10, 10, 10, 0.9), rgba(10, 10, 10, 0.6)),
+    url("/dossier-texture.webp");
+  background-size: cover, cover;
+  background-position: center, center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -3px 12px rgba(0, 0, 0, 0.55),
+    inset 0 0 80px rgba(0, 0, 0, 0.4);
+}

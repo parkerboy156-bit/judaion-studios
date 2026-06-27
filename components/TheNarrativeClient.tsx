@@ -133,12 +133,12 @@ export default function TheNarrative() {
             </div>
 
             {/* SCROLL LABEL */}
-            <div className="absolute bottom-5 right-1 flex items-center space-x-6">
+            <div className="absolute bottom-8 right-3 flex items-center space-x-6">
               <motion.img
-                src="/scroll-up.png"
-                alt="Scroll"
+                src="/scroll-down.webp"
+                alt="Scroll Down"
                 className="w-25 h-25 opacity-80"
-                animate={{ y: [0, -6, 0] }}
+                animate={{ y: [0, 6, 0] }}
                 transition={{
                   duration: 1.6,
                   repeat: Infinity,

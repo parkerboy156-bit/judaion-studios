@@ -12,10 +12,21 @@ import {
 } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PdfReader from "./PdfReader";
 
 const VIDEO_EXTS = ["mp4", "webm", "ogg"];
 const isVideoUrl = (url: string) =>
   VIDEO_EXTS.includes(url?.split(".").pop()?.toLowerCase() || "");
+const isPdfUrl = (url: string) =>
+  url?.split(".").pop()?.toLowerCase() === "pdf";
+// First image asset of a project — used for grid covers so a PDF/video-first
+// project doesn't render a broken <img>. Returns null if there's no image.
+const firstImage = (item: any): string | null => {
+  const urls = Array.isArray(item?.file_url) ? item.file_url : [item?.file_url];
+  return (
+    urls.find((u: string) => u && !isVideoUrl(u) && !isPdfUrl(u)) || null
+  );
+};
 
 // Scattered "loose pile" slots by depth (0 = top, face-up & interactive).
 // Alternating x + rotation reads as a dropped stack rather than a staircase.
@@ -48,6 +59,7 @@ function PosterCard({
   onVideoPlay,
   onVideoRestore,
   onHoverChange,
+  onOpenPdf,
 }: {
   url: string;
   title: string;
@@ -58,6 +70,7 @@ function PosterCard({
   onVideoPlay: () => void;
   onVideoRestore: () => void;
   onHoverChange: (h: boolean) => void;
+  onOpenPdf: (url: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -65,9 +78,11 @@ function PosterCard({
   const [loaded, setLoaded] = useState(false);
 
   const vid = isVideoUrl(url);
-  // Tilt + reflection are a desktop-only (mouse) flourish. Mobile is left flat:
-  // the gyroscope version required iOS motion permission, which re-prompts on
-  // every visit — not worth the nag. Videos stay flat too (native controls).
+  const pdf = isPdfUrl(url);
+  // Tilt is a desktop-only (mouse) flourish; the PDF dossier tilts too (it's a
+  // physical object) but skips the poster reflection (it's matte, not glossy).
+  // Mobile stays flat (gyroscope dropped — iOS re-prompts for motion). Videos
+  // stay flat for their native controls.
   const tiltActive = isTop && !vid && !isMobile;
 
   // When a video card leaves the top (flipped to back) or unmounts, stop its
@@ -119,6 +134,12 @@ function PosterCard({
     const r = el.getBoundingClientRect();
     px.set((e.clientX - r.left) / r.width - 0.5);
     py.set((e.clientY - r.top) / r.height - 0.5);
+    // If the focus view loaded with the cursor already over the card, no
+    // mouseenter fires — surface the shine + tag on the first movement instead.
+    if (!hovered) {
+      setHovered(true);
+      onHoverChange(true);
+    }
   };
   const reset = () => {
     setHovered(false);
@@ -126,6 +147,29 @@ function PosterCard({
     py.set(0);
     onHoverChange(false);
   };
+
+  // PDF dossier: single click flips the deck (like any card); double click opens
+  // the reader. Debounced so a double-click doesn't also trigger the flip.
+  const pdfClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onPdfClick = () => {
+    if (pdfClickTimer.current) return; // 2nd click of a double — let dblclick win
+    pdfClickTimer.current = setTimeout(() => {
+      pdfClickTimer.current = null;
+      onClick();
+    }, 230);
+  };
+  const onPdfDoubleClick = () => {
+    if (pdfClickTimer.current) {
+      clearTimeout(pdfClickTimer.current);
+      pdfClickTimer.current = null;
+    }
+    onOpenPdf(url);
+  };
+  useEffect(() => {
+    return () => {
+      if (pdfClickTimer.current) clearTimeout(pdfClickTimer.current);
+    };
+  }, []);
 
   const slot = slotFor(depth);
   const maxH = isMobile ? "44vh" : "80vh";
@@ -156,9 +200,17 @@ function PosterCard({
           }}
           onMouseLeave={reset}
           onMouseMove={onMove}
-          // Top video: no flip-on-click so the native controls work; flip it
-          // away by bringing another card forward. Everything else is clickable.
-          onClick={isTop && vid ? undefined : onClick}
+          // Top video: no flip-on-click so native controls work. Top PDF: single
+          // click flips, double click opens the reader. Everything else flips/
+          // comes forward on a single click.
+          onClick={
+            isTop && vid
+              ? undefined
+              : isTop && pdf
+                ? onPdfClick
+                : onClick
+          }
+          onDoubleClick={isTop && pdf ? onPdfDoubleClick : undefined}
           style={{
             rotateX: tiltActive ? rotateX : 0,
             rotateY: tiltActive ? rotateY : 0,
@@ -194,6 +246,57 @@ function PosterCard({
               className="object-contain block"
               style={mediaStyle}
             />
+          ) : pdf ? (
+            // Branded dossier cover — a physical "folder", deliberately textured
+            // (cardstock grain + emboss) to feel different from the poster sheets.
+            <div
+              className="dossier-texture relative border border-black/50 flex flex-col select-none"
+              style={{ height: isMobile ? "46vh" : "74vh", aspectRatio: "1 / 1.32" }}
+            >
+              {/* Folder tab */}
+              <div className="dossier-texture absolute -top-[16px] left-7 h-[16px] w-[40%] border border-b-0 border-black/50" />
+              {/* Stacked-paper edges — solid bright greyscale (real pages, not
+                  see-through) */}
+              <div className="absolute top-4 bottom-4 -right-[4px] w-[3px] bg-[#ededed]" />
+              <div className="absolute top-7 bottom-7 -right-[8px] w-[3px] bg-[#c8c8c8]" />
+              {/* Horizontal crease — a fold across the cardstock */}
+              <div className="absolute left-0 right-0 top-[52%] h-px bg-black/35 pointer-events-none" />
+              <div className="absolute left-0 right-0 top-[52%] translate-y-px h-px bg-white/[0.05] pointer-events-none" />
+              {/* Folded dog-ear corner (top-right) */}
+              <div
+                className="absolute top-0 right-0 w-0 h-0 pointer-events-none"
+                style={{
+                  borderTop: "26px solid rgba(0,0,0,0.55)",
+                  borderLeft: "26px solid transparent",
+                }}
+              />
+
+              <div className="relative z-10 flex-1 flex flex-col justify-between p-7 lg:p-9">
+                <span className="font-brand-cn text-[10px] tracking-[0.35em] uppercase text-white/45">
+                  Project Dossier
+                </span>
+
+                <div>
+                  <span className="font-brand-cn text-[clamp(16px,1vw,20px)] text-orange-600 leading-none">
+                    *
+                  </span>
+                  <h3 className="font-brand-other uppercase text-white leading-[0.95] tracking-[0.02em] mt-3 text-[clamp(24px,2.2vw,38px)] drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
+                    {title}
+                  </h3>
+                </div>
+
+                <div className="flex items-end justify-between border-t border-white/15 pt-4">
+                  <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/40">
+                    PDF Document
+                  </span>
+                  {isTop && (
+                    <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/70">
+                      Double-click to open →
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <img
               src={url}
@@ -210,8 +313,8 @@ function PosterCard({
             <div className="absolute inset-0 bg-black/45 border border-white/10 pointer-events-none" />
           )}
 
-          {/* Fixed-light reflection band — desktop top image card only (videos
-              keep their own surface). soft-light keeps it matte (satin paper). */}
+          {/* Fixed-light reflection band — desktop top card (images + the
+              textured dossier; videos keep their own surface). soft-light sheen. */}
           {tiltActive && (
             <motion.div
               aria-hidden
@@ -244,12 +347,14 @@ function PosterStack({
   isMobile,
   onVideoPlay,
   onVideoRestore,
+  onOpenPdf,
 }: {
   urls: string[];
   title: string;
   isMobile: boolean;
   onVideoPlay: () => void;
   onVideoRestore: () => void;
+  onOpenPdf: (url: string) => void;
 }) {
   const [order, setOrder] = useState<number[]>(() => urls.map((_, i) => i));
   const multi = urls.length > 1;
@@ -297,6 +402,7 @@ function PosterStack({
           onVideoPlay={onVideoPlay}
           onVideoRestore={onVideoRestore}
           onHoverChange={(h) => setShowTag(h && multi)}
+          onOpenPdf={onOpenPdf}
         />
       ))}
 
@@ -340,6 +446,7 @@ export default function ArchiveCatalogue() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [focusLoading, setFocusLoading] = useState(false);
+  const [openPdf, setOpenPdf] = useState<string | null>(null);
   const [, setIsPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isAudioOn, setIsAudioOn] = useState(false);
@@ -466,18 +573,20 @@ export default function ArchiveCatalogue() {
     }
   }
 
-  // Lock page scroll + ESC to close while the focus view is open
+  // Lock page scroll + ESC to close while the focus view is open. If the PDF
+  // reader is open, it owns ESC (closes itself first) — don't also close the
+  // focus view underneath it.
   useEffect(() => {
     document.body.style.overflow = selectedProject ? "hidden" : "";
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedProject(null);
+      if (e.key === "Escape" && !openPdf) setSelectedProject(null);
     };
     if (selectedProject) document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [selectedProject]);
+  }, [selectedProject, openPdf]);
 
   // Smooth inertia scroll for the focus view container.
   // Intercepts wheel events and lerps scrollTop toward the target each rAF
@@ -542,7 +651,11 @@ export default function ArchiveCatalogue() {
 
     const loadAsset = (url: string) =>
       new Promise<void>((resolve) => {
-        if (isVideoUrl(url)) {
+        // PDFs render as an instant dossier cover (no preload) — and load lazily
+        // in the reader when opened, so don't gate the view on them.
+        if (isPdfUrl(url)) {
+          resolve();
+        } else if (isVideoUrl(url)) {
           const v = document.createElement("video");
           v.muted = true;
           v.preload = "auto";
@@ -594,10 +707,11 @@ export default function ArchiveCatalogue() {
       const projectData = projectsRes.data || [];
       setCategories([{ name: "All" }, ...(categoriesRes.data || [])]);
 
-      // Preload every thumbnail so the grid renders from cache — guaranteed simultaneous reveal
+      // Preload every grid cover (first image) so the grid renders from cache —
+      // guaranteed simultaneous reveal. Skips PDF/video-first projects.
       const thumbnailUrls = projectData
-        .map((p: any) => (Array.isArray(p.file_url) ? p.file_url[0] : p.file_url))
-        .filter(Boolean);
+        .map((p: any) => firstImage(p))
+        .filter((u: string | null): u is string => Boolean(u));
       await Promise.all(
         thumbnailUrls.map((url: string) =>
           new Promise<void>((resolve) => {
@@ -636,7 +750,7 @@ export default function ArchiveCatalogue() {
           />
         </video>
         <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80 relative z-10" />
-        <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
+        <span className="loader-text-catalogue font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
       </div>
     );
 
@@ -791,16 +905,27 @@ export default function ArchiveCatalogue() {
                     setIsPlaying(false);
                   }}
                 >
-                  {/* Main image — no thumbnail overlay, full bleed */}
-                  <img
-                    src={
-                      Array.isArray(item.file_url)
-                        ? item.file_url[0]
-                        : item.file_url
-                    }
-                    alt={item.title}
-                    className="w-full h-auto block object-cover grid-image-reveal"
-                  />
+                  {/* Cover — first image, or a branded placeholder for projects
+                      with no image (PDF/video-only) so the card never breaks. */}
+                  {firstImage(item) ? (
+                    <img
+                      src={firstImage(item) as string}
+                      alt={item.title}
+                      className="w-full h-auto block object-cover grid-image-reveal"
+                    />
+                  ) : (
+                    <div className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-3 grid-image-reveal">
+                      <span className="font-brand-cn text-[16px] text-orange-600 leading-none">
+                        *
+                      </span>
+                      <span className="font-brand-other uppercase text-white/85 text-[16px] tracking-[0.1em] text-center px-5 leading-tight">
+                        {item.title}
+                      </span>
+                      <span className="font-brand-cn text-[9px] tracking-[0.3em] uppercase text-white/40">
+                        {item.resource_type || "Archive"}
+                      </span>
+                    </div>
+                  )}
                   {/* Hover overlay with title */}
                   <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-6">
                     <p className="font-brand-other text-white text-[16px] uppercase tracking-[0.15em] leading-tight text-center">
@@ -823,15 +948,27 @@ export default function ArchiveCatalogue() {
                     setIsPlaying(false);
                   }}
                 >
-                  <img
-                    src={
-                      Array.isArray(item.file_url)
-                        ? item.file_url[0]
-                        : item.file_url
-                    }
-                    alt={item.title}
-                    className={`w-full object-cover block grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
-                  />
+                  {firstImage(item) ? (
+                    <img
+                      src={firstImage(item) as string}
+                      alt={item.title}
+                      className={`w-full object-cover block grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                    />
+                  ) : (
+                    <div
+                      className={`w-full bg-[#141414] flex flex-col items-center justify-center gap-2 grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                    >
+                      <span className="font-brand-cn text-[14px] text-orange-600 leading-none">
+                        *
+                      </span>
+                      <span className="font-brand-other uppercase text-white/85 text-[13px] tracking-[0.1em] text-center px-3 leading-tight">
+                        {item.title}
+                      </span>
+                      <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/40">
+                        {item.resource_type || "Archive"}
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-center justify-center px-4 py-2 backdrop-blur-sm">
                     <p className="font-brand-other text-white text-[13px] uppercase tracking-[0.1em] leading-tight text-center">
                       {item.title}
@@ -1022,26 +1159,30 @@ export default function ArchiveCatalogue() {
                       isMobile={isMobile}
                       onVideoPlay={handleVideoPlay}
                       onVideoRestore={handleVideoRestore}
+                      onOpenPdf={setOpenPdf}
                     />
                   </div>
 
-                  {/* Scroll hint — bottom right of section 1 */}
-                  <div className="absolute bottom-8 right-6 flex items-center pointer-events-none">
-                    <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.3em] uppercase text-white/30">
+                  {/* Scroll hint — bottom right of section 1. Text + icon bob
+                      together as one unit, sat close to each other. */}
+                  <motion.div
+                    className="absolute bottom-10 right-6 flex items-center gap-1 pointer-events-none"
+                    animate={{ y: [0, 6, 0] }}
+                    transition={{
+                      duration: 1.6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    <span className="hidden lg:inline font-brand-secondary-thin text-[9.5px] tracking-[0.3em] uppercase text-white/40">
                       [PROJ. DESCRIPTION]
                     </span>
-                    <motion.img
-                      src="/scroll-up.png"
-                      alt="Scroll"
-                      className="w-20 h-20 opacity-80"
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{
-                        duration: 1.6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
+                    <img
+                      src="/scroll-down.webp"
+                      alt="Scroll Down"
+                      className="w-23 h-23 opacity-85 -ml-4"
                     />
-                  </div>
+                  </motion.div>
                 </section>
 
                 {/*
@@ -1316,6 +1457,18 @@ export default function ArchiveCatalogue() {
                 </section>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Branded in-experience PDF reader — mounts above the focus view */}
+        <AnimatePresence>
+          {openPdf && (
+            <PdfReader
+              url={openPdf}
+              title={selectedProject?.title}
+              isMobile={isMobile}
+              onClose={() => setOpenPdf(null)}
+            />
           )}
         </AnimatePresence>
       </div>

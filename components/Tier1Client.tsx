@@ -179,7 +179,11 @@ export default function Tier1() {
   return (
     <main className="relative bg-black">
       {/* Inspection loader — waits for the tier assets, then reveals. */}
-      <InspectionLoader show={!ready} onExited={() => setEntered(true)} />
+      <InspectionLoader
+        show={!ready}
+        onExited={() => setEntered(true)}
+        label="The Identity Launchpad"
+      />
       {/* SURGICAL MASK: Add this exact block to every new page */}
       <motion.div
         initial={{ opacity: 1 }}

@@ -263,7 +263,11 @@ export default function Tier3() {
   return (
     <main className="relative bg-black">
       {/* Inspection loader — waits for the tier assets, then reveals. */}
-      <InspectionLoader show={!ready} onExited={() => setEntered(true)} />
+      <InspectionLoader
+        show={!ready}
+        onExited={() => setEntered(true)}
+        label="The Scale Partner"
+      />
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}

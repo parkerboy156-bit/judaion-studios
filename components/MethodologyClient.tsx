@@ -917,13 +917,19 @@ export default function MethodologyPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 pointer-events-none method-instructions-mobile"
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-1 pointer-events-none method-instructions-mobile"
           >
             <motion.img
-              src={isMobile ? "/tap-icon.png" : "/scroll-up.png"}
-              alt={isMobile ? "Tap" : "Scroll Up"}
-              className="w-18 h-18 opacity-80"
-              animate={{ y: [0, -6, 0] }}
+              src={
+                isMobile
+                  ? "/tap-icon.png"
+                  : isZoomed
+                    ? "/scroll-down.webp"
+                    : "/scroll-up.webp"
+              }
+              alt={isMobile ? "Tap" : isZoomed ? "Scroll Down" : "Scroll Up"}
+              className={`opacity-82 ${isMobile ? "w-13 h-13" : "w-20 h-20"}`}
+              animate={{ y: isZoomed ? [0, 6, 0] : [0, -6, 0] }}
               transition={{
                 duration: 1.6,
                 repeat: Infinity,

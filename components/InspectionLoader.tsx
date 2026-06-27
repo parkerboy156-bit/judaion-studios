@@ -8,13 +8,19 @@ import { motion, AnimatePresence } from "framer-motion";
  * (AnimatePresence) when the parent's assets are ready, revealing a fully
  * loaded page. `onExited` fires once the fade-out fully completes — the parent
  * uses it to start its "assemble" animation only AFTER the loader is gone.
+ *
+ * `label` (optional): show a custom title with the animated dots (e.g. the tier
+ * being loaded) instead of the default "loading…". Uses the shared `loader-title`
+ * CSS (content: attr(data-title) + dots).
  */
 export default function InspectionLoader({
   show,
   onExited,
+  label,
 }: {
   show: boolean;
   onExited?: () => void;
+  label?: string;
 }) {
   return (
     <AnimatePresence onExitComplete={onExited}>
@@ -43,7 +49,14 @@ export default function InspectionLoader({
             alt="Loading"
             className="loader-j opacity-80 relative z-10"
           />
-          <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
+          {label ? (
+            <span
+              data-title={label}
+              className="loader-title font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10 text-center px-6"
+            />
+          ) : (
+            <span className="loader-text font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
+          )}
         </motion.div>
       )}
     </AnimatePresence>
