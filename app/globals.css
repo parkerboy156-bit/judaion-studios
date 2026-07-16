@@ -111,38 +111,15 @@
 
 
 
-/* ── GLOBAL SCROLLBAR — a single thin line, site-wide. ──
-   IMPORTANT: use ONLY the standard properties (scrollbar-width /
-   scrollbar-color) here. Since Chrome 121, setting scrollbar-width on an
-   element makes Chrome IGNORE all ::-webkit-scrollbar-* styling for it —
-   the old global `scrollbar-width: none` is exactly why custom webkit
-   scrollbars never took effect anywhere.
-   Elements that must stay bar-less (e.g. inline style={{scrollbarWidth:
-   "none"}}) still win over this rule. */
+/* ── GLOBAL SCROLLBAR — Hidden site-wide by default ── */
 * {
-  -ms-overflow-style: auto; /* IE and Edge */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* thumb | track */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
 }
 
-/* Older Safari fallback (no scrollbar-width/scrollbar-color support) —
-   Chrome 121+ ignores this block wherever scrollbar-width is set. */
+/* Hide scrollbar for Chrome, Safari, and Brave */
 *::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-  background: transparent;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-*::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
+  display: none !important;
 }
 
 /* 🏗️ PRESERVATION LOCK */
