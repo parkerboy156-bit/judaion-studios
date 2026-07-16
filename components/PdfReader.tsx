@@ -5,28 +5,79 @@ import { motion } from "framer-motion";
 
 /**
  * PdfReader — branded, in-experience PDF reader (no native viewer, no download).
- * Renders each page to a canvas via pdfjs-dist as a white "paper" sheet on the
- * dark grain background, so reading a dossier feels like flipping through a
- * physical document. pdfjs is dynamically imported here → ZERO bundle cost
- * unless a reader actually opens. Works identically on desktop + mobile (canvas,
- * not an iframe). Controls: page nav + zoom (re-renders for crispness; baseline
- * is fit-to-width, so there's no jarring "actual size" mode).
+ * Renders each page to a canvas via pdfjs-dist as a white "paper" sheet on a
+ * dark background, so reading feels like flipping through a physical document.
+ * pdfjs is dynamically imported here → ZERO bundle cost unless a reader actually
+ * opens. Works identically on desktop + mobile (canvas, not an iframe). Controls:
+ * page nav + zoom (re-renders for crispness; baseline is fit-to-width).
+ *
+ * `variant` — "overlay" fills the whole screen (fixed); "inline" fills its
+ * positioned parent (absolute) so the reader can live inside the folder-window
+ * assets pane instead of a separate full-screen layer.
  */
 const ZOOM_MIN = 0.6;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.2;
 const pad = (n: number) => String(n).padStart(2, "0");
 
+// Pick the dominant "brand" colour of a rendered page canvas for the inline
+// reader's ambient spotlight. Downsamples to 32×32, buckets colours coarsely
+// and skips near-white (paper) / near-black (text) so the result is the page's
+// actual accent, not grey. Same-origin canvas → getImageData is safe.
+function dominantColor(
+  canvas: HTMLCanvasElement,
+): { r: number; g: number; b: number } | null {
+  try {
+    const N = 32;
+    const s = document.createElement("canvas");
+    s.width = N;
+    s.height = N;
+    const ctx = s.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(canvas, 0, 0, N, N);
+    const { data } = ctx.getImageData(0, 0, N, N);
+    const buckets = new Map<string, { c: number; r: number; g: number; b: number }>();
+    let ar = 0, ag = 0, ab = 0, an = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a < 128) continue;
+      ar += r; ag += g; ab += b; an++;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx > 232 && mn > 232) continue; // paper white
+      if (mx < 26) continue; // near-black text
+      const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
+      const cur = buckets.get(key) || { c: 0, r: 0, g: 0, b: 0 };
+      cur.c++; cur.r += r; cur.g += g; cur.b += b;
+      buckets.set(key, cur);
+    }
+    let best: { c: number; r: number; g: number; b: number } | null = null;
+    for (const v of buckets.values()) if (!best || v.c > best.c) best = v;
+    if (best)
+      return {
+        r: Math.round(best.r / best.c),
+        g: Math.round(best.g / best.c),
+        b: Math.round(best.b / best.c),
+      };
+    if (an) return { r: Math.round(ar / an), g: Math.round(ag / an), b: Math.round(ab / an) };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function PdfReader({
   url,
   onClose,
   isMobile,
+  variant = "overlay",
 }: {
   url: string;
   title?: string;
   onClose: () => void;
   isMobile: boolean;
+  variant?: "overlay" | "inline";
 }) {
+  const isInline = variant === "inline";
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<any>(null);
@@ -37,6 +88,9 @@ export default function PdfReader({
   const [current, setCurrent] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  // Ambient spotlight colour, sampled once from the first rendered page (inline).
+  const [spotlight, setSpotlight] = useState<{ r: number; g: number; b: number } | null>(null);
+  const spotlightSetRef = useRef(false);
 
   // ESC closes.
   useEffect(() => {
@@ -103,7 +157,13 @@ export default function PdfReader({
       );
       const targetW = fit * zoomVal;
 
-      host.innerHTML = "";
+      // A zoom re-render builds the new pages OFFSCREEN and swaps them in only
+      // once they're painted, so the old pages stay on screen the whole time —
+      // no white flash, no empty gap, no scroll jump. The very first render has
+      // nothing to preserve (loader covers it), so it streams into the live host.
+      const rerender = host.childElementCount > 0;
+      const target = rerender ? document.createElement("div") : host;
+
       for (let n = 1; n <= doc.numPages; n++) {
         const page = await doc.getPage(n);
         if (token !== renderToken.current) return; // superseded by a newer render
@@ -127,19 +187,33 @@ export default function PdfReader({
           boxShadow: "0 18px 55px rgba(0,0,0,0.55)",
         });
         sheet.appendChild(canvas);
-        host.appendChild(sheet);
+        target.appendChild(sheet);
 
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.scale(dpr, dpr);
           await page.render({ canvasContext: ctx, viewport }).promise;
         }
-        if (n === 1) setLoading(false);
+        if (token !== renderToken.current) return; // superseded mid-render
+        if (n === 1 && !rerender) {
+          setLoading(false);
+          // Sample the page's dominant colour once for the ambient spotlight.
+          if (isInline && !spotlightSetRef.current) {
+            const c = dominantColor(canvas);
+            if (c) {
+              spotlightSetRef.current = true;
+              setSpotlight(c);
+            }
+          }
+        }
       }
+
+      // Swap the freshly painted pages in atomically (zoom re-render only).
+      if (rerender) host.replaceChildren(...Array.from(target.childNodes));
       // Keep the reader roughly where it was after a zoom re-render.
       sc.scrollTop = prevRatio * sc.scrollHeight;
     },
-    [isMobile],
+    [isMobile, isInline],
   );
 
   useEffect(() => {
@@ -180,39 +254,72 @@ export default function PdfReader({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="fixed inset-0 z-[300] bg-black"
+      className={
+        isInline
+          ? "absolute inset-0 z-20 bg-[#050505]"
+          : "fixed inset-0 z-[300] bg-black"
+      }
     >
-      {/* Grain background — consistent with the rest of the archive */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
-      >
-        <source
-          src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
-          type="video/mp4"
+      {/* Ambient spotlight — the PDF's dominant colour glows from the centre and
+          falls off to a black vignette at the edges (inline only). Fades in once
+          the colour is sampled from the first page. */}
+      {isInline && (
+        <div
+          className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000"
+          style={{
+            opacity: spotlight ? 1 : 0,
+            background: spotlight
+              ? `radial-gradient(115% 88% at 50% 40%, rgba(${spotlight.r},${spotlight.g},${spotlight.b},0.55) 0%, rgba(${Math.round(spotlight.r * 0.4)},${Math.round(spotlight.g * 0.4)},${Math.round(spotlight.b * 0.4)},0.42) 30%, rgba(0,0,0,0.9) 70%, #030303 100%)`
+              : undefined,
+          }}
         />
-      </video>
+      )}
 
-      {/* Exit — mirrors the focus-view Exit */}
-      <button
-        onClick={onClose}
-        className="fixed top-15 left-15 z-[310] flex items-center gap-2 font-brand-bold text-[18px] uppercase tracking-[0.2em] text-white transition-colors duration-200 cursor-pointer"
-      >
-        Exit
-        <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.2em] text-white/50">
-          [ESC]
-        </span>
-      </button>
+      {/* Grain background — overlay only (inline sits over the pane's own bg) */}
+      {!isInline && (
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
+        >
+          <source
+            src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+            type="video/mp4"
+          />
+        </video>
+      )}
+
+      {/* Exit — overlay mirrors the focus-view Exit; inline shows a back button
+          top-left of the viewport (the folder window's own X closes the folder). */}
+      {isInline ? (
+        <button
+          onClick={onClose}
+          aria-label="Back to assets"
+          className="absolute top-[70px] left-5 z-30 flex items-center gap-2 bg-black/55 border border-white/15 backdrop-blur-sm px-3 py-1.5 font-brand-cn text-[10px] uppercase tracking-[0.25em] text-white/80 hover:text-white transition-colors duration-200 cursor-pointer"
+        >
+          <span className="text-[14px] leading-none">←</span>
+          Back
+        </button>
+      ) : (
+        <button
+          onClick={onClose}
+          className="fixed top-15 left-15 z-[310] flex items-center gap-2 font-brand-bold text-[18px] uppercase tracking-[0.2em] text-white transition-colors duration-200 cursor-pointer"
+        >
+          Exit
+          <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.2em] text-white/50">
+            [ESC]
+          </span>
+        </button>
+      )}
 
       {/* Loader while pdfjs loads + first page renders */}
       {loading && !error && (
         <div className="absolute inset-0 z-[305] flex flex-col items-center justify-center gap-6 pointer-events-none">
           <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80" />
           <span
-            data-title="Opening dossier"
+            data-title="Opening document"
             className="loader-title font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 text-center px-6"
           />
         </div>
@@ -234,17 +341,31 @@ export default function PdfReader({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="relative z-[301] h-full overflow-auto"
+        className={`relative h-full overflow-auto ${isInline ? "z-10" : "z-[301]"}`}
         style={{ scrollbarWidth: "none" }}
       >
-        <div style={{ padding: isMobile ? "88px 12px 110px" : "104px 0 120px" }}>
+        <div
+          style={{
+            padding: isInline
+              ? isMobile
+                ? "80px 12px 96px"
+                : "84px 0 100px"
+              : isMobile
+                ? "88px 12px 110px"
+                : "104px 0 120px",
+          }}
+        >
           <div ref={pagesRef} />
         </div>
       </div>
 
       {/* Control bar — page nav + zoom (no "actual size" mode; fit-to-width base) */}
       {!error && (
-        <div className="fixed bottom-7 left-1/2 -translate-x-1/2 z-[310] flex items-center gap-4 bg-black/75 border border-white/15 backdrop-blur-sm px-4 py-2">
+        <div
+          className={`${
+            isInline ? "absolute bottom-5 z-30" : "fixed bottom-7 z-[310]"
+          } left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/75 border border-white/15 backdrop-blur-sm px-4 py-2`}
+        >
           {/* Page nav */}
           <button
             onClick={() => goToPage(current - 1)}

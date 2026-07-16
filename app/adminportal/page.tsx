@@ -3,14 +3,36 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
+interface AssetEntry {
+  id: string;
+  title: string;
+  url: string; // full-quality master (the only file the designer creates)
+  thumb?: string; // auto-generated ≤1600px WebP — browsing surfaces use this
+  // Upload metadata — shown in the focus view's per-asset metadata rows.
+  size?: number; // bytes (of the MASTER)
+  mime?: string;
+  added?: string; // ISO date
+  width?: number; // master pixel dimensions (measured at upload)
+  height?: number;
+}
+
+interface FolderEntry {
+  id: string;
+  title: string;
+  description?: string; // per-folder copy (shown in the focus view left pane)
+  assets: AssetEntry[];
+}
+
 interface ArchiveItem {
   id: number;
   title: string;
   subtitle?: string;
+  author?: string;
   category: string;
   resource_type: string;
   content: string;
   file_url: string[];
+  folders?: FolderEntry[];
   instagram_url?: string;
   linkedin_url?: string;
   created_at?: string;
@@ -19,6 +41,154 @@ interface ArchiveItem {
 interface MetaOption {
   id: number;
   name: string;
+}
+
+// Form-side draft of an asset — `file` is a pending upload, `url` is an
+// already-uploaded/existing asset. Exactly one is set at submit time.
+interface AssetDraft {
+  id: string;
+  title: string;
+  url?: string;
+  file?: File;
+  // Metadata passthrough for already-uploaded assets (set on upload).
+  thumb?: string;
+  size?: number;
+  mime?: string;
+  added?: string;
+  width?: number;
+  height?: number;
+}
+
+interface FolderDraft {
+  id: string;
+  title: string;
+  description: string;
+  assets: AssetDraft[];
+}
+
+const uid = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const blankAsset = (): AssetDraft => ({ id: uid(), title: "" });
+const blankFolder = (): FolderDraft => ({
+  id: uid(),
+  title: "",
+  description: "",
+  assets: [blankAsset()],
+});
+
+const VIDEO_EXTS = ["mp4", "webm", "ogg"];
+const extOf = (s: string) => s.split(".").pop()?.toLowerCase() || "";
+
+// ── Auto-thumbnail: downscale an image to ≤1600px long edge and encode WebP
+// in the browser (canvas). The master is untouched — the designer never makes
+// a separate thumbnail version. Returns the master's pixel dims either way;
+// blob is null for non-images or when encoding fails (archive falls back to
+// the master gracefully).
+const THUMB_MAX = 1600;
+const THUMB_QUALITY = 0.85;
+async function makeThumb(
+  file: File,
+): Promise<{ blob: Blob | null; width: number; height: number } | null> {
+  if (!file.type.startsWith("image/")) return null;
+  try {
+    const bmp = await createImageBitmap(file);
+    const { width, height } = bmp;
+    const scale = Math.min(1, THUMB_MAX / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { blob: null, width, height };
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob(res, "image/webp", THUMB_QUALITY),
+    );
+    return { blob, width, height };
+  } catch {
+    return null;
+  }
+}
+
+// Render a PDF's first page to a WebP thumbnail — the same browsing-surface role
+// makeThumb plays for images, so the archive shows the first page as a cover
+// instead of a generic document card. pdfjs is imported lazily (no bundle cost
+// unless a PDF is actually uploaded). Returns the rendered raster dims.
+async function makePdfThumb(
+  file: File,
+): Promise<{ blob: Blob | null; width: number; height: number } | null> {
+  try {
+    const mod: any = await import("pdfjs-dist");
+    const pdfjs = mod?.getDocument ? mod : mod?.default ?? mod;
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    const buf = await file.arrayBuffer();
+    const doc = await pdfjs.getDocument({ data: buf }).promise;
+    const page = await doc.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const scale = THUMB_MAX / Math.max(base.width, base.height);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext("2d");
+    const dims = { width: canvas.width, height: canvas.height };
+    if (!ctx) {
+      doc.destroy?.();
+      return { blob: null, ...dims };
+    }
+    // White paper background — PDF pages can be transparent.
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob(res, "image/webp", THUMB_QUALITY),
+    );
+    doc.destroy?.();
+    return { blob, ...dims };
+  } catch {
+    return null;
+  }
+}
+
+// Thumbnail for a draft asset — handles both a pending File (object URL,
+// revoked on unmount) and an already-uploaded URL.
+function AssetThumb({ asset }: { asset: AssetDraft }) {
+  const [objUrl, setObjUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (asset.file) {
+      const u = URL.createObjectURL(asset.file);
+      setObjUrl(u);
+      return () => URL.revokeObjectURL(u);
+    }
+    setObjUrl(null);
+  }, [asset.file]);
+
+  const src = objUrl || asset.url || "";
+  const name = asset.file?.name || asset.url || "";
+  const ext = extOf(name);
+  const isVideo = VIDEO_EXTS.includes(ext);
+  const isPdf = ext === "pdf";
+
+  if (isPdf)
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white">
+        <span className="text-red-700 font-black text-[10px]">PDF</span>
+      </div>
+    );
+  if (isVideo)
+    return (
+      <video src={src} muted className="w-full h-full object-cover" />
+    );
+  if (src)
+    return <img src={src} className="w-full h-full object-cover" alt="" />;
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-black/40">
+      <span className="text-[18px] text-white/30 font-black">+</span>
+    </div>
+  );
 }
 
 export default function AdminPortal() {
@@ -32,17 +202,71 @@ export default function AdminPortal() {
   const [newOption, setNewOption] = useState({ name: "", type: "category" });
   const [formData, setFormData] = useState({
     title: "",
-    subtitle: "",
+    author: "",
     category: "",
     resource_type: "",
     content: "",
     instagram_url: "",
     linkedin_url: "",
   });
-  const [files, setFiles] = useState<{ assets: File[] }>({
-    assets: [],
-  });
+  const [folders, setFolders] = useState<FolderDraft[]>([blankFolder()]);
 
+  // ── Folder/asset draft mutators ──
+  const addFolder = () => setFolders((f) => [...f, blankFolder()]);
+  const removeFolder = (fid: string) =>
+    setFolders((f) => (f.length > 1 ? f.filter((x) => x.id !== fid) : f));
+  const setFolderTitle = (fid: string, title: string) =>
+    setFolders((f) => f.map((x) => (x.id === fid ? { ...x, title } : x)));
+  const setFolderDescription = (fid: string, description: string) =>
+    setFolders((f) =>
+      f.map((x) => (x.id === fid ? { ...x, description } : x)),
+    );
+  const addAsset = (fid: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid ? { ...x, assets: [...x.assets, blankAsset()] } : x,
+      ),
+    );
+  const removeAsset = (fid: string, aid: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets:
+                x.assets.length > 1
+                  ? x.assets.filter((a) => a.id !== aid)
+                  : x.assets,
+            }
+          : x,
+      ),
+    );
+  const setAssetFile = (fid: string, aid: string, file: File) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets: x.assets.map((a) =>
+                a.id === aid ? { ...a, file, url: undefined } : a,
+              ),
+            }
+          : x,
+      ),
+    );
+  const setAssetTitle = (fid: string, aid: string, title: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets: x.assets.map((a) =>
+                a.id === aid ? { ...a, title } : a,
+              ),
+            }
+          : x,
+      ),
+    );
   useEffect(() => {
     fetchData();
   }, []);
@@ -89,37 +313,40 @@ export default function AdminPortal() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", subtitle: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
-    setFiles({ assets: [] });
+    setFormData({ title: "", author: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
+    setFolders([blankFolder()]);
     setEditingId(null);
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const existingProject = editingId
-      ? archive.find((item) => item.id === editingId)
-      : null;
+    // Validate: every folder needs a title and at least one resolved asset
+    // (a pending file or an existing url).
+    const cleanFolders = folders
+      .map((f) => ({
+        ...f,
+        assets: f.assets.filter((a) => a.file || a.url),
+      }))
+      .filter((f) => f.assets.length > 0);
 
-    if (!editingId && files.assets.length === 0) {
-      alert("Please select at least one asset for a new project.");
+    if (cleanFolders.length === 0) {
+      alert("Add at least one folder with at least one asset.");
+      return;
+    }
+    if (cleanFolders.some((f) => !f.title.trim())) {
+      alert("Every folder needs a title.");
       return;
     }
 
     try {
       setUploading(true);
-      setUploadProgress(10);
+      setUploadProgress(5);
 
-      let finalAssetUrls = existingProject?.file_url || [];
+      const categoryName = formData.category.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const projectName = formData.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
-      const folderName = formData.title
-        .replace(/[^a-z0-9]/gi, "_")
-        .toLowerCase();
-      const categoryName = formData.category
-        .replace(/[^a-z0-9]/gi, "_")
-        .toLowerCase();
-
-      const uploadFile = async (file: File, path: string) => {
+      const uploadFile = async (file: File | Blob, path: string) => {
         // Step 1: Ask your API for a secure direct-upload link
         const res = await fetch("/api/upload", {
           method: "POST",
@@ -139,23 +366,82 @@ export default function AdminPortal() {
         });
 
         if (!uploadRes.ok) throw new Error("Direct upload to Oracle failed.");
-
         return publicUrl;
       };
 
-      if (files.assets.length > 0) {
-        const assetUrls = [];
-        for (let i = 0; i < files.assets.length; i++) {
-          const path = `${categoryName}/${folderName}/asset_${i}_${Date.now()}.${files.assets[i].name.split(".").pop()}`;
-          const url = await uploadFile(files.assets[i], path);
-          assetUrls.push(url);
+      // Count pending uploads up front so the progress bar can step per file.
+      const pendingTotal = cleanFolders.reduce(
+        (n, f) => n + f.assets.filter((a) => a.file).length,
+        0,
+      );
+      let done = 0;
+
+      // Resolve every asset to a final {id, title, url, thumb, size, mime,
+      // added, width, height}, uploading the pending files folder-by-folder.
+      // Image files also get an auto-generated ≤1600px WebP thumb uploaded
+      // beside the master (`*_thumb.webp`) — browsing surfaces serve that,
+      // zoom serves the master. Already-uploaded assets pass through with
+      // their stored metadata.
+      const resolvedFolders: FolderEntry[] = [];
+      for (const f of cleanFolders) {
+        const folderName = f.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+        const assets: AssetEntry[] = [];
+        for (const a of f.assets) {
+          let url = a.url || "";
+          let { thumb, size, mime, added, width, height } = a;
+          if (a.file) {
+            size = a.file.size;
+            mime = a.file.type || undefined;
+            added = new Date().toISOString();
+            const ext = a.file.name.split(".").pop();
+            const isPdf = (ext || "").toLowerCase() === "pdf";
+            const base = `${categoryName}/${projectName}/${folderName}/asset_${assets.length}_${Date.now()}`;
+            url = await uploadFile(a.file, `${base}.${ext}`);
+            // Thumbnail: image → downscaled WebP; PDF → first page rendered to
+            // WebP. Images keep the thumb only when it saves bytes; a PDF always
+            // keeps it (there's no other way to show a PDF as an image cover).
+            const t = isPdf ? await makePdfThumb(a.file) : await makeThumb(a.file);
+            if (t) {
+              if (t.width && t.height) {
+                width = t.width;
+                height = t.height;
+              }
+              if (t.blob && (isPdf || t.blob.size < a.file.size)) {
+                thumb = await uploadFile(t.blob, `${base}_thumb.webp`);
+              }
+            }
+            done += 1;
+            setUploadProgress(
+              5 + Math.round((done / Math.max(pendingTotal, 1)) * 85),
+            );
+          }
+          assets.push({
+            id: a.id,
+            title: a.title || "",
+            url,
+            ...(thumb ? { thumb } : {}),
+            ...(size ? { size } : {}),
+            ...(mime ? { mime } : {}),
+            ...(added ? { added } : {}),
+            ...(width && height ? { width, height } : {}),
+          });
         }
-        finalAssetUrls = assetUrls;
+        resolvedFolders.push({
+          id: f.id,
+          title: f.title.trim(),
+          ...(f.description?.trim() ? { description: f.description.trim() } : {}),
+          assets,
+        });
       }
+
+      // Keep file_url as the flat union of all asset urls — preserves the
+      // masonry cover (firstImage) + legacy reads with no front-end change yet.
+      const flatUrls = resolvedFolders.flatMap((f) => f.assets.map((a) => a.url));
 
       const payload = {
         ...formData,
-        file_url: finalAssetUrls,
+        folders: resolvedFolders,
+        file_url: flatUrls,
       };
 
       const { error: dbError } = editingId
@@ -307,133 +593,157 @@ export default function AdminPortal() {
 
                 <div className="space-y-2">
                   <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                    Subtitle <span className="text-white/20">(optional)</span>
+                    Author <span className="text-white/20">(optional — defaults to JUDAION (Pty) Ltd)</span>
                   </label>
                   <input
                     type="text"
-                    value={formData.subtitle}
+                    value={formData.author}
                     onChange={(e) =>
-                      setFormData({ ...formData, subtitle: e.target.value })
+                      setFormData({ ...formData, author: e.target.value })
                     }
                     className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
-                    placeholder="e.g. BRAND IDENTITY STUDY"
+                    placeholder="e.g. JUDAION (Pty) Ltd"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                      Category
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) =>
-                        setFormData({ ...formData, category: e.target.value })
-                      }
-                      className="w-full bg-black/40 border border-white/10 p-4 text-[11px] font-black uppercase outline-none focus:border-orange-600 cursor-pointer"
-                      required
-                    >
-                      <option value="">Select</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                      Asset Type
-                    </label>
-                    <select
-                      value={formData.resource_type}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          resource_type: e.target.value,
-                        })
-                      }
-                      className="w-full bg-black/40 border border-white/10 p-4 text-[11px] font-black uppercase outline-none focus:border-orange-600 cursor-pointer"
-                      required
-                    >
-                      <option value="">Select</option>
-                      {resourceTypes.map((r) => (
-                        <option key={r.id} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+
+                <div className="space-y-2">
+                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
+                    Category
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
+                    className="w-full bg-black/40 border border-white/10 p-4 text-[11px] font-black uppercase outline-none focus:border-orange-600 cursor-pointer"
+                    required
+                  >
+                    <option value="">Select</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
+                {/* ── FOLDER BUILDER — each folder holds assets with a title;
+                    size/type/date metadata is captured automatically on
+                    upload (focus-view folder desktop) ── */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                      Assets [+]
+                      Folders &amp; Assets
                     </label>
-                    <label className="group cursor-pointer flex flex-col items-center justify-center border border-white/10 bg-black/20 hover:border-orange-600 aspect-square transition-all relative overflow-hidden text-center">
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            const newFile = e.target.files[0];
-                            setFiles((prev) => ({
-                              ...prev,
-                              assets: [...prev.assets, newFile],
-                            }));
-                          }
-                          e.target.value = "";
-                        }}
-                      />
-                      {files.assets.length > 0 ? (
-                        <span className="text-[10px] font-black text-orange-600 px-4 uppercase animate-pulse">
-                          {files.assets.length} Files Stacking...
-                        </span>
-                      ) : editingId ? (
-                        <div className="w-full h-full flex flex-wrap gap-0.5 p-1 bg-black/40 opacity-50 group-hover:opacity-100 transition-opacity">
-                          {archive
-                            .find((item) => item.id === editingId)
-                            ?.file_url.slice(0, 4)
-                            .map((url, index) => (
-                              <div
-                                key={index}
-                                className="w-[calc(50%-2px)] h-[calc(50%-2px)] overflow-hidden"
-                              >
-                                {renderAssetPreview(url)}
-                              </div>
-                            ))}
-                          {archive.find((item) => item.id === editingId)
-                            ?.file_url.length! > 4 && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                              <span className="text-[10px] font-black">
-                                +
-                                {archive.find((item) => item.id === editingId)
-                                  ?.file_url.length! - 4}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[10px] font-black px-4 uppercase truncate max-w-full">
-                          +
-                        </span>
-                      )}
+                    <span className="font-brand-secondary-thin text-[8px] uppercase text-white/20 tracking-[0.2em]">
+                      {folders.length} Folder{folders.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
 
-                      {files.assets.length > 0 && (
+                  {folders.map((folder, fIdx) => (
+                    <div
+                      key={folder.id}
+                      className="border border-white/10 bg-black/20 p-4 space-y-4"
+                    >
+                      {/* Folder header — title + remove */}
+                      <div className="flex items-center gap-3">
+                        <span className="font-brand-other text-orange-600 text-[12px] tracking-[0.2em] uppercase shrink-0">
+                          {String(fIdx + 1).padStart(2, "0")}
+                        </span>
+                        <input
+                          type="text"
+                          value={folder.title}
+                          onChange={(e) => setFolderTitle(folder.id, e.target.value)}
+                          placeholder="FOLDER TITLE (e.g. OLD / NEW)"
+                          className="flex-1 bg-black/40 border border-white/10 p-3 font-brand-secondary-thin text-[11px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
+                        />
+                        {folders.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeFolder(folder.id)}
+                            className="font-brand-secondary-thin text-red-500/60 text-[9px] uppercase tracking-widest hover:text-red-400 cursor-pointer shrink-0 px-1"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Per-folder description — shown in the focus-view left
+                          pane; blank folders fall back to the project
+                          description below. */}
+                      <textarea
+                        value={folder.description}
+                        onChange={(e) =>
+                          setFolderDescription(folder.id, e.target.value)
+                        }
+                        placeholder="FOLDER DESCRIPTION (optional — falls back to the project description if blank)"
+                        className="w-full bg-black/40 border border-white/10 p-3 h-20 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text resize-none"
+                      />
+
+                      {/* Assets in this folder */}
+                      <div className="space-y-3">
+                        {folder.assets.map((asset) => (
+                          <div key={asset.id} className="flex gap-3">
+                            {/* Thumb + file picker */}
+                            <label className="group relative w-16 h-16 shrink-0 cursor-pointer border border-white/10 bg-black/30 hover:border-orange-600 overflow-hidden transition-all">
+                              <input
+                                type="file"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    setAssetFile(folder.id, asset.id, e.target.files[0]);
+                                  }
+                                  e.target.value = "";
+                                }}
+                              />
+                              <AssetThumb asset={asset} />
+                            </label>
+
+                            {/* Per-asset title (metadata — size/type/date —
+                                is captured automatically on upload) */}
+                            <div className="flex-1 flex flex-col justify-center gap-2">
+                              <input
+                                type="text"
+                                value={asset.title}
+                                onChange={(e) =>
+                                  setAssetTitle(folder.id, asset.id, e.target.value)
+                                }
+                                placeholder="ASSET TITLE (heading shown in the folder window)"
+                                className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] uppercase font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
+                              />
+                            </div>
+
+                            {folder.assets.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeAsset(folder.id, asset.id)}
+                                className="font-brand-secondary-thin text-red-500/60 text-[9px] uppercase tracking-widest hover:text-red-400 cursor-pointer shrink-0 self-center px-1"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setFiles({ ...files, assets: [] });
-                          }}
-                          className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[7px] bg-red-600 text-white px-2 py-1 font-black tracking-widest uppercase hover:bg-white hover:text-red-600 transition-colors z-50"
+                          onClick={() => addAsset(folder.id)}
+                          className="w-full border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer"
                         >
-                          Reset Sequence
+                          + Add Asset
                         </button>
-                      )}
-                    </label>
-                  </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addFolder}
+                    className="w-full border border-orange-600/40 bg-orange-600/5 text-orange-500 font-brand-secondary-thin text-[10px] uppercase tracking-[0.25em] py-3 hover:bg-orange-600/10 hover:border-white hover:text-white transition-all cursor-pointer"
+                  >
+                    + Add Folder
+                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -634,13 +944,53 @@ export default function AdminPortal() {
                                   setEditingId(item.id);
                                   setFormData({
                                     title: item.title,
-                                    subtitle: item.subtitle || "",
+                                    author: item.author || "",
                                     category: item.category,
                                     resource_type: item.resource_type,
                                     content: item.content,
                                     instagram_url: item.instagram_url || "",
                                     linkedin_url: item.linkedin_url || "",
                                   });
+                                  // Load existing folders; fall back to wrapping
+                                  // legacy file_url into a single folder.
+                                  const existing =
+                                    item.folders && item.folders.length > 0
+                                      ? item.folders.map((f) => ({
+                                          id: f.id || uid(),
+                                          title: f.title || "",
+                                          description: f.description || "",
+                                          assets:
+                                            f.assets && f.assets.length > 0
+                                              ? f.assets.map((a) => ({
+                                                  id: a.id || uid(),
+                                                  title: a.title || "",
+                                                  url: a.url,
+                                                  thumb: a.thumb,
+                                                  size: a.size,
+                                                  mime: a.mime,
+                                                  added: a.added,
+                                                  width: a.width,
+                                                  height: a.height,
+                                                }))
+                                              : [blankAsset()],
+                                        }))
+                                      : [
+                                          {
+                                            id: uid(),
+                                            title: item.title || "ARCHIVE",
+                                            description: "",
+                                            assets: (item.file_url || []).map(
+                                              (url) => ({
+                                                id: uid(),
+                                                title: "",
+                                                url,
+                                              }),
+                                            ),
+                                          },
+                                        ];
+                                  setFolders(
+                                    existing.length > 0 ? existing : [blankFolder()],
+                                  );
                                   window.scrollTo({
                                     top: 0,
                                     behavior: "smooth",

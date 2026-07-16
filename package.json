@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "optimize": "node scripts/optimize.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1036.0",

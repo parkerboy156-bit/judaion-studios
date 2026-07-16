@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   motion,
   AnimatePresence,
   useMotionValue,
-  useSpring,
-  useTransform,
-  useMotionTemplate,
+  useDragControls,
 } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PdfReader from "./PdfReader";
 
@@ -19,439 +16,1489 @@ const isVideoUrl = (url: string) =>
   VIDEO_EXTS.includes(url?.split(".").pop()?.toLowerCase() || "");
 const isPdfUrl = (url: string) =>
   url?.split(".").pop()?.toLowerCase() === "pdf";
-// First image asset of a project — used for grid covers so a PDF/video-first
-// project doesn't render a broken <img>. Returns null if there's no image.
+// First image asset of a project (prefers the WebP thumb, falls back to the legacy file_url list); null if none.
+// A PDF counts as an image cover when it has a rendered first-page thumb.
 const firstImage = (item: any): string | null => {
+  if (Array.isArray(item?.folders)) {
+    for (const f of item.folders) {
+      for (const a of f?.assets ?? []) {
+        if (!a?.url) continue;
+        if (isPdfUrl(a.url)) {
+          if (a.thumb) return a.thumb;
+          continue;
+        }
+        if (!isVideoUrl(a.url)) return a.thumb || a.url;
+      }
+    }
+  }
   const urls = Array.isArray(item?.file_url) ? item.file_url : [item?.file_url];
-  return (
-    urls.find((u: string) => u && !isVideoUrl(u) && !isPdfUrl(u)) || null
-  );
+  return urls.find((u: string) => u && !isVideoUrl(u) && !isPdfUrl(u)) || null;
 };
 
-// Scattered "loose pile" slots by depth (0 = top, face-up & interactive).
-// Alternating x + rotation reads as a dropped stack rather than a staircase.
-const STACK_SLOTS = [
-  { x: 0, y: 0, rotate: 0, scale: 1 },
-  { x: 30, y: 22, rotate: 3, scale: 0.96 },
-  { x: -28, y: 36, rotate: -2.6, scale: 0.92 },
-  { x: 22, y: 50, rotate: 2.2, scale: 0.89 },
-  { x: -18, y: 62, rotate: -1.8, scale: 0.86 },
-];
-const slotFor = (depth: number) =>
-  STACK_SLOTS[Math.min(depth, STACK_SLOTS.length - 1)];
-
-/**
- * PosterCard — one poster in the stack. Each card keeps its OWN aspect ratio
- * (`object-contain`, centred on the shared stage), so a landscape and a
- * portrait asset coexist without letterboxing — the deck outline is naturally
- * irregular, like a real pile of different-sized prints. Only the top card
- * (depth 0) runs the hover tilt + fixed-light reflection; the rest sit static,
- * dimmed, offset for depth. A video shows its first frame while stacked and
- * becomes a playable <video controls> once it reaches the top.
- */
-function PosterCard({
-  url,
-  title,
-  depth,
-  isTop,
-  isMobile,
-  onClick,
-  onVideoPlay,
-  onVideoRestore,
-  onHoverChange,
-  onOpenPdf,
-}: {
-  url: string;
+// ── Folder model (mirrors the admin `folders` JSON) ──
+interface FolderAsset {
+  id: string;
   title: string;
-  depth: number;
-  isTop: boolean;
+  url: string; // full-quality master — served ONLY in the zoom viewport
+  thumb?: string; // auto-generated ≤1600px WebP — all browsing surfaces
+  // Upload metadata (written by the admin on upload; absent on legacy assets).
+  size?: number; // bytes (of the master)
+  mime?: string;
+  added?: string; // ISO date
+  width?: number; // master pixel dimensions (measured at upload)
+  height?: number;
+}
+
+// Browsing-surface URL: the thumb when it exists, else the master. Zoom always uses `url`.
+const displayUrl = (a: FolderAsset) => a.thumb || a.url;
+
+// Filename extension (e.g. "jpg"), stripped of any query/hash.
+const fileExt = (u: string) =>
+  (u.split(/[?#]/)[0].split(".").pop() || "").toLowerCase();
+
+// ── Asset metadata formatter (Upload date) ──
+const formatDate = (iso?: string) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+interface Folder {
+  id: string;
+  title: string;
+  description?: string; // per-folder copy; falls back to project.content
+  assets: FolderAsset[];
+}
+
+// Folder anchor positions (% of stage) — a scattered ring around the central safe-zone; each folder centres on its anchor. Cycles for >8 folders.
+const ANCHORS = [
+  { x: 24, y: 42 },
+  { x: 76, y: 54 },
+  { x: 30, y: 76 },
+  { x: 70, y: 24 },
+  { x: 15, y: 64 },
+  { x: 85, y: 36 },
+  { x: 50, y: 84 },
+  { x: 50, y: 16 },
+];
+
+// First ≤3 image assets of a folder — the "peek" fan shown on hover/selection.
+const peekImages = (folder: Folder) =>
+  folder.assets
+    .filter((a) => a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url))
+    .slice(0, 3);
+
+// Preload one asset URL (image / video first-frame); PDFs resolve instantly (loaded lazily in the reader).
+const loadAssetUrl = (url: string) =>
+  new Promise<void>((resolve) => {
+    if (isPdfUrl(url)) {
+      resolve();
+    } else if (isVideoUrl(url)) {
+      const v = document.createElement("video");
+      v.muted = true;
+      v.preload = "auto";
+      v.onloadeddata = () => resolve();
+      v.onerror = () => resolve();
+      v.src = url;
+    } else {
+      const img = new Image();
+      img.onload = img.onerror = () => resolve();
+      img.src = url;
+    }
+  });
+
+// ── FolderIcon — one desktop folder: draggable (desktop) / tappable (mobile). Desktop = click-to-select then click-to-open; mobile = single-tap-to-open. ──
+function FolderIcon({
+  folder,
+  index,
+  isMobile,
+  stageRef,
+  selected,
+  dimmed,
+  setNode,
+  onSelect,
+  onOpen,
+  onPrefetch,
+}: {
+  folder: Folder;
+  index: number;
   isMobile: boolean;
-  onClick: () => void;
-  onVideoPlay: () => void;
-  onVideoRestore: () => void;
-  onHoverChange: (h: boolean) => void;
-  onOpenPdf: (url: string) => void;
+  stageRef: React.RefObject<HTMLDivElement | null>;
+  selected: boolean;
+  dimmed: boolean; // this folder's window is open — icon reads as "in use"
+  setNode: (id: string, el: HTMLDivElement | null) => void;
+  onSelect: () => void;
+  onOpen: (rect: DOMRect | null) => void;
+  onPrefetch: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Anchor (% of stage) the folder centres on; x/y are the drag delta from it (reset every visit).
+  const anchor = ANCHORS[index % ANCHORS.length];
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  // Drag-vs-click guard: a real drag sets moved=true so the click that follows is ignored.
+  const moved = useRef(false);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  // Hover shows the highlight plate (no border); selecting adds the border on top.
   const [hovered, setHovered] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
-  const vid = isVideoUrl(url);
-  const pdf = isPdfUrl(url);
-  // Tilt is a desktop-only (mouse) flourish; the PDF dossier tilts too (it's a
-  // physical object) but skips the poster reflection (it's matte, not glossy).
-  // Mobile stays flat (gyroscope dropped — iOS re-prompts for motion). Videos
-  // stay flat for their native controls.
-  const tiltActive = isTop && !vid && !isMobile;
+  // Rect measured at open time (post-drag position) — the window grows from it.
+  const open = () => onOpen(nodeRef.current?.getBoundingClientRect() ?? null);
 
-  // When a video card leaves the top (flipped to back) or unmounts, stop its
-  // playback and restore the bg music. Prevents the music staying ducked and
-  // kills any orphaned audio from the unmounting <video> (the double-play bug).
-  useEffect(() => {
-    if (isTop) return;
-    videoRef.current?.pause();
-    onVideoRestore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTop]);
-  useEffect(() => {
-    return () => onVideoRestore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Pointer position normalised to −0.5…0.5 across the card.
-  const px = useMotionValue(0);
-  const py = useMotionValue(0);
-  const spring = { stiffness: 140, damping: 16, mass: 0.9 };
-  const sx = useSpring(px, spring);
-  const sy = useSpring(py, spring);
-
-  // Balanced-but-heavy tilt — ~7° max.
-  const MAX = 7;
-  const rotateY = useTransform(sx, [-0.5, 0.5], [-MAX, MAX]);
-  const rotateX = useTransform(sy, [-0.5, 0.5], [MAX, -MAX]);
-
-  // Fixed-light reflection — diagonal band driven by the tilt (inverted), so it
-  // sweeps like a reflection of a stationary source, never glued to the cursor.
-  const glareCenter = useTransform(
-    [sx, sy],
-    ([x, y]: number[]) => 50 - x * 55 - y * 15,
+  const inner = (
+    <div
+      className={`relative flex flex-col items-center gap-2.5 select-none px-4 pt-3 pb-2.5 border transition-colors duration-500 rounded-sm ${
+        selected
+          ? "border-white/50 bg-white/[0.10]"
+          : hovered
+            ? "border-transparent bg-white/[0.10]"
+            : "border-transparent"
+      }`}
+    >
+      <img
+        src="/folder-icon.webp"
+        alt=""
+        draggable={false}
+        className={`w-[clamp(90px,12vw,160px)] h-auto drop-shadow-[0_14px_26px_rgba(0,0,0,0.55)] pointer-events-none transition-opacity duration-300 ${
+          dimmed ? "opacity-35" : ""
+        }`}
+      />
+      <span className="font-brand-cn uppercase text-white text-[clamp(10px,0.8vw,15px)] tracking-[0.12em] text-center leading-tight max-w-[150px]">
+        {folder.title}
+      </span>
+    </div>
   );
-  const gA = useTransform(glareCenter, (v) => `${v - 22}%`);
-  const gB = useTransform(glareCenter, (v) => `${v}%`);
-  const gC = useTransform(glareCenter, (v) => `${v + 22}%`);
-  const glare = useMotionTemplate`linear-gradient(115deg, transparent ${gA}, rgba(255,255,255,0.60) ${gB}, transparent ${gC})`;
 
-  // Lift shadow offsets opposite the tilt → "raised off the wall".
-  const shadowX = useTransform(sx, [-0.5, 0.5], [22, -22]);
-  const shadowY = useTransform(sy, [-0.5, 0.5], [22, -22]);
-  const dropShadow = useMotionTemplate`drop-shadow(${shadowX}px ${shadowY}px 28px rgba(0,0,0,0.5))`;
-
-  const onMove = (e: React.MouseEvent) => {
-    if (!tiltActive) return;
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    px.set((e.clientX - r.left) / r.width - 0.5);
-    py.set((e.clientY - r.top) / r.height - 0.5);
-    // If the focus view loaded with the cursor already over the card, no
-    // mouseenter fires — surface the shine + tag on the first movement instead.
-    if (!hovered) {
-      setHovered(true);
-      onHoverChange(true);
-    }
-  };
-  const reset = () => {
-    setHovered(false);
-    px.set(0);
-    py.set(0);
-    onHoverChange(false);
-  };
-
-  // PDF dossier: single click flips the deck (like any card); double click opens
-  // the reader. Debounced so a double-click doesn't also trigger the flip.
-  const pdfClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onPdfClick = () => {
-    if (pdfClickTimer.current) return; // 2nd click of a double — let dblclick win
-    pdfClickTimer.current = setTimeout(() => {
-      pdfClickTimer.current = null;
-      onClick();
-    }, 230);
-  };
-  const onPdfDoubleClick = () => {
-    if (pdfClickTimer.current) {
-      clearTimeout(pdfClickTimer.current);
-      pdfClickTimer.current = null;
-    }
-    onOpenPdf(url);
-  };
-  useEffect(() => {
-    return () => {
-      if (pdfClickTimer.current) clearTimeout(pdfClickTimer.current);
-    };
-  }, []);
-
-  const slot = slotFor(depth);
-  const maxH = isMobile ? "44vh" : "80vh";
-  const maxW = isMobile ? "82vw" : "62vw";
-  const mediaStyle: React.CSSProperties = {
-    maxHeight: maxH,
-    maxWidth: maxW,
-    opacity: loaded || vid ? 1 : 0,
-    transition: "opacity 0.4s ease",
-  };
+  if (isMobile)
+    return (
+      <button
+        onClick={() => onOpen(null)}
+        className="cursor-pointer active:scale-95 transition-transform p-2"
+      >
+        {inner}
+      </button>
+    );
 
   return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center pointer-events-none"
-      style={{ zIndex: 100 - depth }}
-      initial={false}
-      animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale: slot.scale }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+    // Positioning wrapper — places the folder's centre on its anchor; the inner motion.div handles drag.
+    <div
+      className="absolute -translate-x-1/2 -translate-y-1/2"
+      style={{ left: `${anchor.x}%`, top: `${anchor.y}%` }}
     >
-      <div className="pointer-events-none" style={{ perspective: 1200 }}>
-        <motion.div
-          ref={ref}
-          onMouseEnter={() => {
-            if (tiltActive) {
-              setHovered(true);
-              onHoverChange(true);
-            }
-          }}
-          onMouseLeave={reset}
-          onMouseMove={onMove}
-          // Top video: no flip-on-click so native controls work. Top PDF: single
-          // click flips, double click opens the reader. Everything else flips/
-          // comes forward on a single click.
-          onClick={
-            isTop && vid
-              ? undefined
-              : isTop && pdf
-                ? onPdfClick
-                : onClick
-          }
-          onDoubleClick={isTop && pdf ? onPdfDoubleClick : undefined}
-          style={{
-            rotateX: tiltActive ? rotateX : 0,
-            rotateY: tiltActive ? rotateY : 0,
-            filter: tiltActive
-              ? dropShadow
-              : "drop-shadow(0 12px 24px rgba(0,0,0,0.45))",
-            transformStyle: "preserve-3d",
-          }}
-          className={`relative pointer-events-auto will-change-transform ${
-            isTop && vid ? "" : "cursor-pointer"
-          }`}
-        >
-          {vid && isTop ? (
-            <video
-              key={`top-${url}`}
-              ref={videoRef}
-              src={url}
-              controls
-              preload="auto"
-              className="object-contain block"
-              style={mediaStyle}
-              onPlay={onVideoPlay}
-              onPause={onVideoRestore}
-              onEnded={onVideoRestore}
-            />
-          ) : vid ? (
-            <video
-              key={`peek-${url}`}
-              src={`${url}#t=0.1`}
-              muted
-              playsInline
-              preload="metadata"
-              className="object-contain block"
-              style={mediaStyle}
-            />
-          ) : pdf ? (
-            // Branded dossier cover — a physical "folder", deliberately textured
-            // (cardstock grain + emboss) to feel different from the poster sheets.
-            <div
-              className="dossier-texture relative border border-black/50 flex flex-col select-none"
-              style={{ height: isMobile ? "46vh" : "74vh", aspectRatio: "1 / 1.32" }}
-            >
-              {/* Folder tab */}
-              <div className="dossier-texture absolute -top-[16px] left-7 h-[16px] w-[40%] border border-b-0 border-black/50" />
-              {/* Stacked-paper edges — solid bright greyscale (real pages, not
-                  see-through) */}
-              <div className="absolute top-4 bottom-4 -right-[4px] w-[3px] bg-[#ededed]" />
-              <div className="absolute top-7 bottom-7 -right-[8px] w-[3px] bg-[#c8c8c8]" />
-              {/* Horizontal crease — a fold across the cardstock */}
-              <div className="absolute left-0 right-0 top-[52%] h-px bg-black/35 pointer-events-none" />
-              <div className="absolute left-0 right-0 top-[52%] translate-y-px h-px bg-white/[0.05] pointer-events-none" />
-              {/* Folded dog-ear corner (top-right) */}
-              <div
-                className="absolute top-0 right-0 w-0 h-0 pointer-events-none"
-                style={{
-                  borderTop: "26px solid rgba(0,0,0,0.55)",
-                  borderLeft: "26px solid transparent",
-                }}
-              />
-
-              <div className="relative z-10 flex-1 flex flex-col justify-between p-7 lg:p-9">
-                <span className="font-brand-cn text-[10px] tracking-[0.35em] uppercase text-white/45">
-                  Project Dossier
-                </span>
-
-                <div>
-                  <span className="font-brand-cn text-[clamp(16px,1vw,20px)] text-orange-600 leading-none">
-                    *
-                  </span>
-                  <h3 className="font-brand-other uppercase text-white leading-[0.95] tracking-[0.02em] mt-3 text-[clamp(24px,2.2vw,38px)] drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
-                    {title}
-                  </h3>
-                </div>
-
-                <div className="flex items-end justify-between border-t border-white/15 pt-4">
-                  <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/40">
-                    PDF Document
-                  </span>
-                  {isTop && (
-                    <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/70">
-                      Double-click to open →
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <img
-              src={url}
-              alt={title}
-              draggable={false}
-              className="object-contain block select-none"
-              style={mediaStyle}
-              onLoad={() => setLoaded(true)}
-            />
-          )}
-
-          {/* Non-top cards: dim for depth + a hairline edge so the pile reads */}
-          {!isTop && (
-            <div className="absolute inset-0 bg-black/45 border border-white/10 pointer-events-none" />
-          )}
-
-          {/* Fixed-light reflection band — desktop top card (images + the
-              textured dossier; videos keep their own surface). soft-light sheen. */}
-          {tiltActive && (
-            <motion.div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: glare,
-                mixBlendMode: "soft-light",
-                opacity: hovered ? 0.6 : 0,
-                transition: "opacity 0.4s ease",
-              }}
-            />
-          )}
-        </motion.div>
-      </div>
-    </motion.div>
+      <motion.div
+        ref={(el: HTMLDivElement | null) => {
+          nodeRef.current = el;
+          setNode(folder.id, el);
+        }}
+        drag
+        dragConstraints={stageRef}
+        dragMomentum={false}
+        dragElastic={0.12}
+        style={{ x, y, touchAction: "none" }}
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: index * 0.06, duration: 0.4, ease: "easeOut" }}
+        onPointerDown={() => {
+          moved.current = false;
+        }}
+        onDragStart={() => {
+          moved.current = true;
+        }}
+        onMouseEnter={() => {
+          setHovered(true);
+          onPrefetch(); // hover = intent — silently warm the folder
+        }}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => {
+          if (moved.current) return;
+          if (selected) open();
+          else onSelect();
+        }}
+        onDoubleClick={() => {
+          if (!moved.current) open();
+        }}
+        role="button"
+        aria-label={`${folder.title}, ${folder.assets.length} item${folder.assets.length === 1 ? "" : "s"}`}
+        className="will-change-transform cursor-pointer"
+      >
+        {inner}
+      </motion.div>
+    </div>
   );
 }
 
-/**
- * PosterStack — the focus-view asset deck (replaces the old thumbnail strip).
- * `order[0]` is the top card. Click the top poster to flip it to the back;
- * click any peeking card behind to bring it forward. Cards keep stable keys so
- * framer tweens each to its new slot on reorder. The stage is a fixed centred
- * box; cards are absolutely centred within it, so mixed orientations all pivot
- * around the same point.
- */
-function PosterStack({
-  urls,
-  title,
+// ── FolderDesktop — focus-view surface: scattered folders (desktop) / tappable grid (mobile); arrows move selection, Enter opens, bare-desktop click deselects. ──
+function FolderDesktop({
+  folders,
   isMobile,
-  onVideoPlay,
-  onVideoRestore,
-  onOpenPdf,
+  active,
+  selectedId,
+  openId,
+  onSelect,
+  onOpen,
+  onPrefetch,
 }: {
-  urls: string[];
-  title: string;
+  folders: Folder[];
   isMobile: boolean;
-  onVideoPlay: () => void;
-  onVideoRestore: () => void;
-  onOpenPdf: (url: string) => void;
+  active: boolean; // keyboard nav enabled (no folder open, not loading)
+  selectedId: string | null;
+  openId: string | null;
+  onSelect: (id: string | null) => void;
+  onOpen: (f: Folder, rect: DOMRect | null) => void;
+  onPrefetch: (f: Folder) => void;
 }) {
-  const [order, setOrder] = useState<number[]>(() => urls.map((_, i) => i));
-  const multi = urls.length > 1;
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Live icon nodes (post-drag positions) so Enter grows the window from the folder's real location.
+  const nodes = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Cursor-attached tag — same pattern as the Project Archive hitbox hover tag.
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const [showTag, setShowTag] = useState(false);
-  const onStageMove = (e: React.MouseEvent) => {
-    x.set(e.clientX);
-    y.set(e.clientY);
+  useEffect(() => {
+    if (!active || isMobile) return;
+    const onKey = (e: KeyboardEvent) => {
+      const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter"];
+      if (!keys.includes(e.key) || folders.length === 0) return;
+      e.preventDefault();
+      const idx = folders.findIndex((f) => f.id === selectedId);
+      if (e.key === "Enter") {
+        const f = folders[idx];
+        if (f) onOpen(f, nodes.current[f.id]?.getBoundingClientRect() ?? null);
+        return;
+      }
+      const dir = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+      const next =
+        idx < 0
+          ? dir === 1
+            ? 0
+            : folders.length - 1
+          : (idx + dir + folders.length) % folders.length;
+      onSelect(folders[next].id);
+      onPrefetch(folders[next]);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [active, isMobile, folders, selectedId, onSelect, onOpen, onPrefetch]);
+
+  // Clicking bare desktop (either wrapper) clears the selection, OS-style.
+  const deselect = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onSelect(null);
   };
 
-  const onCardClick = (assetIndex: number, depth: number) => {
-    if (depth === 0) {
-      // Flip the top poster to the back of the deck.
-      setOrder((prev) =>
-        prev.length < 2 ? prev : [...prev.slice(1), prev[0]],
-      );
-    } else {
-      // Bring a peeking card to the front.
-      setOrder((prev) => [assetIndex, ...prev.filter((i) => i !== assetIndex)]);
-    }
-  };
-
-  const stageStyle: React.CSSProperties = isMobile
-    ? { width: "86vw", height: "52vh" }
-    : { width: "64vw", height: "80vh" };
+  const icons = folders.map((f, i) => (
+    <FolderIcon
+      key={f.id}
+      folder={f}
+      index={i}
+      isMobile={isMobile}
+      stageRef={stageRef}
+      selected={f.id === selectedId}
+      dimmed={f.id === openId}
+      setNode={(id, el) => {
+        nodes.current[id] = el;
+      }}
+      onSelect={() => onSelect(f.id)}
+      onOpen={(rect) => onOpen(f, rect)}
+      onPrefetch={() => onPrefetch(f)}
+    />
+  ));
 
   return (
     <div
-      className="relative flex items-center justify-center"
-      style={stageStyle}
-      onMouseMove={onStageMove}
+      ref={stageRef}
+      className="relative w-full h-full overflow-hidden"
+      onClick={deselect}
     >
-      {order.map((assetIndex, depth) => (
-        <PosterCard
-          key={urls[assetIndex]}
-          url={urls[assetIndex]}
-          title={title}
-          depth={depth}
-          isTop={depth === 0}
-          isMobile={isMobile}
-          onClick={() => onCardClick(assetIndex, depth)}
-          onVideoPlay={onVideoPlay}
-          onVideoRestore={onVideoRestore}
-          onHoverChange={(h) => setShowTag(h && multi)}
-          onOpenPdf={onOpenPdf}
-        />
-      ))}
-
-      {/* Cursor-attached flip tag — desktop, shown while hovering the top
-          poster (formatted like the Project Archive hitbox tag). */}
-      {!isMobile && multi && (
-        <motion.div
-          style={{ left: x, top: y }}
-          animate={{ opacity: showTag ? 1 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed top-0 left-0 z-[210] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
+      {isMobile ? (
+        // Mobile keeps a centred tappable grid (no drag / anchors).
+        <div
+          onClick={deselect}
+          className="w-full h-full flex items-center justify-center"
         >
-          <img
-            src="/right-click.png"
-            alt=""
-            className="w-5 h-auto filter brightness-110"
-          />
-          <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
-            Click to flip · {order[0] + 1}/{urls.length} Asset
-          </span>
-        </motion.div>
-      )}
-
-      {/* Mobile keeps a static caption (no cursor to attach a tag to). */}
-      {isMobile && multi && (
-        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-          <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.4em] text-white/35 whitespace-nowrap">
-            Tap to flip · {order[0] + 1}/{urls.length} Asset
-          </span>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 place-items-center">
+            {icons}
+          </div>
         </div>
+      ) : (
+        // Desktop: each folder absolutely positions itself on its anchor.
+        icons
       )}
     </div>
   );
 }
 
-export default function ArchiveCatalogue() {
+// ── OpenFolderView — OS-style window that grows from the clicked icon: breadcrumb title bar, description (left), assets (right, double-click to zoom). Intercepts ESC only while an image is enlarged. ──
+function OpenFolderView({
+  folder,
+  project,
+  isMobile,
+  origin,
+  ready,
+  onClose,
+  onVideoPlay,
+  onVideoRestore,
+}: {
+  folder: Folder;
+  project: any;
+  isMobile: boolean;
+  origin: DOMRect | null; // clicked icon rect — the window grows from it
+  ready: boolean; // folder assets preloaded (in-window loader until true)
+  onClose: () => void;
+  onVideoPlay: () => void;
+  onVideoRestore: () => void;
+}) {
+  const [enlargedId, setEnlargedId] = useState<string | null>(null);
+  const enlarged = folder.assets.find((a) => a.id === enlargedId) || null;
+  // Mobile only: the description lives in a slide-up sheet so the asset stays
+  // the priority. Toggled from the title-bar description icon; drag-to-dismiss
+  // via a grip handle (the content still scrolls normally).
+  const [descOpen, setDescOpen] = useState(false);
+  const sheetDrag = useDragControls();
+
+  // True once the open spring finishes — defers expensive paint (blurred bg) to fix open-lag.
+  const [settled, setSettled] = useState(false);
+
+  // Ambient (blurred) background thumb for the assets pane — folder's first image, else the project's.
+  const paneThumbAsset = folder.assets.find(
+    (a) => a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url),
+  );
+  const paneThumb = paneThumbAsset
+    ? displayUrl(paneThumbAsset)
+    : firstImage(project);
+
+  // Open timestamp — briefly guards asset double-clicks so the opening gesture can't bleed into a zoom.
+  const openedAtRef = useRef(Date.now());
+  const OPEN_GUARD_MS = 500;
+
+  // Portrait flag per asset (for the grid layout), measured on image load.
+  const [portraitMap, setPortraitMap] = useState<Record<string, boolean>>({});
+  const recordDims = (id: string, el: HTMLImageElement) => {
+    if (!el.naturalWidth) return;
+    setPortraitMap((m) =>
+      id in m ? m : { ...m, [id]: el.naturalHeight > el.naturalWidth },
+    );
+  };
+
+  // Portrait? Prefer stored master dims, else the measured flag once loaded.
+  const isPortrait = (a: FolderAsset) =>
+    a.width && a.height ? a.height > a.width : !!portraitMap[a.id];
+  // Only pair portraits when there are ≥2; a lone vertical stays full-width.
+  const portraitCount = folder.assets.filter(isPortrait).length;
+  const gridPortraits = portraitCount >= 2;
+
+  // Measure every visual asset (images AND videos) up-front with dedicated elements — cached media often never fires onLoad, which would leave the portrait grid blank.
+  useEffect(() => {
+    const record = (id: string, w: number, h: number) => {
+      if (!w || !h) return;
+      setPortraitMap((m) => (id in m ? m : { ...m, [id]: h > w }));
+    };
+    folder.assets.forEach((a) => {
+      if (!a.url || isPdfUrl(a.url)) return;
+      if (a.width && a.height) return; // known from upload
+      if (isVideoUrl(a.url)) {
+        const v = document.createElement("video");
+        v.preload = "metadata";
+        v.onloadedmetadata = () => record(a.id, v.videoWidth, v.videoHeight);
+        v.src = displayUrl(a);
+      } else {
+        const img = new Image();
+        img.onload = () => record(a.id, img.naturalWidth, img.naturalHeight);
+        img.src = displayUrl(a);
+      }
+    });
+  }, [folder]);
+
+  // Zoom viewport: enlarged image renders oversized (cover + headroom) and pans via drag; zoomSize computed from natural dims once loaded.
+  const zoomRef = useRef<HTMLDivElement>(null);
+  const [zoomSize, setZoomSize] = useState<{ w: number; h: number } | null>(
+    null,
+  );
+  const zoomMoved = useRef(false); // drag-vs-click guard (click closes)
+  const computeZoom = (iw: number, ih: number) => {
+    const el = zoomRef.current;
+    if (!el || !iw || !ih) return;
+    const { width: cw, height: ch } = el.getBoundingClientRect();
+    const scale = Math.max(cw / iw, ch / ih) * 1.3; // cover + 30% pan headroom
+    setZoomSize({ w: iw * scale, h: ih * scale });
+  };
+  useEffect(() => {
+    setZoomSize(null); // recompute per asset
+  }, [enlargedId]);
+
+  // ESC collapses an enlarged asset (image zoom or the inline PDF reader) first,
+  // capture phase, before the parent's folder-close handler fires.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !enlargedId) return;
+      e.stopImmediatePropagation();
+      setEnlargedId(null);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [enlargedId]);
+
+  // Grow-from-folder offsets: clicked icon centre → viewport centre (centre zoom if no origin).
+  const hasWin = typeof window !== "undefined";
+  const dx =
+    origin && hasWin
+      ? origin.left + origin.width / 2 - window.innerWidth / 2
+      : 0;
+  const dy =
+    origin && hasWin
+      ? origin.top + origin.height / 2 - window.innerHeight / 2
+      : 0;
+
+  // Cursor-attached tag (desktop) shown while hovering an image.
+  const tagX = useMotionValue(0);
+  const tagY = useMotionValue(0);
+  const [showTag, setShowTag] = useState(false);
+
+  const renderMedia = (asset: FolderAsset) => {
+    const url = asset.url;
+    // A lone/unpaired portrait would otherwise render full-column-width and blow
+    // up huge (and a compressed thumb looks soft at that size). Cap its height
+    // and centre it so it reads at a natural, crisp size. Paired portraits
+    // (gridPortraits) keep their column width.
+    const sizeCls =
+      isPortrait(asset) && !gridPortraits
+        ? "max-h-[72vh] w-auto max-w-full mx-auto h-auto"
+        : "w-full h-auto";
+    if (isVideoUrl(url))
+      return (
+        <video
+          src={url}
+          controls
+          preload="metadata"
+          className={`block bg-black border border-white/10 ${sizeCls}`}
+          onPlay={onVideoPlay}
+          onPause={onVideoRestore}
+          onEnded={onVideoRestore}
+        />
+      );
+    if (isPdfUrl(url)) {
+      // PDF — the rendered first page (thumb) is the cover; double-click opens
+      // the inline JUDAION reader in the right viewport (same enlarged flow as
+      // images). Legacy PDFs with no thumb fall back to a compact document card.
+      const openPdf = () => {
+        if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
+        setEnlargedId(asset.id);
+      };
+      if (asset.thumb)
+        return (
+          <img
+            src={asset.thumb}
+            alt={asset.title || folder.title}
+            draggable={false}
+            decoding="async"
+            onDoubleClick={openPdf}
+            onMouseEnter={() => !isMobile && setShowTag(true)}
+            onMouseLeave={() => setShowTag(false)}
+            className={`block border border-white/10 select-none cursor-pointer ${sizeCls}`}
+          />
+        );
+      return (
+        <button
+          onDoubleClick={openPdf}
+          onMouseEnter={() => !isMobile && setShowTag(true)}
+          onMouseLeave={() => setShowTag(false)}
+          className="group relative w-full bg-[#121212] border border-white/15 flex flex-col justify-between text-left select-none p-6 lg:p-7 cursor-pointer"
+          style={{ aspectRatio: "1 / 1.32" }}
+        >
+          <span className="font-brand-cn text-[10px] tracking-[0.35em] uppercase text-white/45">
+            Document
+          </span>
+          <div>
+            <span className="font-brand-cn text-[clamp(16px,1vw,20px)] text-orange-600 leading-none">
+              *
+            </span>
+            <h3 className="font-brand-other uppercase text-white leading-[0.95] tracking-[0.02em] mt-3 text-[clamp(20px,2vw,32px)]">
+              {asset.title?.trim() || folder.title}
+            </h3>
+          </div>
+          <div className="flex items-end justify-between border-t border-white/15 pt-4">
+            <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/40">
+              PDF Document
+            </span>
+            <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/70 opacity-70 group-hover:opacity-100">
+              Double-click to open →
+            </span>
+          </div>
+        </button>
+      );
+    }
+    // Image — double-click zooms into the pan viewport; serves the WebP thumb (master only in zoom).
+    return (
+      <img
+        // Measure immediately for cached images whose onLoad may never fire.
+        ref={(el) => {
+          if (el && el.complete) recordDims(asset.id, el);
+        }}
+        src={displayUrl(asset)}
+        alt={asset.title || folder.title}
+        draggable={false}
+        decoding="async"
+        onDoubleClick={() => {
+          if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
+          setEnlargedId(asset.id);
+        }}
+        onLoad={(e) => recordDims(asset.id, e.currentTarget)}
+        onMouseEnter={() => !isMobile && setShowTag(true)}
+        onMouseLeave={() => setShowTag(false)}
+        className={`block border border-white/10 select-none cursor-pointer ${sizeCls}`}
+      />
+    );
+  };
+
+  const asTitle = (a: FolderAsset, i: number) =>
+    a.title?.trim() || `Asset ${String(i + 1).padStart(2, "0")}`;
+
+  // Folder info footer — "i" icon + divider-separated fields (Author / Category / Upload / Type).
+  const infoFields = [
+    { title: "Author", value: project?.author?.trim() || "JUDAION (Pty) Ltd" },
+    { title: "Category", value: project?.category || "—" },
+    {
+      title: "Upload",
+      value: formatDate(folder.assets[0]?.added || project?.created_at) || "—",
+    },
+    {
+      title: "Type",
+      value:
+        [
+          ...new Set(
+            folder.assets
+              .map((a) => (fileExt(a.url) ? fileExt(a.url).toUpperCase() : ""))
+              .filter(Boolean),
+          ),
+        ].join(" / ") ||
+        project?.resource_type ||
+        "—",
+    },
+  ];
+  const folderMeta = (
+    <>
+      {/* Separator between the description and the info footer */}
+      <div className="mt-10 border-t border-white/15" />
+      <div
+        className="mt-6 relative overflow-hidden rounded-sm border border-white/15"
+        style={{
+          backgroundImage: "url('/archive-header.avif')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/65 pointer-events-none" />
+        <div className="relative z-10 flex items-center gap-5 px-5 py-4 min-w-0">
+          {/* Info "i" icon */}
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            className="shrink-0 text-white/70"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+            <line
+              x1="12"
+              y1="11"
+              x2="12"
+              y2="16.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+            <circle cx="12" cy="7.75" r="1" fill="currentColor" />
+          </svg>
+          {/* Divider-separated fields; scrolls horizontally when they exceed the
+            pane. pb keeps the values off the horizontal scrollbar. */}
+          <div className="desc-scroll flex items-stretch gap-4 overflow-x-auto min-w-0 pb-3">
+            {infoFields.map((f, i) => (
+              <React.Fragment key={f.title}>
+                {i > 0 && (
+                  <div className="w-px self-stretch bg-white/20 shrink-0" />
+                )}
+                <div className="flex flex-col gap-1 shrink-0">
+                  <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
+                    {f.title}
+                  </span>
+                  <span className="font-brand-bold text-[11px] uppercase tracking-[0.06em] text-white/90 whitespace-nowrap">
+                    {f.value}
+                  </span>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Divider under the metatags. */}
+      <div className="mt-6 border-t border-white/15" />
+    </>
+  );
+
+  // Folder description copy — shared by the desktop left pane and the mobile
+  // slide-up sheet (per-folder, falling back to project content).
+  const descParagraph = (
+    <p className="font-brand-secondary-thin text-[clamp(12px,0.68vw,14px)] leading-[1.9] text-white/60 whitespace-pre-wrap tracking-[0em] text-justify">
+      {folder.description?.trim() || project?.content}
+    </p>
+  );
+
+  // Folder-description heading — the line + title, identical on desktop and in
+  // the mobile sheet so the formatting matches.
+  const descHeading = (
+    <div className="flex items-center gap-4 mb-8">
+      <div className="flex-1 border-t border-white/20" />
+      <h4 className="font-brand-bold text-[clamp(17px,0.55vw,16px)] uppercase tracking-[0.15em] text-white/90 shrink-0">
+        Folder Description
+      </h4>
+    </div>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="fixed inset-0 z-[140]"
+      style={{
+        background: "rgba(0,0,0,0.30)",
+      }}
+    >
+      {/* ── WINDOW — grows from the clicked icon (mobile: full-bleed sheet; desktop: centred frame). ── */}
+      <motion.div
+        initial={
+          isMobile
+            ? { opacity: 0, y: 24 }
+            : { x: dx, y: dy, scale: 0.1, opacity: 0 }
+        }
+        animate={
+          isMobile ? { opacity: 1, y: 0 } : { x: 0, y: 0, scale: 1, opacity: 1 }
+        }
+        exit={
+          isMobile
+            ? { opacity: 0, y: 24 }
+            : { x: dx, y: dy, scale: 0.1, opacity: 0 }
+        }
+        transition={{ type: "spring", stiffness: 240, damping: 30 }}
+        onAnimationComplete={() => setSettled(true)}
+        className={
+          isMobile
+            ? "absolute inset-x-[3vw] top-[70px] bottom-[70px] flex flex-col bg-[#060606] border border-white/12 shadow-[0_30px_90px_rgba(0,0,0,0.8)] will-change-transform rounded-sm overflow-hidden"
+            : "absolute left-[3.5vw] right-[3.5vw] top-[84px] bottom-[84px] flex flex-col bg-[#060606] border border-white/15 shadow-[0_50px_140px_rgba(0,0,0,0.85)] will-change-transform rounded-sm"
+        }
+      >
+        {/* ── TITLE BAR — breadcrumb (left) + X close (right); floats over the panels so its blur has content beneath. ── */}
+        <div className="absolute top-0 inset-x-0 z-30 h-14 flex items-center justify-between px-4 lg:px-6 border-b border-white/10 bg-black/75 backdrop-blur-md select-none rounded-t-sm">
+          {/* Breadcrumb — full path on desktop; mobile shows the home icon +
+              only the last (folder) crumb to save space. */}
+          <div className="flex items-center gap-2.5 min-w-0 font-brand-cn text-[9px] tracking-[0.25em] uppercase">
+            <img
+              src="/home-focus-icon.svg"
+              alt=""
+              className="h-4 w-auto opacity-80 shrink-0"
+            />
+            <span className="hidden lg:inline text-white/30 shrink-0">|</span>
+            <span className="hidden lg:inline text-white/55 shrink-0">
+              Archive Focus
+            </span>
+            {project?.title && (
+              <>
+                <span className="hidden lg:inline text-white/30 shrink-0">
+                  |
+                </span>
+                <span className="hidden lg:inline text-white/55 truncate">
+                  {project.title}
+                </span>
+              </>
+            )}
+            <span className="text-white/30 shrink-0">|</span>
+            <span className="text-white truncate">{folder.title}</span>
+          </div>
+          <div className="flex items-center gap-4 shrink-0 ml-4">
+            {/* Description toggle — mobile only; opens the slide-up sheet.
+                Hidden while an asset is enlarged (focus stays on the asset). */}
+            {!enlarged && (
+              <button
+                onClick={() => setDescOpen((v) => !v)}
+                aria-label="Folder description"
+                className="lg:hidden flex items-center justify-center text-white/70 hover:text-white transition-colors duration-150 cursor-pointer"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M5 6h14M5 10h14M5 14h9M5 18h9" />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close folder"
+              className="flex items-center justify-center text-white/70 hover:text-white transition-colors duration-150 cursor-pointer"
+            >
+              <span className="text-[21px] leading-none font-brand-cn">X</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── BODY — description + assets panes; mobile shows assets first. ── */}
+        <div
+          className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {/* ── LEFT PANEL — folder description + metadata; desktop only (mobile
+              moves it into the slide-up sheet). Stays visible during zoom. ── */}
+          <div className="hidden lg:block order-2 lg:order-1 shrink-0 lg:w-[32%] lg:h-full relative overflow-hidden lg:border-r border-white/8">
+            {/* Custom folder-description background (designed asset); fades in on open. */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute inset-0 z-0 pointer-events-none"
+            >
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: "url('/folder-description-bg.avif')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+              {/* Vertical gradient — darker at the bottom, lighter toward the top. */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/45 to-black/15" />
+            </motion.div>
+            {/* min-h-full + flex-col: footer pins to the bottom when short, scrolls when long. */}
+            <div
+              className="relative z-10 min-h-full lg:h-full lg:overflow-y-auto flex flex-col"
+              style={{ scrollbarWidth: "none" }}
+            >
+              <div className="flex-1 px-7 lg:px-10 pt-[96px] lg:pt-[104px] pb-10 lg:pb-12">
+                {/* Per-folder description — falls back to project content. */}
+                {descHeading}
+                {descParagraph}
+
+                {/* Metadata — moved here from the removed right-pane cards */}
+                {folderMeta}
+              </div>
+              {/* Left-pane footer intentionally empty (copyright lives in the status bar). */}
+            </div>
+          </div>
+
+          {/* ── RIGHT PANEL — assets (first on mobile); becomes a fixed viewport in zoom mode. ── */}
+          <div
+            className="order-1 lg:order-2 flex-1 lg:h-full relative overflow-hidden"
+            onMouseMove={(e) => {
+              tagX.set(e.clientX);
+              tagY.set(e.clientY);
+            }}
+          >
+            {/* Ambient blurred thumbnail + dark overlay; mounted only after the open spring settles. */}
+            {paneThumb && settled && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="absolute inset-0 z-0 pointer-events-none"
+              >
+                <div
+                  className="absolute inset-0 scale-110 blur-2xl"
+                  style={{
+                    backgroundImage: `url('${paneThumb}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <div className="absolute inset-0 bg-black/70" />
+              </motion.div>
+            )}
+            <div
+              className={`relative z-10 h-full ${
+                enlarged
+                  ? "overflow-hidden"
+                  : "desc-scroll overflow-y-auto px-5 lg:px-12 pt-[88px] lg:pt-[96px] pb-12"
+              }`}
+            >
+              {folder.assets.length === 0 ? (
+                <div className="h-full min-h-[40vh] flex items-center justify-center">
+                  <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.5em] text-white/50">
+                    Nothing filed here...yet
+                  </span>
+                </div>
+              ) : enlarged && isPdfUrl(enlarged.url) ? (
+                /* ── INLINE PDF READER — the JUDAION reader fills the assets pane
+              (not a new window); ESC / its own close button returns to the grid.
+              Sized wrapper gives mobile a concrete height (h-full is unreliable
+              inside the mobile scroll sheet). ── */
+                <div className="relative w-full h-[70vh] lg:h-full overflow-hidden">
+                  <PdfReader
+                    variant="inline"
+                    url={enlarged.url}
+                    title={enlarged.title || folder.title}
+                    isMobile={isMobile}
+                    onClose={() => setEnlargedId(null)}
+                  />
+                </div>
+              ) : enlarged ? (
+                /* ── ZOOM VIEWPORT — oversized image, pans via drag; click closes. ── */
+                <motion.div
+                  key={`zoom-${enlarged.id}`}
+                  ref={zoomRef}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="relative w-full h-[70vh] lg:h-full overflow-hidden flex items-center justify-center"
+                >
+                  <motion.img
+                    src={enlarged.url}
+                    alt={enlarged.title || folder.title}
+                    draggable={false}
+                    decoding="async"
+                    drag
+                    dragConstraints={zoomRef}
+                    dragMomentum={false}
+                    dragElastic={0}
+                    // Invisible until zoomSize is computed, then a smooth zoom-in (scale 0.55 → 1 + fade).
+                    initial={false}
+                    animate={
+                      zoomSize
+                        ? { opacity: 1, scale: 1 }
+                        : { opacity: 0, scale: 0.55 }
+                    }
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    onLoad={(e) => {
+                      const el = e.currentTarget;
+                      recordDims(enlarged.id, el);
+                      computeZoom(el.naturalWidth, el.naturalHeight);
+                    }}
+                    onPointerDown={() => {
+                      zoomMoved.current = false;
+                    }}
+                    onDragStart={() => {
+                      zoomMoved.current = true;
+                    }}
+                    onDoubleClick={() => {
+                      if (!zoomMoved.current) setEnlargedId(null);
+                    }}
+                    onMouseEnter={() => !isMobile && setShowTag(true)}
+                    onMouseLeave={() => setShowTag(false)}
+                    className="shrink-0 max-w-none select-none cursor-grab active:cursor-grabbing"
+                    style={
+                      zoomSize
+                        ? { width: zoomSize.w, height: zoomSize.h }
+                        : { maxWidth: "100%", maxHeight: "100%", opacity: 0 }
+                    }
+                  />
+                </motion.div>
+              ) : (
+                // Asset grid — 2 cols on desktop; landscapes span both, paired portraits take one each. grid-flow-dense backfills gaps.
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-x-8 lg:gap-y-14 [grid-auto-flow:dense] max-w-[1100px] mx-auto w-full">
+                  {folder.assets.map((a, i) => {
+                    const span =
+                      gridPortraits && isPortrait(a)
+                        ? "lg:col-span-1"
+                        : "lg:col-span-2";
+                    // Lone portraits are height-capped + centred (see renderMedia), so
+                    // the caption must hug the image width instead of the full column —
+                    // otherwise it floats out to the far left of the empty column.
+                    const capped = isPortrait(a) && !gridPortraits;
+                    const caption = (
+                      <div className="flex items-baseline gap-3">
+                        <span className="font-brand-cn text-[10px] tracking-[0.3em] text-white/35">
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <span className="font-brand-other uppercase text-white/85 text-[13px] tracking-[0.12em]">
+                          {asTitle(a, i)}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <motion.div
+                        key={a.id}
+                        initial={{ x: 50, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{
+                          delay: 0.1 + i * 0.09,
+                          type: "spring",
+                          stiffness: 150,
+                          damping: 22,
+                        }}
+                        className={`col-span-1 ${span} flex flex-col gap-4`}
+                      >
+                        {capped ? (
+                          <div className="mx-auto flex w-fit max-w-full flex-col gap-4">
+                            {renderMedia(a)}
+                            {caption}
+                          </div>
+                        ) : (
+                          <>
+                            {renderMedia(a)}
+                            {caption}
+                          </>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── MOBILE DESCRIPTION SHEET — slides up over the assets when the
+            title-bar description icon is tapped (desktop keeps the left pane).
+            Backdrop starts below the title bar so Close/description stay tappable. ── */}
+        <AnimatePresence>
+          {descOpen && (
+            <motion.div
+              key="desc-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              onClick={() => setDescOpen(false)}
+              className="lg:hidden absolute inset-x-0 top-14 bottom-0 z-40 flex items-end bg-black/50"
+            >
+              <motion.div
+                drag="y"
+                dragControls={sheetDrag}
+                dragListener={false}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.6 }}
+                onDragEnd={(_e, info) => {
+                  if (info.offset.y > 90 || info.velocity.y > 500)
+                    setDescOpen(false);
+                }}
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 320, damping: 34 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-h-[85%] flex flex-col bg-[black] border-t border-white/15 rounded-t-sm overflow-hidden"
+              >
+                {/* Grip handle — drag this to slide the sheet down to close.
+                    z-30 keeps it crisp above the top blur strip. */}
+                <div
+                  onPointerDown={(e) => sheetDrag.start(e)}
+                  style={{ touchAction: "none" }}
+                  className="relative z-30 shrink-0 flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
+                >
+                  <span className="h-1 w-10 rounded-full bg-white/25" />
+                </div>
+                {/* Scrollable content — the background lives INSIDE the scroll
+                    flow (inner relative wrapper) so it travels with the text
+                    instead of staying a fixed backdrop. */}
+                <div className="relative z-10 desc-scroll overflow-y-auto flex-1">
+                  <div className="relative">
+                    {/* Designed bg + gradient — matches the desktop left pane;
+                        as tall as the content, so it scrolls with it. */}
+                    <div className="absolute inset-0 z-0 pointer-events-none">
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage: "url('/folder-description-bg.avif')",
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/30" />
+                    </div>
+                    <div className="relative z-10 px-6 pt-12 pb-8">
+                      {descHeading}
+                      {descParagraph}
+                      {folderMeta}
+                    </div>
+                  </div>
+                </div>
+                {/* Top fade — subtle black gradient that fades out downward. Sits below the grip, above the content. */}
+                <div className="pointer-events-none absolute inset-x-0 top-6 z-20 h-12 bg-gradient-to-b from-black/85 to-transparent" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Per-folder loader — covers the body until this folder's assets preload. ── */}
+        <AnimatePresence>
+          {!ready && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="absolute inset-x-0 top-11 bottom-0 z-20 bg-[#060606] flex flex-col items-center justify-center gap-5"
+            >
+              <img
+                src="/j-logo.svg"
+                alt="Loading"
+                className="loader-j opacity-80"
+              />
+              <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/70">
+                {folder.title}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Cursor-attached tag — desktop only, while hovering an image or PDF
+          cover. Hidden while the inline PDF reader is open (it has its own UI). */}
+      {!isMobile && (
+        <motion.div
+          style={{ left: tagX, top: tagY }}
+          animate={{
+            opacity: showTag && !(enlarged && isPdfUrl(enlarged.url)) ? 1 : 0,
+          }}
+          transition={{ duration: 0.18 }}
+          className="fixed top-0 left-0 z-[150] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
+        >
+          <img
+            src={enlarged ? "/drag-icon.png" : "/right-click.png"}
+            alt=""
+            className="w-5 h-auto filter brightness-110"
+          />
+          <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+            {enlarged
+              ? "Drag to pan — Double-click to close"
+              : "Double-click to open"}
+          </span>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── DesktopMenuBar — OS-style top strip: Exit nav + folder/asset counts (left), live clock + music toggle (right). ──
+function DesktopMenuBar({
+  folderCount,
+  assetCount,
+  isAudioOn,
+  onNav,
+  onToggleAudio,
+}: {
+  folderCount: number;
+  assetCount: number;
+  isAudioOn: boolean;
+  onNav: () => void;
+  onToggleAudio: () => void;
+}) {
+  // Clock starts null and ticks after mount (avoids SSR/render mismatch).
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const clockDate = now
+    ? now
+        .toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+        })
+        .toUpperCase()
+    : "";
+  const clockTime = now
+    ? now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    : "";
+
+  return (
+    <div
+      className="fixed top-0 inset-x-0 z-[200] h-15 flex items-center justify-between px-4 lg:px-8 border-b border-white/10 backdrop-blur-md overflow-hidden"
+      style={{
+        backgroundImage: "url('/archive-header.avif')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+      <div className="relative z-10 flex items-center gap-4 lg:gap-5 min-w-0">
+        <button
+          onClick={onNav}
+          className="flex items-center gap-2 font-brand-bold text-[14px] lg:text-[15px] uppercase tracking-[0.2em] text-white/85 hover:text-white transition-colors duration-200 cursor-pointer shrink-0"
+        >
+          Exit
+          <span className="hidden lg:inline font-brand-secondary-thin text-[9px] tracking-[0.2em] text-white/40">
+            [ESC]
+          </span>
+        </button>
+        <span className="h-4 w-px bg-white/15 shrink-0" />
+        <span className="flex items-center gap-2 shrink-0">
+          <img
+            src="/home-focus-icon.svg"
+            alt=""
+            className="h-5 lg:h-5.5 w-auto opacity-90"
+          />
+        </span>
+        <span className="h-4 w-px bg-white/15 shrink-0" />
+        <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 shrink-0">
+          {folderCount} Folder{folderCount === 1 ? "" : "s"} · {assetCount}{" "}
+          Asset{assetCount === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="relative z-10 flex items-center gap-4 lg:gap-5 shrink-0 pl-4">
+        <span className="hidden lg:inline font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 tabular-nums">
+          {clockDate}
+        </span>
+        <span className="hidden lg:inline h-4 w-px bg-white/15" />
+        <span className="hidden lg:inline font-brand-bold text-[14px] uppercase tracking-[0.2em] text-white/80 tabular-nums">
+          {clockTime}
+        </span>
+        <span className="hidden lg:inline h-4 w-px bg-white/15" />
+        {/* Music toggle — same bars as the masonry header, sized a tad bigger. */}
+        <button
+          onClick={onToggleAudio}
+          aria-label={isAudioOn ? "Mute music" : "Unmute music"}
+          className="flex items-end gap-[3px] opacity-50 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+        >
+          {(
+            [
+              { anim: "soundBarB", dur: "1.2s", delay: "0s", maxH: 13 },
+              { anim: "soundBarA", dur: "1.95s", delay: "0.4s", maxH: 21 },
+              { anim: "soundBarC", dur: "1.05s", delay: "0.2s", maxH: 17 },
+              { anim: "soundBarA", dur: "1.3s", delay: "0.7s", maxH: 23 },
+              { anim: "soundBarB", dur: "0.90s", delay: "0.35s", maxH: 16 },
+              { anim: "soundBarC", dur: "1.15s", delay: "0.55s", maxH: 20 },
+            ] as const
+          ).map((bar, i) => (
+            <span
+              key={i}
+              className={`block w-[2px] bg-white rounded-full origin-bottom ${isAudioOn ? "animate-sound-bar" : ""}`}
+              style={{
+                height: isAudioOn ? `${bar.maxH}px` : "3px",
+                animationName: isAudioOn ? bar.anim : "none",
+                animationDuration: bar.dur,
+                animationDelay: bar.delay,
+                transition: "height 0.4s ease",
+              }}
+            />
+          ))}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DesktopStatusBar — bottom strip (desktop): interaction hints + J-logo; hints hide while a folder is open. ──
+const STATUS_HINTS = [
+  { icon: "/right-click.png", text: "Click to select · Click again to open" },
+  { icon: "/arrows-icon.png", text: "Arrow keys to navigate" },
+  { icon: "/drag-icon.png", text: "Folders are draggable" },
+];
+function DesktopStatusBar({
+  openTitle,
+  instagramUrl,
+  linkedinUrl,
+}: {
+  openTitle: string | null;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+}) {
+  const hasSocial = !!(instagramUrl || linkedinUrl);
+  // Mobile bottom bar auto-swaps between engage-live-asset + socials and the
+  // copyright line (the narrow width can't show both at once).
+  const [activeIndex, setActiveIndex] = useState(0);
+  useEffect(() => {
+    if (!hasSocial) return;
+    const t = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % 3);
+    }, 4500);
+    return () => clearInterval(t);
+  }, [hasSocial]);
+
+  return (
+    <>
+      <div
+        className="hidden lg:flex fixed bottom-0 inset-x-0 z-[150] h-15 items-center px-8 border-t border-white/10 backdrop-blur-md pointer-events-none overflow-hidden"
+        style={{
+          backgroundImage: "url('/archive-header.avif')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+        {/* Crossfade between the two states (mode="wait") so the hints don't snap back when a folder closes. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {openTitle ? (
+            <motion.div
+              key="open"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="relative z-10 w-full flex items-center justify-between gap-5"
+            >
+              <div className="relative flex items-center gap-4 pointer-events-auto">
+                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
+                  Engage Live Asset
+                </span>
+                {instagramUrl && (
+                  <a
+                    href={instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                    aria-label="Instagram"
+                  >
+                    <img
+                      src="/insta-icon.png"
+                      alt="Instagram"
+                      className="h-[22px] w-auto"
+                    />
+                  </a>
+                )}
+                {linkedinUrl && (
+                  <a
+                    href={linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                    aria-label="LinkedIn"
+                  >
+                    <img
+                      src="/linkedin-icon.png"
+                      alt="LinkedIn"
+                      className="h-[22px] w-auto"
+                    />
+                  </a>
+                )}
+              </div>
+              <div className="relative flex items-center gap-5">
+                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
+                  Copyright © {new Date().getFullYear()} Judaion Studios. All
+                  Rights Reserved.
+                </span>
+                <span className="h-4 w-px bg-white/15" />
+                <img src="/j-logo.svg" alt="Judaion" className="h-6 w-auto" />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="hints"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="relative z-10 w-full flex items-center justify-end gap-5"
+            >
+              {STATUS_HINTS.map((h, i) => (
+                <React.Fragment key={h.text}>
+                  {i > 0 && <span className="relative h-4 w-px bg-white/15" />}
+                  <span className="relative flex items-center gap-3">
+                    <img
+                      src={h.icon}
+                      alt=""
+                      className="h-6 w-auto filter brightness-110"
+                    />
+                    <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
+                      {h.text}
+                    </span>
+                  </span>
+                </React.Fragment>
+              ))}
+              <span className="relative h-4 w-px bg-white/15" />
+              <img
+                src="/j-logo.svg"
+                alt="Judaion"
+                className="relative h-6 w-auto"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── MOBILE BOTTOM BAR — mirrors the top menu bar (brick bg + overlay).
+        Left content auto-swaps engage-live-asset ⇄ copyright; J-logo pins right. ── */}
+      <div
+        className="lg:hidden fixed bottom-0 inset-x-0 z-[150] h-15 flex items-center justify-between gap-4 px-4 border-t border-white/10 backdrop-blur-md overflow-hidden"
+        style={{
+          backgroundImage: "url('/archive-header.avif')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+        <div className="relative z-10 min-w-0 flex-1">
+          {hasSocial ? (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeIndex}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="flex items-center gap-4 min-w-0"
+              >
+                {/* Step 0: Main Copyright */}
+                {activeIndex === 0 && (
+                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
+                    Copyright © {new Date().getFullYear()} Judaion Studios.
+                  </span>
+                )}
+
+                {/* Step 1: All Rights Reserved */}
+                {activeIndex === 1 && (
+                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
+                    All Rights Reserved.
+                  </span>
+                )}
+
+                {/* Step 2: Engage Live Asset */}
+                {activeIndex === 2 && (
+                  <>
+                    <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 shrink-0">
+                      Engage Live Asset
+                    </span>
+                    {instagramUrl && (
+                      <a
+                        href={instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Instagram"
+                        className="opacity-80 hover:opacity-100 transition-opacity duration-200"
+                      >
+                        <img
+                          src="/insta-icon.png"
+                          alt="Instagram"
+                          className="h-[20px] w-auto"
+                        />
+                      </a>
+                    )}
+                    {linkedinUrl && (
+                      <a
+                        href={linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="LinkedIn"
+                        className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                      >
+                        <img
+                          src="/linkedin-icon.png"
+                          alt="LinkedIn"
+                          className="h-[20px] w-auto"
+                        />
+                      </a>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
+              Copyright © {new Date().getFullYear()} Judaion Studios. All Rights
+              Reserved.
+            </span>
+          )}
+        </div>
+        <img
+          src="/j-logo.svg"
+          alt="Judaion"
+          className="relative z-10 h-6 w-auto shrink-0"
+        />
+      </div>
+    </>
+  );
+}
+
+export default function ArchiveCatalogue({
+  wallpapers = [],
+}: {
+  wallpapers?: string[];
+}) {
   const router = useRouter();
+  // Focus-view wallpaper — one picked at random per session from public/archive-wallpapers/.
+  const [wallpaper] = useState<string | null>(() =>
+    wallpapers.length
+      ? wallpapers[Math.floor(Math.random() * wallpapers.length)]
+      : null,
+  );
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [openFolder, setOpenFolder] = useState<Folder | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
-  const [openPdf, setOpenPdf] = useState<string | null>(null);
+  // OS click model: the currently selected (highlighted) folder on the desktop.
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  // Clicked icon rect — OpenFolderView grows out of it. Null = centre zoom.
+  const [openOrigin, setOpenOrigin] = useState<DOMRect | null>(null);
+  // Per-folder preload gate for the open window (see openFolderWindow).
+  const [folderReady, setFolderReady] = useState(true);
+  // Folder preload cache: in-flight promises + resolved ids (persists across projects).
+  const folderLoadsRef = useRef<Map<string, Promise<void>>>(new Map());
+  const loadedFoldersRef = useRef<Set<string>>(new Set());
+  // Deep-link plumbing (?project=&folder=).
+  const deepLinkAppliedRef = useRef(false);
+  const pendingFolderRef = useRef<string | null>(null);
+
+  // Selected project's folders, normalised (wraps a legacy file_url array into one folder).
+  const projectFolders: Folder[] = useMemo(() => {
+    if (!selectedProject) return [];
+    const raw = selectedProject.folders;
+    if (Array.isArray(raw) && raw.length > 0) return raw as Folder[];
+    const urls = (
+      Array.isArray(selectedProject.file_url)
+        ? selectedProject.file_url
+        : [selectedProject.file_url]
+    ).filter(Boolean);
+    return [
+      {
+        id: "legacy",
+        title: selectedProject.title || "ARCHIVE",
+        assets: urls.map((u: string, i: number) => ({
+          id: `legacy-${i}`,
+          title: "",
+          url: u,
+        })),
+      },
+    ];
+  }, [selectedProject]);
+
+  // Preload a folder's assets once (deduped by in-flight promise cache).
+  const loadFolder = (f: Folder) => {
+    let p = folderLoadsRef.current.get(f.id);
+    if (!p) {
+      p = Promise.all(f.assets.map((a) => loadAssetUrl(displayUrl(a)))).then(
+        () => {
+          loadedFoldersRef.current.add(f.id);
+        },
+      );
+      folderLoadsRef.current.set(f.id, p);
+    }
+    return p;
+  };
+  // Hover/selection = intent — warm the folder silently in the background.
+  const prefetchFolder = (f: Folder) => {
+    loadFolder(f);
+  };
+
+  // Open a folder window: instant if cached, else an in-window loader (6s safety valve).
+  const openFolderWindow = (f: Folder, rect: DOMRect | null) => {
+    setOpenOrigin(rect);
+    setSelectedFolderId(f.id);
+    setOpenFolder(f);
+    if (loadedFoldersRef.current.has(f.id)) {
+      setFolderReady(true);
+      return;
+    }
+    setFolderReady(false);
+    const maxWait = new Promise<void>((r) => setTimeout(r, 6000));
+    Promise.race([loadFolder(f), maxWait]).then(() => setFolderReady(true));
+  };
+
   const [, setIsPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isAudioOn, setIsAudioOn] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
-  const focusScrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMutedRef = useRef(false);
   const audioSuppressedByVideoRef = useRef(false);
@@ -567,117 +1614,88 @@ export default function ArchiveCatalogue() {
       isMutedRef.current = false;
       audioSuppressedByVideoRef.current = false;
       setIsAudioOn(true);
-      // iOS pauses the background <audio> entirely when a video with sound
-      // plays — muting alone won't bring it back, so explicitly resume.
+      // iOS pauses the bg audio when a video with sound plays — muting won't resume it, so play() explicitly.
       audio.play().catch(() => {});
     }
   }
 
-  // Lock page scroll + ESC to close while the focus view is open. If the PDF
-  // reader is open, it owns ESC (closes itself first) — don't also close the
-  // focus view underneath it.
+  // Lock page scroll + ESC while focus is open. ESC peels back one layer at a time:
+  // enlarged asset / inline PDF (OpenFolderView intercepts in capture) → folder → selection → close.
   useEffect(() => {
     document.body.style.overflow = selectedProject ? "hidden" : "";
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !openPdf) setSelectedProject(null);
+      if (e.key !== "Escape") return;
+      if (openFolder) setOpenFolder(null);
+      else if (selectedFolderId) setSelectedFolderId(null);
+      else setSelectedProject(null);
     };
     if (selectedProject) document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [selectedProject, openPdf]);
+  }, [selectedProject, openFolder, selectedFolderId]);
 
-  // Smooth inertia scroll for the focus view container.
-  // Intercepts wheel events and lerps scrollTop toward the target each rAF
-  // frame — same technique used by Lenis / Locomotive under the hood.
+  // Closing/switching a project collapses any open folder and clears the selection.
   useEffect(() => {
-    const el = focusScrollRef.current;
-    if (!el || !selectedProject) return;
-
-    el.scrollTop = 0;
-    let target = 0;
-    let rafId = 0;
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      // Normalise across delta modes: LINE (mice) → px, PAGE → container height
-      const delta =
-        e.deltaMode === 1
-          ? e.deltaY * 16
-          : e.deltaMode === 2
-            ? e.deltaY * el.clientHeight
-            : e.deltaY;
-      target = Math.max(
-        0,
-        Math.min(target + delta, el.scrollHeight - el.clientHeight),
-      );
-      if (!rafId) rafId = requestAnimationFrame(tick);
-    };
-
-    const tick = () => {
-      const dist = target - el.scrollTop;
-      if (Math.abs(dist) < 0.5) {
-        el.scrollTop = target;
-        rafId = 0;
-        return;
-      }
-      // Lerp factor: 0.1 = silky, 0.15 = snappier
-      el.scrollTop += dist * 0.1;
-      rafId = requestAnimationFrame(tick);
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      cancelAnimationFrame(rafId);
-    };
+    setOpenFolder(null);
+    setSelectedFolderId(null);
+    setOpenOrigin(null);
   }, [selectedProject]);
 
-  // Gate the focus view behind a loader until ALL of the project's assets are
-  // ready — physical objects don't pop in piecemeal. Mirrors the initial-archive
-  // loader treatment. A small min-delay avoids a jarring loader flash on cached
-  // assets; `cancelled` guards against the user closing/switching mid-load.
+  // Deep-link open: once the deep-linked project's folders are computed, open the requested folder (centre zoom).
+  useEffect(() => {
+    const fid = pendingFolderRef.current;
+    if (!fid || !selectedProject) return;
+    pendingFolderRef.current = null;
+    const f = projectFolders.find((x) => x.id === fid);
+    if (f) openFolderWindow(f, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject, projectFolders]);
+
+  // Apply a ?project=&folder= deep link once the archive has loaded.
+  useEffect(() => {
+    if (loading || deepLinkAppliedRef.current || projects.length === 0) return;
+    deepLinkAppliedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const pid = params.get("project");
+    if (!pid) return;
+    const proj = projects.find((p) => String(p.id) === pid);
+    if (!proj) return;
+    pendingFolderRef.current = params.get("folder");
+    setFocusLoading(true);
+    setSelectedProject(proj);
+  }, [loading, projects]);
+
+  // Mirror focus-view state into the URL (replaceState) so views are shareable and survive a refresh.
+  useEffect(() => {
+    if (loading) return;
+    const url = new URL(window.location.href);
+    if (selectedProject)
+      url.searchParams.set("project", String(selectedProject.id));
+    else url.searchParams.delete("project");
+    if (selectedProject && openFolder)
+      url.searchParams.set("folder", openFolder.id);
+    else url.searchParams.delete("folder");
+    window.history.replaceState(null, "", url.toString());
+  }, [selectedProject, openFolder, loading]);
+
+  // Gate the focus view behind a loader until the peek-fan thumbnails preload (folders load per-folder later).
   useEffect(() => {
     if (!selectedProject) return;
     let cancelled = false;
     setFocusLoading(true);
 
-    const urls = (
-      Array.isArray(selectedProject.file_url)
-        ? selectedProject.file_url
-        : [selectedProject.file_url]
-    ).filter(Boolean);
+    const urls = projectFolders.flatMap((f) =>
+      peekImages(f).map((a) => displayUrl(a)),
+    );
 
-    const loadAsset = (url: string) =>
-      new Promise<void>((resolve) => {
-        // PDFs render as an instant dossier cover (no preload) — and load lazily
-        // in the reader when opened, so don't gate the view on them.
-        if (isPdfUrl(url)) {
-          resolve();
-        } else if (isVideoUrl(url)) {
-          const v = document.createElement("video");
-          v.muted = true;
-          v.preload = "auto";
-          v.onloadeddata = () => resolve();
-          v.onerror = () => resolve();
-          v.src = url;
-        } else {
-          const img = new Image();
-          img.onload = img.onerror = () => resolve();
-          img.src = url;
-        }
-      });
-
-    // Linger ~1.5s minimum so the project title is readable, but no longer —
-    // long enough to register what's loading, short enough to not annoy.
+    // Linger ~1.5s minimum so the project title is readable.
     const minDelay = new Promise((r) => setTimeout(r, 1500));
-    // Safety valve: never trap the user on the loader if an asset stalls without
-    // firing load/error (rare, but a broken URL or hung connection shouldn't
-    // block the whole view). Reveal anyway after maxWait.
+    // Safety valve: reveal anyway after maxWait if an asset stalls without firing load/error.
     const maxWait = new Promise((r) => setTimeout(r, 8000));
     Promise.race([
-      Promise.all([...urls.map(loadAsset), minDelay]),
+      Promise.all([...urls.map(loadAssetUrl), minDelay]),
       maxWait,
     ]).then(() => {
       if (!cancelled) setFocusLoading(false);
@@ -686,7 +1704,7 @@ export default function ArchiveCatalogue() {
     return () => {
       cancelled = true;
     };
-  }, [selectedProject]);
+  }, [selectedProject, projectFolders]);
 
   async function fetchData() {
     try {
@@ -707,18 +1725,18 @@ export default function ArchiveCatalogue() {
       const projectData = projectsRes.data || [];
       setCategories([{ name: "All" }, ...(categoriesRes.data || [])]);
 
-      // Preload every grid cover (first image) so the grid renders from cache —
-      // guaranteed simultaneous reveal. Skips PDF/video-first projects.
+      // Preload every grid cover so the grid renders from cache (simultaneous reveal).
       const thumbnailUrls = projectData
         .map((p: any) => firstImage(p))
         .filter((u: string | null): u is string => Boolean(u));
       await Promise.all(
-        thumbnailUrls.map((url: string) =>
-          new Promise<void>((resolve) => {
-            const img = new Image();
-            img.onload = img.onerror = () => resolve();
-            img.src = url;
-          }),
+        thumbnailUrls.map(
+          (url: string) =>
+            new Promise<void>((resolve) => {
+              const img = new Image();
+              img.onload = img.onerror = () => resolve();
+              img.src = url;
+            }),
         ),
       );
 
@@ -749,7 +1767,11 @@ export default function ArchiveCatalogue() {
             type="video/mp4"
           />
         </video>
-        <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80 relative z-10" />
+        <img
+          src="/j-logo.svg"
+          alt="Loading"
+          className="loader-j opacity-80 relative z-10"
+        />
         <span className="loader-text-catalogue font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
       </div>
     );
@@ -799,11 +1821,8 @@ export default function ArchiveCatalogue() {
         >
           <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
           <div className="flex flex-col">
-            <div className="flex items-end justify-between w-full relative"></div>
-
             <div className="flex items-end gap-5">
-              {/* router.back() (like the tier returns) — a clean history-back
-                  to the cached Archive page: no sweep, no mount flash. */}
+              {/* router.back() — clean history-back to the cached Archive page. */}
               <button
                 onClick={() => router.back()}
                 className="flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
@@ -894,19 +1913,21 @@ export default function ArchiveCatalogue() {
         <main className="relative z-10 px-3 lg:px-6 pb-24 pt-7">
           {/* Desktop: CSS columns masonry */}
           {!isMobile ? (
-            <div key={activeCategory} className="columns-2 lg:columns-3 xl:columns-4 gap-7">
+            <div
+              key={activeCategory}
+              className="columns-2 lg:columns-3 xl:columns-4 gap-7"
+            >
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-7 group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10"
+                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/10"
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
                     setIsPlaying(false);
                   }}
                 >
-                  {/* Cover — first image, or a branded placeholder for projects
-                      with no image (PDF/video-only) so the card never breaks. */}
+                  {/* Cover — first image, or a branded placeholder for image-less projects. */}
                   {firstImage(item) ? (
                     <img
                       src={firstImage(item) as string}
@@ -941,7 +1962,7 @@ export default function ArchiveCatalogue() {
               {filtered.map((item, index) => (
                 <div
                   key={item.id}
-                  className={`group cursor-pointer relative overflow-hidden bg-[#111] border border-white/10 ${index % 5 === 0 ? "col-span-2" : ""}`}
+                  className={`group relative overflow-hidden bg-[#111] border border-white/10 ${index % 5 === 0 ? "col-span-2" : ""}`}
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -1003,9 +2024,7 @@ export default function ArchiveCatalogue() {
                 background: "rgba(0,0,0,0.88)",
               }}
             >
-              {/* Asset loader — gates the reveal until all assets are ready, so
-                  the deck never pops in piecemeal. Same treatment as the
-                  initial-archive loader; fades out over the prepared scene. */}
+              {/* Asset loader — gates the reveal until all assets are ready. */}
               <AnimatePresence>
                 {focusLoading && (
                   <motion.div
@@ -1040,87 +2059,47 @@ export default function ArchiveCatalogue() {
                 )}
               </AnimatePresence>
 
-              {/* Exit — fixed top left, always visible while scrolling */}
-              <button
-                onClick={() => setSelectedProject(null)}
-                className="fixed top-15 left-15 z-[200] flex items-center gap-2 font-brand-bold text-[18px] uppercase tracking-[0.2em] text-white hover:text-white transition-colors duration-200 cursor-pointer"
-              >
-                Exit
-                <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.2em] text-white/50">
-                  [ESC]
-                </span>
-              </button>
+              {/* OS desktop furniture — top menu bar + bottom status bar. */}
+              <DesktopMenuBar
+                folderCount={projectFolders.length}
+                assetCount={projectFolders.reduce(
+                  (n, f) => n + f.assets.length,
+                  0,
+                )}
+                isAudioOn={isAudioOn}
+                onNav={() => setSelectedProject(null)}
+                onToggleAudio={toggleAudio}
+              />
+              <DesktopStatusBar
+                openTitle={openFolder?.title ?? null}
+                instagramUrl={selectedProject.instagram_url || undefined}
+                linkedinUrl={selectedProject.linkedin_url || undefined}
+              />
 
-              {/* Music toggle — fixed top right, mirrors Exit position */}
-              <button
-                onClick={toggleAudio}
-                className="fixed top-15 right-15 z-[200] flex items-center gap-3 cursor-pointer group"
-                aria-label={isAudioOn ? "Mute music" : "Unmute music"}
-              >
-                <span className="hidden lg:inline font-brand-secondary-thin text-[10px] tracking-[0.2em] text-white/50"></span>
-                <div className="flex items-end gap-[3px] h-4">
-                  {[1, 0.5, 0.8, 0.3, 0.9].map((h, i) =>
-                    isAudioOn ? (
-                      <motion.div
-                        key={i}
-                        className="w-[3px] rounded-full bg-white/60 group-hover:bg-white transition-colors duration-200"
-                        animate={{ scaleY: [h, 1, h * 0.4, 0.9, h] }}
-                        transition={{
-                          duration: 0.8 + i * 0.15,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: i * 0.1,
-                        }}
-                        style={{ height: "100%", transformOrigin: "bottom" }}
-                      />
-                    ) : (
-                      <div
-                        key={i}
-                        className="w-[3px] rounded-full bg-white/20 transition-colors duration-200"
-                        style={{ height: `${h * 100}%` }}
-                      />
-                    ),
+              {/* Focus body — single full-screen folder desktop. */}
+              <div className="h-full overflow-hidden">
+                <section className="relative flex items-center justify-center bg-black w-full h-full">
+                  {/* Desktop wallpaper — base layer (random per session). */}
+                  {wallpaper && (
+                    <img
+                      src={wallpaper}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+                    />
                   )}
-                </div>
-              </button>
-
-              {/* Single scrollable container — two sections stacked */}
-              <div
-                ref={focusScrollRef}
-                // overflow-x-hidden clips the poster deck's transform overflow
-                // (x-offsets + rotation), which otherwise causes a horizontal
-                // overscroll bounce on mobile AND makes Section 2's
-                // backdrop-filter mis-render as a flat black bar on desktop.
-                className="h-full overflow-y-auto overflow-x-hidden overscroll-x-none"
-                style={{ scrollbarWidth: "none" }}
-              >
-                {/*
-                  ── SECTION 1: IMAGE FOCUS ──────────────────────────────────
-                */}
-                <section
-                  className="relative flex items-center justify-center sticky top-0 bg-black"
-                  style={{ height: "100vh", minHeight: "100vh", zIndex: 1 }}
-                >
-                  {/* Grain video background — dropped to atmosphere level so the
-                      spotlight reads, not the void */}
+                  {/* Grain video background — toned down over the wallpaper */}
                   <video
                     autoPlay
                     loop
                     muted
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none"
+                    className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
                   >
                     <source
                       src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
                       type="video/mp4"
                     />
                   </video>
-                  {/* ── GALLERY LIGHTING (layered to read as a lit room, not a
-                      void) — corners deepened, a soft pool behind the deck lit
-                      from the upper-left to match the poster's fixed-light
-                      reflection, and a faint floor pool so it reads as standing
-                      on a surface rather than floating. ── */}
-                  {/* Edge vignette — deepen the corners so the pool reads */}
                   <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -1128,347 +2107,42 @@ export default function ArchiveCatalogue() {
                         "radial-gradient(125% 115% at 50% 42%, rgba(0,0,0,0) 48%, rgba(0,0,0,0.62) 100%)",
                     }}
                   />
-                  {/* Spotlight pool behind the deck */}
+                  {/* Folder desktop — scattered folders; click one to open it. */}
                   <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background:
-                        "radial-gradient(55% 50% at 48% 38%, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.055) 34%, rgba(0,0,0,0) 70%)",
-                    }}
-                  />
-                  {/* Floor pool — faint glow low-centre = lit surface underfoot */}
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background:
-                        "radial-gradient(44% 20% at 50% 84%, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 72%)",
-                    }}
-                  />
-                  {/* Poster stack — the deck IS the selector (replaces strip) */}
-                  <div
-                    className={`flex items-center justify-center w-full h-full ${isMobile ? "px-6 pt-16 pb-20" : "px-16"}`}
+                    className={`flex items-center justify-center w-full h-full ${isMobile ? "px-6 pt-16 pb-20" : "px-16 pt-12 pb-9"}`}
                   >
-                    <PosterStack
+                    <FolderDesktop
                       key={selectedProject.id}
-                      urls={
-                        Array.isArray(selectedProject.file_url)
-                          ? selectedProject.file_url
-                          : [selectedProject.file_url]
-                      }
-                      title={selectedProject.title}
+                      folders={projectFolders}
                       isMobile={isMobile}
-                      onVideoPlay={handleVideoPlay}
-                      onVideoRestore={handleVideoRestore}
-                      onOpenPdf={setOpenPdf}
+                      active={!openFolder && !focusLoading}
+                      selectedId={selectedFolderId}
+                      openId={openFolder?.id ?? null}
+                      onSelect={setSelectedFolderId}
+                      onOpen={openFolderWindow}
+                      onPrefetch={prefetchFolder}
                     />
-                  </div>
-
-                  {/* Scroll hint — bottom right of section 1. Text + icon bob
-                      together as one unit, sat close to each other. */}
-                  <motion.div
-                    className="absolute bottom-10 right-6 flex items-center gap-1 pointer-events-none"
-                    animate={{ y: [0, 6, 0] }}
-                    transition={{
-                      duration: 1.6,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    <span className="hidden lg:inline font-brand-secondary-thin text-[9.5px] tracking-[0.3em] uppercase text-white/40">
-                      [PROJ. DESCRIPTION]
-                    </span>
-                    <img
-                      src="/scroll-down.webp"
-                      alt="Scroll Down"
-                      className="w-23 h-23 opacity-85 -ml-4"
-                    />
-                  </motion.div>
-                </section>
-
-                {/*
-                  ── SECTION 2: PROJECT DETAILS ──────────────────────────────
-                */}
-                <section
-                  className="relative min-h-screen border-t border-white/10 flex flex-col"
-                  style={{
-                    zIndex: 2,
-                    backdropFilter: "blur(18px)",
-                    WebkitBackdropFilter: "blur(15px)",
-                    background:
-                      "linear-gradient(to bottom, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.80) 100%)",
-                  }}
-                >
-                  {/* flex-1 wrapper grows to fill section, pushing footer to the bottom */}
-                  <div className="flex-1">
-                    {/* Subtle top rule with upward arrow — visual cue you can scroll back */}
-                    <div className="flex justify-center pt-10 pb-4 opacity-90">
-                      <svg width="10" height="10" viewBox="0 0 8 5" fill="none">
-                        <path
-                          d="M0 5L4 0L8 5"
-                          stroke="rgba(255,255,255,0.4)"
-                          strokeWidth="1"
-                        />
-                      </svg>
-                    </div>
-
-                    {/* Two-column content */}
-                    <div
-                      className={`flex ${isMobile ? "flex-col" : "flex-row"} max-w-[1200px] mx-auto px-8 lg:px-16 py-12 gap-10 lg:gap-20`}
-                    >
-                      {/* LEFT — description */}
-                      <div className="flex-1 min-w-0">
-                        {/* Title */}
-                        <h2
-                          className={`font-brand-bold uppercase text-white leading-[0.92] tracking-[0.04em] mb-4 ${isMobile ? "text-[32px]" : "text-[clamp(34px,4.5vw,54px)]"}`}
-                        >
-                          Project Description
-                        </h2>
-
-                        {/* Divider */}
-                        <div className="flex items-center gap-3 mb-8">
-                          <div className="flex-1 h-[1px] bg-white" />
-                        </div>
-
-                        {/* Subtitle — THE ARCHITECT style, only renders if set */}
-                        {selectedProject.subtitle && (
-                          <div className="flex items-center gap-4 mb-8">
-                            <div className="flex-1 border-t border-white/20" />
-                            <h4 className="font-brand-secondary-heavy text-[clamp(13px,0.55vw,16px)] uppercase tracking-[0.3em] text-white/90 shrink-0">
-                              {selectedProject.subtitle}
-                            </h4>
-                          </div>
-                        )}
-
-                        {/* Description — no scroll cap, flows naturally */}
-                        <p className="font-brand-secondary-thin text-[clamp(12px,0.68vw,14px)] leading-[1.9] text-white/60 whitespace-pre-wrap tracking-[0em] text-justify">
-                          {selectedProject.content}
-                        </p>
-
-                        {/* ── VIEW THE LIVE ASSET ── */}
-                        {(selectedProject.instagram_url ||
-                          selectedProject.linkedin_url) && (
-                          <div className="mt-10 pt-5 border-t border-white/20 flex items-center justify-between">
-                            <div className="flex items-center gap-5">
-                              {selectedProject.instagram_url && (
-                                <a
-                                  href={selectedProject.instagram_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="opacity-70 hover:opacity-100 transition-opacity duration-200"
-                                >
-                                  <svg
-                                    width="40"
-                                    height="40"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="1.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <rect
-                                      x="2"
-                                      y="2"
-                                      width="20"
-                                      height="20"
-                                      rx="5"
-                                      ry="5"
-                                    />
-                                    <circle cx="12" cy="12" r="4" />
-                                    <circle
-                                      cx="17.5"
-                                      cy="6.5"
-                                      r="0.5"
-                                      fill="white"
-                                      stroke="none"
-                                    />
-                                  </svg>
-                                </a>
-                              )}
-                              {selectedProject.linkedin_url && (
-                                <a
-                                  href={selectedProject.linkedin_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="opacity-70 hover:opacity-100 transition-opacity duration-200"
-                                >
-                                  <svg
-                                    width="35"
-                                    height="35"
-                                    viewBox="0 0 24 24"
-                                    fill="white"
-                                  >
-                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227 0 24 .775 24h22.451C23.2 24 24 23.227 24 22.271V1.729C24.003 .774 23.2 0 22.222 0h.003z" />
-                                  </svg>
-                                </a>
-                              )}
-                            </div>
-                            <span className="font-brand-cn text-[clamp(12px,0.80vw,15px)] uppercase tracking-[0.15em] text-white/50">
-                              ENGAGE LIVE ASSET
-                            </span>
-                          </div>
-                          
-                        )}
-                      </div>
-
-                      {/* RIGHT — product details panel (Flyerwrk baseline layout) */}
-                      <div
-                        className={`shrink-0 ${isMobile ? "w-full" : "w-[clamp(300px,21vw,400px)]"}`}
-                      >
-                        <div
-                          className="border border-white/15 p-6 sticky top-8 relative overflow-hidden rounded-sm"
-                          style={{
-                            backgroundImage: "url('/archive-header.avif')",
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-black/60 pointer-events-none" />
-                          <div className="relative z-10">
-                            {/* ── HEADER ── */}
-                            <h3 className="font-brand-other text-[clamp(13px,0.83vw,16px)] uppercase tracking-[0.2em] text-white mb-4">
-                              {selectedProject.title}
-                            </h3>
-                            <div className="h-px bg-white/15 mb-5" />
-
-                            {/* ── METADATA ROWS — label left, value right, no row dividers ── */}
-                            <div className="flex flex-col gap-1 mb-5">
-                              <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
-                                  Category
-                                </span>
-                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
-                                  {selectedProject.category}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
-                                  Type
-                                </span>
-                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
-                                  {selectedProject.resource_type}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
-                                  Number of Assets
-                                </span>
-                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
-                                  {Array.isArray(selectedProject.file_url)
-                                    ? selectedProject.file_url.length
-                                    : 1}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-baseline py-1">
-                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white">
-                                  Uploaded
-                                </span>
-                                <span className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">
-                                  {selectedProject.created_at
-                                    ? new Date(selectedProject.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                                    : "—"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-start py-1">
-                                <span className="font-brand-bold text-[clamp(9px,0.52vw,11px)] uppercase tracking-[0.12em] text-white shrink-0">
-                                  File Type
-                                </span>
-                                <div className="flex flex-col items-end gap-0.5">
-                                  {(() => {
-                                    const urls = Array.isArray(selectedProject.file_url) ? selectedProject.file_url : [selectedProject.file_url];
-                                    const exts = [...new Set<string>(urls.map((u: string) => u?.split(".").pop()?.toUpperCase() ?? "").filter(Boolean))];
-                                    return exts.map((ext: string) => (
-                                      <span key={ext} className="font-brand-secondary-thin text-[clamp(9px,0.52vw,11px)] text-white/55">{ext}</span>
-                                    ));
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* ── DIVIDER ── */}
-                            <div className="h-px bg-white/15 mb-5" />
-
-                            {/* ── FEATURE CHECKLIST ── */}
-                            <div className="flex flex-col gap-[10px] mb-6">
-                              {["Assets created and pubished by JUDAION (Pty) Ltd", "Vision. Structure. Identity."].map((feat) => (
-                                <div key={feat} className="flex items-center gap-3">
-                                  <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600 shrink-0 leading-none">*</span>
-                                  <span className="font-brand-secondary-thin text-[clamp(10px,0.57vw,12px)] text-white/45 tracking-wide">
-                                    {feat}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* — CTA BUTTON — white bg, brand icon left, label centre-left, price right — */}
-                            <button className="w-full flex items-center bg-white text-black px-4 py-[11px] mb-5 rounded-sm border border-neutral-200">
-                              {/* Left: Icon and Vertical Separator */}
-                              <div className="flex items-center gap-4">
-                                <img
-                                  src="/box-icon.png"
-                                  alt="Box icon"
-                                  className="h-8 w-auto object-contain"
-                                />
-                                <div className="h-8 w-[2px] bg-black" />
-                              </div>
-
-                              {/* Center-Left: Main Label */}
-                              <span className="font-brand-bold text-[clamp(15px,0.94vw,18px)] uppercase tracking-[0.12em] ml-4">
-                                JDS PROJ. Archive .26
-                              </span>
-                            </button>
-                          </div>
-                          {/* end relative z-10 */}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── JOIN THE CLUB + FOOTER ── */}
-                  <div
-                    className="relative overflow-hidden border-t border-white/10 px-8 lg:px-16 pt-16 pb-12 flex flex-col gap-10"
-                    style={{
-                      backgroundImage: "url('/archive-header.avif')",
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  >
-                    {/* Dark overlay so text stays readable over the image */}
-                    <div className="absolute inset-0 bg-black/60 pointer-events-none" />
-
-                    {/* Content sits above the overlay */}
-                    <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                      {/* Left — logo + subtext */}
-                      <div>
-                        <img
-                          src="/judaion-logo-white.svg"
-                          alt="Judaion"
-                          className="h-10 w-auto opacity-80 mb-2"
-                        />
-                      </div>
-
-                      {/* Right — copyright text */}
-                      <p className="relative font-brand-secondary-thin text-[clamp(8px,0.47vw,9px)] uppercase tracking-[0.25em] text-white/50 text-right">
-                        Copyright © {new Date().getFullYear()} Judaion Studios.
-                        All Rights Reserved.
-                      </p>
-                    </div>
                   </div>
                 </section>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Branded in-experience PDF reader — mounts above the focus view */}
-        <AnimatePresence>
-          {openPdf && (
-            <PdfReader
-              url={openPdf}
-              title={selectedProject?.title}
-              isMobile={isMobile}
-              onClose={() => setOpenPdf(null)}
-            />
+              {/* Open-folder layer — keyed by folder id so state resets between folders. */}
+              <AnimatePresence>
+                {openFolder && (
+                  <OpenFolderView
+                    key={openFolder.id}
+                    folder={openFolder}
+                    project={selectedProject}
+                    isMobile={isMobile}
+                    origin={openOrigin}
+                    ready={folderReady}
+                    onClose={() => setOpenFolder(null)}
+                    onVideoPlay={handleVideoPlay}
+                    onVideoRestore={handleVideoRestore}
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
