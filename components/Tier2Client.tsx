@@ -42,7 +42,7 @@ export default function Tier2() {
   // Minimum loader display so it doesn't flash on fast / cached loads.
   const [minElapsed, setMinElapsed] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setMinElapsed(true), 1000);
+    const t = setTimeout(() => setMinElapsed(true), 2500);
     return () => clearTimeout(t);
   }, []);
   const ready = assetsLoaded && minElapsed;

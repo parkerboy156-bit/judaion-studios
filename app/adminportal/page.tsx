@@ -678,7 +678,7 @@ export default function AdminPortal() {
                           setFolderDescription(folder.id, e.target.value)
                         }
                         placeholder="FOLDER DESCRIPTION (optional — falls back to the project description if blank)"
-                        className="w-full bg-black/40 border border-white/10 p-3 h-20 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text resize-none"
+                        className="w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text resize-y"
                       />
 
                       {/* Assets in this folder */}

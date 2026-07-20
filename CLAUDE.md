@@ -6,7 +6,7 @@
 - **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Supabase, Oracle Cloud Storage[cite: 1].
 - **Architecture:** Page files (`app/<route>/page.tsx`) are thin server components that only import and render a corresponding `"use client"` shell from `components/<Page>Client.tsx` where all interactive logic resides[cite: 1].
 - **Routes:** `/` (Home), `/services`, `/thenarrative`, `/methodology`, `/contact`, `/projectarchive`, `/archivecatalogue`, `/tier-1`, `/tier-2`, `/tier-3`, `/login`, `/adminportal`.
-- **Entry Sequence:** `layout.tsx` → `<Providers>` → `<ClientShell>` → `<Layout>`[cite: 1]. Content stays hidden until `<IntroLoader>` completes its global fade-in animation[cite: 1]. `<RotateNotice>` renders globally and is visibility-controlled by a CSS landscape media query. `<InspectionLoader>` is a page-level full-screen loader (grain video + J-logo) used by Tier and Archive pages to gate their assemble animations.
+- **Entry Sequence:** `layout.tsx` → `<Providers>` → `<ClientShell>` → `<Layout>`[cite: 1]. Content stays hidden until `<IntroLoader>` completes its global fade-in animation[cite: 1]. `<RotateNotice>` renders globally and is visibility-controlled by a CSS landscape media query. `<InspectionLoader>` is a page-level full-screen loader (designed loading-screen video + corner J-logo, via the shared `<LoaderScreen>`) used by Tier and Archive pages to gate their assemble animations.
 
 ---
 
@@ -93,7 +93,7 @@ To minimize token consumption and keep interactions fast, **YOU MUST** follow th
 - Renders in `ClientShell` at all times; shown/hidden purely by a CSS media query `(orientation: landscape) and (max-height: 500px)`. Targets phones held sideways only — never tablets or desktop. No JS rotation API (iOS doesn't support it). Do not add JS logic here.
 
 ### `InspectionLoader` — page-level asset gate
-- Full-screen overlay (grain video + J-logo + loader text). Driven by a `show` prop; `AnimatePresence` fades it out once parent assets are ready. `onExited` callback lets the parent start its assemble animation only *after* the fade completes. Used by Tier and Archive pages.
+- Full-screen overlay. Renders the shared **`<LoaderScreen>`** (`/public/loading-screen.mp4` full-bleed, fading in on `canplay` for slow networks, + glitching J-logo pinned **bottom-right**; the old grain bg + centred "loading…" text were removed 2026-07-20). Driven by a `show` prop; `AnimatePresence` fades it out once parent assets are ready. `onExited` callback lets the parent start its assemble animation only *after* the fade completes. Used by Tier and Archive pages. **The archive-catalogue page loader and focus-view asset loader (`ArchiveClient`) use the same `<LoaderScreen>`.** `label` prop is retained on `InspectionLoader` for API compatibility but no longer rendered. NOTE: the focus-view **ambient desktop grain background** (over the wallpaper) is NOT a loader and stays grain.
 
 ### Mobile horizontal-scroll background — `ServicesClient`, `ProjectArchiveClient`
 - Wide landscape bg shown full-height, scrolled horizontally on mobile.

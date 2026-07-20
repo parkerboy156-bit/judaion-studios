@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { useRouter } from "next/navigation";
 import PdfReader from "./PdfReader";
+import LoaderScreen from "./LoaderScreen";
 
 const VIDEO_EXTS = ["mp4", "webm", "ogg"];
 const isVideoUrl = (url: string) =>
@@ -355,6 +356,28 @@ function OpenFolderView({
   const [descOpen, setDescOpen] = useState(false);
   const sheetDrag = useDragControls();
 
+  // Desktop left-pane scroll cue — a down-chevron shown while the description
+  // overflows and isn't yet scrolled to the bottom (hidden otherwise). Signals
+  // that more copy continues beneath the pinned gradient footer.
+  const descScrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollCue, setShowScrollCue] = useState(false);
+  const updateScrollCue = () => {
+    const el = descScrollRef.current;
+    if (!el) return;
+    const scrollable = el.scrollHeight > el.clientHeight + 8;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    setShowScrollCue(scrollable && !atBottom);
+  };
+  useEffect(() => {
+    const raf = requestAnimationFrame(updateScrollCue);
+    window.addEventListener("resize", updateScrollCue);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updateScrollCue);
+    };
+    // Recompute when the folder (and thus the description) changes.
+  }, [folder.id]);
+
   // True once the open spring finishes — defers expensive paint (blurred bg) to fix open-lag.
   const [settled, setSettled] = useState(false);
 
@@ -574,71 +597,56 @@ function OpenFolderView({
         "—",
     },
   ];
-  const folderMeta = (
-    <>
-      {/* Separator between the description and the info footer */}
-      <div className="mt-10 border-t border-white/15" />
-      <div
-        className="mt-6 relative overflow-hidden rounded-sm border border-white/15"
-        style={{
-          backgroundImage: "url('/archive-header.avif')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+  // Info fields row ("i" icon + Author/Category/Upload/Type). Shared by the
+  // mobile sheet card (folderMeta) and the desktop left-pane pinned footer.
+  const folderMetaInner = (
+    <div className="relative z-10 flex items-center gap-5 px-9 py-6 min-w-0">
+      {/* Info "i" icon */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        className="shrink-0 text-white/70"
       >
-        <div className="absolute inset-0 bg-black/65 pointer-events-none" />
-        <div className="relative z-10 flex items-center gap-5 px-5 py-4 min-w-0">
-          {/* Info "i" icon */}
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="shrink-0 text-white/70"
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="1.4"
-            />
-            <line
-              x1="12"
-              y1="11"
-              x2="12"
-              y2="16.5"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-            <circle cx="12" cy="7.75" r="1" fill="currentColor" />
-          </svg>
-          {/* Divider-separated fields; scrolls horizontally when they exceed the
-            pane. pb keeps the values off the horizontal scrollbar. */}
-          <div className="desc-scroll flex items-stretch gap-4 overflow-x-auto min-w-0 pb-3">
-            {infoFields.map((f, i) => (
-              <React.Fragment key={f.title}>
-                {i > 0 && (
-                  <div className="w-px self-stretch bg-white/20 shrink-0" />
-                )}
-                <div className="flex flex-col gap-1 shrink-0">
-                  <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
-                    {f.title}
-                  </span>
-                  <span className="font-brand-bold text-[11px] uppercase tracking-[0.06em] text-white/90 whitespace-nowrap">
-                    {f.value}
-                  </span>
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" />
+        <line
+          x1="12"
+          y1="11"
+          x2="12"
+          y2="16.5"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <circle cx="12" cy="7.75" r="1" fill="currentColor" />
+      </svg>
+      {/* Divider-separated fields; scrolls horizontally when they exceed the
+        pane. pb keeps the values off the horizontal scrollbar. */}
+      <div className="desc-scroll flex items-stretch gap-4 overflow-x-auto min-w-0 pb-3">
+        {infoFields.map((f, i) => (
+          <React.Fragment key={f.title}>
+            {i > 0 && (
+              <div className="w-px self-stretch bg-white/20 shrink-0" />
+            )}
+            <div className="flex flex-col gap-1 shrink-0">
+              <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
+                {f.title}
+              </span>
+              <span className="font-brand-bold text-[11px] uppercase tracking-[0.06em] text-white/90 whitespace-nowrap">
+                {f.value}
+              </span>
+            </div>
+          </React.Fragment>
+        ))}
       </div>
-      {/* Divider under the metatags. */}
-      <div className="mt-6 border-t border-white/15" />
-    </>
+    </div>
   );
+
+  // Mobile sheet metadata — solid-black fields band, formatted to match the
+  // desktop left-pane footer (no gradient/scrim). Rendered full-bleed & flush at
+  // the bottom of the sheet's scroll content.
+  const folderMeta = <div className="bg-black">{folderMetaInner}</div>;
 
   // Folder description copy — shared by the desktop left pane and the mobile
   // slide-up sheet (per-folder, falling back to project content).
@@ -721,27 +729,6 @@ function OpenFolderView({
             <span className="text-white truncate">{folder.title}</span>
           </div>
           <div className="flex items-center gap-4 shrink-0 ml-4">
-            {/* Description toggle — mobile only; opens the slide-up sheet.
-                Hidden while an asset is enlarged (focus stays on the asset). */}
-            {!enlarged && (
-              <button
-                onClick={() => setDescOpen((v) => !v)}
-                aria-label="Folder description"
-                className="lg:hidden flex items-center justify-center text-white/70 hover:text-white transition-colors duration-150 cursor-pointer"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                >
-                  <path d="M5 6h14M5 10h14M5 14h9M5 18h9" />
-                </svg>
-              </button>
-            )}
             <button
               onClick={onClose}
               aria-label="Close folder"
@@ -752,9 +739,13 @@ function OpenFolderView({
           </div>
         </div>
 
-        {/* ── BODY — description + assets panes; mobile shows assets first. ── */}
+        {/* ── BODY — description + assets panes; mobile shows assets first. While
+            an asset is enlarged, the mobile body stops scrolling so the zoom
+            viewport can resolve a full height (no bottom gap). ── */}
         <div
-          className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
+          className={`relative flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden ${
+            enlarged ? "overflow-hidden" : "overflow-y-auto"
+          }`}
           style={{ scrollbarWidth: "none" }}
         >
           {/* ── LEFT PANEL — folder description + metadata; desktop only (mobile
@@ -778,20 +769,61 @@ function OpenFolderView({
               {/* Vertical gradient — darker at the bottom, lighter toward the top. */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/45 to-black/15" />
             </motion.div>
-            {/* min-h-full + flex-col: footer pins to the bottom when short, scrolls when long. */}
+            {/* Scrolling description — bottom padding clears the pinned footer
+                so long copy scrolls beneath it. */}
             <div
+              ref={descScrollRef}
+              onScroll={updateScrollCue}
               className="relative z-10 min-h-full lg:h-full lg:overflow-y-auto flex flex-col"
               style={{ scrollbarWidth: "none" }}
             >
-              <div className="flex-1 px-7 lg:px-10 pt-[96px] lg:pt-[104px] pb-10 lg:pb-12">
+              <div className="flex-1 px-7 lg:px-10 pt-[96px] lg:pt-[104px] pb-28">
                 {/* Per-folder description — falls back to project content. */}
                 {descHeading}
                 {descParagraph}
-
-                {/* Metadata — moved here from the removed right-pane cards */}
-                {folderMeta}
               </div>
-              {/* Left-pane footer intentionally empty (copyright lives in the status bar). */}
+            </div>
+            {/* Scroll cue — pulsing chevron; visible only while the description
+                overflows and isn't scrolled to the bottom. */}
+            <AnimatePresence>
+              {showScrollCue && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.75, y: [0, 5, 0] }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    opacity: { duration: 0.3 },
+                    y: { duration: 1.6, repeat: Infinity, ease: "easeInOut" },
+                  }}
+                  className="absolute bottom-23 left-1/2 -translate-x-1/2 z-30 pointer-events-none text-white/80"
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Pinned info footer. The fade scrim above the fields dissolves the
+                copy while more remains below, then fades away once you reach the
+                bottom (so the last lines are fully readable). The fields sit on a
+                solid backing and stay put. Scrim is click-through so wheel-scroll
+                reaches the copy beneath it. */}
+            <div className="absolute bottom-0 inset-x-0 z-20 pointer-events-none">
+              <motion.div
+                animate={{ opacity: showScrollCue ? 1 : 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="absolute bottom-full inset-x-0 h-35 bg-gradient-to-t from-black to-transparent"
+              />
+              <div className="pointer-events-auto bg-black">{folderMetaInner}</div>
             </div>
           </div>
 
@@ -857,7 +889,7 @@ function OpenFolderView({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="relative w-full h-[70vh] lg:h-full overflow-hidden flex items-center justify-center"
+                  className="relative w-full h-full overflow-hidden flex items-center justify-center"
                 >
                   <motion.img
                     src={enlarged.url}
@@ -952,6 +984,29 @@ function OpenFolderView({
                 </div>
               )}
             </div>
+
+            {/* Mobile description launcher — blurred square pinned bottom-right,
+                floats over the assets (hidden while an asset is enlarged). Same
+                bg-blur as the title bar. Opens the slide-up description sheet. */}
+            {!enlarged && (
+              <button
+                onClick={() => setDescOpen((v) => !v)}
+                aria-label="Folder description"
+                className="lg:hidden absolute bottom-4 right-4 z-40 h-11 w-11 flex items-center justify-center bg-black/75 backdrop-blur-md border border-white/12 rounded-sm text-white/75 hover:text-white transition-colors duration-150 cursor-pointer"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M5 6h14M5 10h14M5 14h9M5 18h9" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
@@ -998,7 +1053,7 @@ function OpenFolderView({
                 {/* Scrollable content — the background lives INSIDE the scroll
                     flow (inner relative wrapper) so it travels with the text
                     instead of staying a fixed backdrop. */}
-                <div className="relative z-10 desc-scroll overflow-y-auto flex-1">
+                <div className="relative z-10 desc-scroll overflow-y-auto overscroll-y-none flex-1">
                   <div className="relative">
                     {/* Designed bg + gradient — matches the desktop left pane;
                         as tall as the content, so it scrolls with it. */}
@@ -1013,9 +1068,11 @@ function OpenFolderView({
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/30" />
                     </div>
-                    <div className="relative z-10 px-6 pt-12 pb-8">
-                      {descHeading}
-                      {descParagraph}
+                    <div className="relative z-10">
+                      <div className="px-6 pt-12 pb-8">
+                        {descHeading}
+                        {descParagraph}
+                      </div>
                       {folderMeta}
                     </div>
                   </div>
@@ -1034,16 +1091,9 @@ function OpenFolderView({
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="absolute inset-x-0 top-11 bottom-0 z-20 bg-[#060606] flex flex-col items-center justify-center gap-5"
+              className="absolute inset-x-0 top-11 bottom-0 z-20 bg-[#060606] flex items-center justify-center"
             >
-              <img
-                src="/j-logo.svg"
-                alt="Loading"
-                className="loader-j opacity-80"
-              />
-              <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/70">
-                {folder.title}
-              </span>
+              <img src="/j-logo.svg" alt="Loading" className="loader-j" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1754,25 +1804,8 @@ export default function ArchiveCatalogue({
 
   if (loading)
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-black">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-20"
-        >
-          <source
-            src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
-            type="video/mp4"
-          />
-        </video>
-        <img
-          src="/j-logo.svg"
-          alt="Loading"
-          className="loader-j opacity-80 relative z-10"
-        />
-        <span className="loader-text-catalogue font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black">
+        <LoaderScreen textClassName="loader-text-catalogue" />
       </div>
     );
 
@@ -1920,7 +1953,7 @@ export default function ArchiveCatalogue({
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/10"
+                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/10 cursor-default select-none"
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -1948,7 +1981,7 @@ export default function ArchiveCatalogue({
                     </div>
                   )}
                   {/* Hover overlay with title */}
-                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-6">
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-6">
                     <p className="font-brand-other text-white text-[16px] uppercase tracking-[0.15em] leading-tight text-center">
                       {item.title}
                     </p>
@@ -1962,7 +1995,7 @@ export default function ArchiveCatalogue({
               {filtered.map((item, index) => (
                 <div
                   key={item.id}
-                  className={`group relative overflow-hidden bg-[#111] border border-white/10 ${index % 5 === 0 ? "col-span-2" : ""}`}
+                  className={`group relative overflow-hidden bg-[#111] border border-white/10 select-none ${index % 5 === 0 ? "col-span-2" : ""}`}
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -2032,28 +2065,11 @@ export default function ArchiveCatalogue({
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="absolute inset-0 z-[260] flex flex-col items-center justify-center gap-6 bg-black"
+                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black"
                   >
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
-                    >
-                      <source
-                        src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
-                        type="video/mp4"
-                      />
-                    </video>
-                    <img
-                      src="/j-logo.svg"
-                      alt="Loading"
-                      className="loader-j opacity-80 relative z-10"
-                    />
-                    <span
-                      data-title={selectedProject.title}
-                      className="loader-title font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10 text-center px-6"
+                    <LoaderScreen
+                      textClassName="loader-title"
+                      label={selectedProject.title}
                     />
                   </motion.div>
                 )}

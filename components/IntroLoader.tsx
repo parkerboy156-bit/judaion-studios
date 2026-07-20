@@ -30,9 +30,9 @@ export default function IntroLoader({
     }
   };
   const mobileVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/V2.0JDS%20Introloader%20ALT%20Mobile.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/V1.2%20JDS-IntroLoader-Mobile";
   const desktopVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS%20Introloader%20ALT.mp4";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS-Introloader-ALT.mp4";
   const [activeVideoSrc, setActiveVideoSrc] = useState(desktopVideoSrc);
 
   useEffect(() => {
@@ -134,17 +134,26 @@ export default function IntroLoader({
                 autoPlay
                 loop
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover opacity-20 "
+                className="absolute inset-0 w-full h-full object-cover opacity-50"
               >
                 <source
-                  src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+                  src="dust-overlay.mp4"
                   type="video/mp4"
                 />
               </video>
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                <img src="/j-logo.svg" alt="Loading" className="loader-j opacity-80 relative z-10" />
-                <span className="loader-text-authority font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80 relative z-10" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Full wordmark reveal — blur-fades in, holds, then fades out
+                    with the layer as the video takes over. */}
+                <motion.img
+                  src="/judaion-logo-white.svg"
+                  alt="JUDAION"
+                  initial={{ opacity: 0, filter: "blur(24px)" }}
+                  animate={{ opacity: 1, filter: "blur(0px)" }}
+                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ aspectRatio: "986.58 / 322.15" }}
+                  className="w-[70vw] max-w-[460px] h-auto relative z-10"
+                />
               </div>
             </motion.div>
           )}
@@ -165,18 +174,22 @@ export default function IntroLoader({
             initial={{ opacity: 0, x: 20 }}
             animate={showNavigation ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 2, ease: "easeOut" }}
-            className="absolute top-12 right-12 z-[1001] flex flex-row-reverse items-center gap-5 group cursor-pointer pointer-events-auto intro-nav-mobile"
+            className="absolute top-12 right-12 z-[1001] group cursor-pointer pointer-events-auto intro-nav-mobile"
             onClick={handleEntry}
           >
-            <motion.img
-              src="/start-the-tour.webp"
-              className="w-30 h-auto opacity-70 group-hover:opacity-100 transition-all duration-700"
-              animate={{ y: [0, -5, 0] }}
+            <motion.div
+              className="flex flex-row-reverse items-center gap-5 group-hover:translate-x-2 transition-transform duration-700"
+              animate={{ x: [0, 5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            />
-                    <span className="lg:inline font-brand-secondary-thin text-[10px] tracking-[0.4em] uppercase text-white/50">
-                      [Begin the Tour]
-                    </span>
+            >
+              <img
+                src="/start-the-tour.webp"
+                className="w-30 h-auto opacity-70 group-hover:opacity-100 transition-opacity duration-700"
+              />
+              <span className="lg:inline font-brand-secondary-thin text-[10px] tracking-[0.4em] uppercase text-white/50">
+                [Begin the Tour]
+              </span>
+            </motion.div>
           </motion.div>
 
           <video
