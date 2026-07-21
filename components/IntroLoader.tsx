@@ -30,7 +30,7 @@ export default function IntroLoader({
     }
   };
   const mobileVideoSrc =
-    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/V1.2%20JDS-IntroLoader-Mobile";
+    "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS-Introloader-ALT-Mobile.mp4";
   const desktopVideoSrc =
     "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS-Introloader-ALT.mp4";
   const [activeVideoSrc, setActiveVideoSrc] = useState(desktopVideoSrc);
@@ -58,7 +58,7 @@ export default function IntroLoader({
 
     // 1. Establish separate delay constants
     const DESKTOP_NAV_DELAY = 3000;
-    const MOBILE_NAV_DELAY = 5000; // Increased delay for mobile
+    const MOBILE_NAV_DELAY = 4500; // Increased delay for mobile
 
     const bootTimer = setTimeout(() => {
       setIsFinished(true);
@@ -72,7 +72,7 @@ export default function IntroLoader({
       }, finalDelay);
 
       return () => clearTimeout(navTimer);
-    }, 2200);
+    }, 4200);
 
     return () => clearTimeout(bootTimer);
   }, [shouldShow]);
@@ -85,26 +85,21 @@ export default function IntroLoader({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isFinished) return;
-    // The clip opens with an epilepsy warning that must be seen in full — so it
-    // must NOT play behind the grain/"establishing authority" overlay. autoPlay
-    // (kept on the element for reliable iOS unlock) means it's been running
-    // hidden, so here we rewind it to frame 0 and only begin playback once the
-    // overlay has cleared. This is also the backup play() that taller iPhones
-    // need when their muted autoplay is deferred.
+    // The intro clip now opens with a ~1s BLACK lead-in before the epilepsy
+    // warning (which starts at 00:00:01:00 / 1.0s). So at handover we rewind to
+    // frame 0 and play IMMEDIATELY: the grain crossfades out (0.6s) over that
+    // black runway, we reveal the *playing* black video (not the static poster,
+    // which caused the old lighter wash), and the warning lands ~0.4s later —
+    // fully in view, at full opacity. (Replaces the old REVEAL_MS delay hack.)
+    // autoPlay is kept on the element for reliable iOS unlock; this rewind+play
+    // is also the backup for taller iPhones whose muted autoplay is deferred.
     video.pause();
     video.currentTime = 0;
-    // ~ how long until the grain overlay has faded and the video is on screen.
-    // Bump this up if the warning is still partially clipped by the fade.
-    const REVEAL_MS = 900;
-    const startTimer = setTimeout(() => {
-      video.currentTime = 0;
-      video.muted = true; // re-assert before play — Safari blocks autoplay otherwise
-      video.play().catch(() => {
-        // Autoplay blocked (e.g. Low Power Mode) — leave the poster up so the
-        // intro reads as branded, not broken. User still enters via the nav.
-      });
-    }, REVEAL_MS);
-    return () => clearTimeout(startTimer);
+    video.muted = true; // re-assert before play — Safari blocks autoplay otherwise
+    video.play().catch(() => {
+      // Autoplay blocked (e.g. Low Power Mode) — leave the poster up so the
+      // intro reads as branded, not broken. User still enters via the nav.
+    });
   }, [isFinished, activeVideoSrc]);
 
   if (!shouldShow) return null;
@@ -120,13 +115,9 @@ export default function IntroLoader({
           {!isFinished && (
             <motion.div
               key="grain-signal"
-              initial={{ opacity: 1, scale: 1 }}
-              exit={{
-                opacity: 0,
-                scale: 1.1,
-                filter: "brightness(1.8) blur(10px)",
-              }}
-              transition={{ duration: 1.2, ease: [0.76, 0, 0.24, 1] }}
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
               className="absolute inset-0 z-[1010] bg-black"
             >
               <video
@@ -134,7 +125,7 @@ export default function IntroLoader({
                 autoPlay
                 loop
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover opacity-50"
+                className="absolute inset-0 w-full h-full object-cover opacity-80"
               >
                 <source
                   src="dust-overlay.mp4"
@@ -142,18 +133,10 @@ export default function IntroLoader({
                 />
               </video>
 
-              <div className="absolute inset-0 flex items-center justify-center">
-                {/* Full wordmark reveal — blur-fades in, holds, then fades out
-                    with the layer as the video takes over. */}
-                <motion.img
-                  src="/judaion-logo-white.svg"
-                  alt="JUDAION"
-                  initial={{ opacity: 0, filter: "blur(24px)" }}
-                  animate={{ opacity: 1, filter: "blur(0px)" }}
-                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ aspectRatio: "986.58 / 322.15" }}
-                  className="w-[70vw] max-w-[460px] h-auto relative z-10"
-                />
+              {/* Single-line loader — bottom-left animated dots, same
+                  treatment as the site’s other loaders. */}
+              <div className="absolute bottom-8 left-8 lg:bottom-10 lg:left-10 z-10">
+                <span className="loader-text-intro font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
               </div>
             </motion.div>
           )}
@@ -166,7 +149,7 @@ export default function IntroLoader({
               ? { scale: 1, opacity: 1, filter: "blur(0px)" }
               : { scale: 1.05, opacity: 0, filter: "blur(20px)" }
           }
-          transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative w-full h-screen flex items-center justify-center"
         >
           {/* NAVIGATION */}
@@ -215,7 +198,7 @@ export default function IntroLoader({
             style={{
               opacity: posterShown ? 0.9 : 0,
               pointerEvents: posterShown ? "auto" : "none",
-              transition: "opacity 0.6s ease",
+              transition: "opacity 0.3s ease",
             }}
             className="absolute inset-0 w-full h-full object-cover mix-blend-screen z-[5] cursor-pointer"
           />
