@@ -7,6 +7,8 @@ import {
   useTransform,
   useScroll,
   AnimatePresence,
+  animate,
+  type PanInfo,
 } from "framer-motion";
 import * as React from "react";
 // Same background is used for desktop AND mobile.
@@ -79,6 +81,63 @@ export default function MethodologyPage() {
   );
 
   const [isZoomed, setIsZoomed] = React.useState(false);
+
+  // Drag range measured live from the track (last card's right edge vs. viewport) so it stays correct at any zoom or window width.
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const trackX = useMotionValue(0);
+  const [dragLeft, setDragLeft] = React.useState(0);
+  // Card-aligned resting positions the carousel snaps to on release.
+  const snapPointsRef = React.useRef<number[]>([0]);
+  React.useEffect(() => {
+    if (!showProcess || isMobile) return;
+    const track = trackRef.current;
+    if (!track) return;
+    const measure = () => {
+      const cards = track.children;
+      const last = cards[cards.length - 1] as HTMLElement | undefined;
+      if (!last) return;
+      const padLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+      const lastRight = last.offsetLeft + last.offsetWidth;
+      const min = -Math.max(0, lastRight - track.clientWidth + padLeft);
+      setDragLeft(min);
+      // Pitch (card + gap) read from the layout; snap targets are every card position plus the exact end.
+      const first = cards[0] as HTMLElement;
+      const second = cards[1] as HTMLElement | undefined;
+      const pitch = second ? second.offsetLeft - first.offsetLeft : -min || 1;
+      const points: number[] = [];
+      for (let p = 0; p > min + 1; p -= pitch) points.push(p);
+      if (points[points.length - 1] !== min) points.push(min);
+      snapPointsRef.current = points;
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(track);
+    return () => ro.disconnect();
+  }, [showProcess, isMobile]);
+
+  const nearestSnapIndex = (val: number) => {
+    const pts = snapPointsRef.current;
+    let idx = 0;
+    let best = Infinity;
+    pts.forEach((p, i) => {
+      const d = Math.abs(p - val);
+      if (d < best) {
+        best = d;
+        idx = i;
+      }
+    });
+    return idx;
+  };
+
+  // Snap-on-release: settles to the nearest card (or one card in the flick direction) with a heavy, bounce-free spring.
+  const handleCarouselDragEnd = (_e: unknown, info: PanInfo) => {
+    const pts = snapPointsRef.current;
+    const FLICK = 400; // px/s — a flick past this advances a whole card
+    let idx = nearestSnapIndex(trackX.get());
+    if (info.velocity.x < -FLICK) idx = Math.min(idx + 1, pts.length - 1);
+    else if (info.velocity.x > FLICK) idx = Math.max(idx - 1, 0);
+    animate(trackX, pts[idx], { type: "spring", stiffness: 400, damping: 46, mass: 1.3 });
+  };
 
   React.useEffect(() => {
     if (isMobile) {
@@ -203,25 +262,25 @@ export default function MethodologyPage() {
     {
       id: "01",
       title: "Extraction",
-      text: "We deep-dive into your business via our strategic questionnaire to extract your core DNA.",
+      text: "We interrogate your business through a structured brand strategy questionnaire, surfacing the raw insight your identity has to be built on.",
       img: "/extraction",
     },
     {
       id: "02",
       title: "Blueprint",
-      text: "We translate the raw data into a strategic visual anchor, used to guide the execution phase.",
+      text: "Raw findings become a strategic brand blueprint, the visual reference every design decision in execution is measured against.",
       img: "/blue-print",
     },
     {
       id: "03",
       title: "Execution",
-      text: "The development cycle, constant internal review against original objectives and presentation of logic-backed designs.",
+      text: "Brand identity design developed and reviewed at every stage against the original brief and blueprint, every decision logic-backed, nothing shipped without reason.",
       img: "/execution",
     },
     {
       id: "04",
       title: "Handover",
-      text: "The structural signature is locked. Assets are released for deployment following the final clearnace of the balance.",
+      text: "Final brand assets, signed off and delivered. Assets are released for deployment following the final clearance of the balance.",
       img: "/handover",
     },
   ];
@@ -727,42 +786,19 @@ export default function MethodologyPage() {
                   animate={{ y: "0%", opacity: 1 }}
                   exit={{ y: "100%", opacity: 0 }}
                   transition={{ type: "spring", damping: 25, stiffness: 120 }}
-                  className="fixed inset-0 w-screen h-screen bg-black/90 backdrop-blur-sm z-[100] flex flex-col overflow-y-auto overscroll-contain"
+                  className="fixed inset-0 w-screen h-screen bg-black/80 backdrop-blur-sm z-[100]"
                 >
-                  {/* Sticky header — close on the LEFT (contact-page formatting) */}
-                  <div className="sticky top-0 z-10 flex items-center px-8 pt-25 pb-5">
-                    <button
-                      onClick={() => setShowProcess(false)}
-                      aria-label="Close"
-                      className="flex items-center text-white/70 hover:text-white transition-colors cursor-pointer"
-                    >
-                      {/* Custom chevron — sharp corner (miter) + sharp/long ends.
-                          Lengthen arms: edit the path. Thickness: strokeWidth. */}
-                      <svg
-                        width="8"
-                        height="44"
-                        viewBox="0 0 26 44"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="6"
-                        strokeLinecap="square"
-                        strokeLinejoin="miter"
-                      >
-                        <path d="M22 2 L4 22 L22 42" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Stacked cards */}
-                  <div className="flex flex-col gap-5 px-8 pb-16">
-                    {STEPS.map((step) => (
+                  {/* Scrollable cards region (the scrim + back button below are pinned siblings, not part of this scroll). */}
+                  <div className="absolute inset-0 overflow-y-auto overscroll-contain">
+                    <div className="flex flex-col gap-5 px-8 pt-38 pb-16">
+                    {STEPS.map((step, i) => (
                       <div
                         key={step.id}
-                        className="group w-full h-[46vh] flex flex-col justify-end overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] rounded-sm duration-900"
+                        className="group w-full h-[46vh] flex flex-col justify-end overflow-hidden relative border border-white/20 border-[1px] duration-900"
                       >
                         <div className="absolute inset-0 z-0">
-                          {/* Real <img> (AVIF→WEBP) decodes async — no progressive
-                              "scanner" load like the old large background PNG. */}
+                          {/* AVIF→WEBP; only the first (visible-on-open) card loads
+                              eagerly, the rest lazy-load as the user scrolls. */}
                           <picture>
                             <source
                               srcSet={`${step.img}.avif`}
@@ -772,7 +808,8 @@ export default function MethodologyPage() {
                               src={`${step.img}.webp`}
                               alt=""
                               decoding="async"
-                              loading="eager"
+                              loading={i === 0 ? "eager" : "lazy"}
+                              fetchPriority={i === 0 ? "high" : "auto"}
                               className="absolute inset-0 w-full h-full object-cover"
                             />
                           </picture>
@@ -800,16 +837,37 @@ export default function MethodologyPage() {
                           <h3 className="text-white text-[30px] tracking-[0.3em] uppercase mb-3 font-brand-other">
                             {step.title}
                           </h3>
-                          <p className="text-white/50 text-[12px] leading-relaxed font-brand-secondary-thin text-justify">
-                            <span className="font-brand-cn text-[16px] text-orange-600">
-                              *{" "}
-                            </span>
+                          <p className="text-white/65 text-[12px] tracking-[0em] leading-relaxed font-brand-secondary-thin text-justify">
                             {step.text}
                           </p>
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
+
+                  {/* Top gradient scrim — its own pinned layer above the scrolling cards. */}
+                  <div className="absolute top-0 inset-x-0 z-[15] h-40 bg-gradient-to-b from-black via-black/85 to-transparent pointer-events-none" />
+
+                  {/* Back button — pinned top-left, above the scrim. */}
+                  <button
+                    onClick={() => setShowProcess(false)}
+                    aria-label="Close"
+                    className="absolute top-20 left-8 z-20 flex items-center text-white/90 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <svg
+                      width="8"
+                      height="44"
+                      viewBox="0 0 26 44"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="6"
+                      strokeLinecap="square"
+                      strokeLinejoin="miter"
+                    >
+                      <path d="M22 2 L4 22 L22 42" />
+                    </svg>
+                  </button>
                 </motion.div>
               ) : (
                 /* ░░░ DESKTOP — horizontal drag carousel ░░░ */
@@ -843,24 +901,23 @@ export default function MethodologyPage() {
                   </div>
 
                   <motion.div
+                    ref={trackRef}
                     drag="x"
-                    dragConstraints={{ left: -1050, right: 0 }}
-                    dragTransition={{
-                      power: 0.1,
-                      timeConstant: 350,
-                      modifyTarget: (target) => Math.round(target),
-                    }}
-                    dragElastic={0.05}
+                    style={{ x: trackX }}
+                    dragConstraints={{ left: dragLeft, right: 0 }}
+                    dragElastic={0}
+                    dragMomentum={false}
+                    onDragEnd={handleCarouselDragEnd}
                     className="relative z-10 flex space-x-6 px-12 cursor-grab active:cursor-grabbing mb-12"
                   >
-                    {STEPS.map((step) => (
+                    {STEPS.map((step, i) => (
                       <div
                         key={step.id}
-                        className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] rounded-sm duration-900 cursor-grab active:cursor-grabbing"
+                        className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[1px] duration-900 cursor-grab active:cursor-grabbing"
                       >
                         <div className="absolute inset-0 z-0">
-                          {/* Real <img> (AVIF→WEBP) decodes async — no progressive
-                              "scanner" load like the old large background PNG. */}
+                          {/* AVIF→WEBP; only the first (visible-on-open) card loads
+                              eagerly, the rest lazy-load as the user drags. */}
                           <picture>
                             <source
                               srcSet={`${step.img}.avif`}
@@ -870,7 +927,8 @@ export default function MethodologyPage() {
                               src={`${step.img}.webp`}
                               alt=""
                               decoding="async"
-                              loading="eager"
+                              loading={i === 0 ? "eager" : "lazy"}
+                              fetchPriority={i === 0 ? "high" : "auto"}
                               className="absolute inset-0 w-full h-full object-cover"
                             />
                           </picture>
@@ -895,15 +953,17 @@ export default function MethodologyPage() {
                           />
                         </div>
                         <div className="relative z-10 flex flex-col justify-end h-full p-8">
-                          <h3 className="text-white text-[55px] tracking-[0.55em] uppercase mb-4 font-brand-other flex items-center">
+                          <h3 className="text-white text-[55px] tracking-[0.55em] uppercase font-brand-other flex items-center">
                             {step.title}
                           </h3>
-                          <p className="text-white/50 text-[19px] tracking-[0em] leading-relaxed font-brand-secondary-thin text-justify">
-                            <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
-                              *{" "}
-                            </span>
-                            {step.text}
-                          </p>
+                          {/* Description collapses off-hover so the title sits at the bottom; hover expands the row, sliding the title up as the text fades in. */}
+                          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-800 ease-out">
+                            <div className="overflow-hidden">
+                              <p className="text-white/50 text-[15px] tracking-[0em] leading-relaxed font-brand-secondary-thin text-justify pt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                                {step.text}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -940,8 +1000,8 @@ export default function MethodologyPage() {
               {isMobile
                 ? "Tap to view methodology"
                 : isZoomed
-                  ? "Scroll Down to Exit"
-                  : "Scroll Up to Inspect"}
+                  ? "Scroll Down to Zoom out"
+                  : "Scroll Up to Zoom in"}
             </span>
           </motion.div>
 

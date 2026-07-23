@@ -366,7 +366,7 @@ export default function Tier3() {
                 </div>
               </div>
 
-              <div className="flex flex-col w-full pb-3">
+              <div className="flex flex-col w-full pb-6">
                 {deliverables.map((item, index) => (
                   <motion.div
                     key={index}
@@ -382,7 +382,7 @@ export default function Tier3() {
                     </div>
                     <div className="w-full lg:w-[65%] flex flex-col gap-2 pl-0 lg:pl-4">
                       {item.details.map((detail, i) => (
-                        <p key={i} className="text-white/70 font-brand-secondary-thin text-[12px] leading-[1.5]">
+                        <p key={i} className="text-white/70 font-brand-secondary-thin text-[12px] leading-[1.5] text-justify">
                           {detail}
                         </p>
                       ))}

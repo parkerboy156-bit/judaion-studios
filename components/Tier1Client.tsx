@@ -317,7 +317,7 @@ export default function Tier1() {
                       {item.details.map((detail, i) => (
                         <p
                           key={i}
-                          className="text-white/70 font-brand-secondary-thin text-[13px] leading-[1.5]"
+                          className="text-white/70 font-brand-secondary-thin text-[13px] leading-[1.5] text-justify"
                         >
                           {detail}
                         </p>

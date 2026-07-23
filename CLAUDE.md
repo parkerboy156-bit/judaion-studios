@@ -31,6 +31,7 @@ To maximize code quality and prevent technical debt, you must follow these cogni
 4. **Mobile-First & Resolution Awareness:** Every UI change must account for the `<1024px` (mobile) breakpoint. Before marking any task complete, mentally verify that the change looks correct and is usable at mobile widths. If a change only makes sense at desktop, flag the mobile behaviour explicitly. Additionally, actively scan touched code for CSS that is brittle at non-standard resolutions — hardcoded `px` heights on fluid containers, fixed widths that will overflow, viewport-unit assumptions that break on ultrawide or small laptop screens, and magic numbers with no responsive fallback. Flag any found, explain why they will break, and suggest the fix (e.g. `min-h` instead of `h`, `clamp()`, `max-w` guards, or responsive Tailwind variants).
 5. **Proactive Optimization Checks:** Before delivering code, review it for asset optimization (e.g., proper Next.js image loading, bypassing Vercel body limits via presigned URLs) and token usage[cite: 1].
 6. **Architectural Cohesion:** Ensure components remain modular and semantic. Maintain strict data-flow separation: logic stays in the client shells, while routing/metadata stays in the server pages[cite: 1].
+7. **Terse Comments Only:** When adding a new feature or fix, comment it with ONE short descriptive sentence max — never a multi-line block explaining the reasoning, alternatives considered, or history. If a comment needs more than one line, the code needs a clearer name instead.
 
 ---
 

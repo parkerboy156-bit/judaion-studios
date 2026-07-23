@@ -609,7 +609,13 @@ function OpenFolderView({
         fill="none"
         className="shrink-0 text-white/70"
       >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" />
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="1.4"
+        />
         <line
           x1="12"
           y1="11"
@@ -823,7 +829,9 @@ function OpenFolderView({
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="absolute bottom-full inset-x-0 h-35 bg-gradient-to-t from-black to-transparent"
               />
-              <div className="pointer-events-auto bg-black">{folderMetaInner}</div>
+              <div className="pointer-events-auto bg-black">
+                {folderMetaInner}
+              </div>
             </div>
           </div>
 
@@ -1920,22 +1928,22 @@ export default function ArchiveCatalogue({
 
           <nav
             ref={scrollRef as any}
-            className="archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1"
+            className="relative z-10 archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1"
           >
             {categories.map((cat) => (
               <button
                 key={cat.name}
                 onClick={() => setActiveCategory(cat.name)}
                 data-active={activeCategory === cat.name}
-                className={`text-[18px] font-brand-cn uppercase tracking-widest transition-all duration-300 relative pb-1 cursor-pointer ${
+                className={`text-[18px] font-brand-cn uppercase tracking-widest transition-colors duration-300 relative pb-1 cursor-pointer ${
                   activeCategory === cat.name
-                    ? "text-white/40"
-                    : "text-white/40 hover:text-white"
+                    ? "text-white"
+                    : "text-white/40 hover:text-white/50"
                 }`}
               >
                 {cat.name}
-                {activeCategory === cat.name && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-orange-700" />
+                {activeCategory === "All" && cat.name === "All" && (
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-white" />
                 )}
               </button>
             ))}

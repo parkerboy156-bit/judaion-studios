@@ -122,6 +122,25 @@
   display: none !important;
 }
 
+/* ── VIDEO CONTROLS — kill the native "start playback" / play button that iOS &
+   macOS Safari draw over muted, inline videos when they can't autoplay (slow
+   LTE/data, Low Power Mode, Data Saver). Every <video> on the site is muted &
+   decorative or gated behind an opaque fallback image, so this chrome should
+   NEVER appear — when a video can't play, we want the fallback frame alone, no
+   button. Trade-off: on truly-blocked autoplay a video won't start without a
+   user tap (decorative clips just hold their frame; the intro stays on its
+   fallback still + the "Begin the Tour" nav). ── */
+video::-webkit-media-controls,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* 🏗️ PRESERVATION LOCK */
 .overflow-x-hidden {
   overflow-x: hidden !important;
@@ -1391,8 +1410,8 @@
   61.54%   { content: "compiling identity..."; }
   69.23%   { content: "compiling identity.."; }
   76.92%   { content: "compiling identity..."; }    /* holds 3 dots (0.4s) */
-  92.31%   { content: "Authority established."; }     /* final line types in… */
-  100%     { content: "Authority established.."; }    /* …holds 2 dots; ::after blinks the 3rd */
+  92.31%   { content: "Initiating JUDAION Studios."; }     /* final line types in… */
+  100%     { content: "Initiating JUDAION Studios.."; }    /* …holds 2 dots; ::after blinks the 3rd */
 }
 .loader-text-intro::before {
   content: "navigating the vision.";

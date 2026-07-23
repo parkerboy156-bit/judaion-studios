@@ -11,17 +11,13 @@ export default function IntroLoader({
   const [shouldShow, setShouldShow] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
-  // Poster stays over the video until playback truly starts — so a blocked
-  // autoplay (Low Power Mode etc.) shows branding, never Safari's broken play
-  // button. Hidden the moment the video fires `playing`.
+  // Poster covers the video until playback truly starts, hiding blocked-autoplay/play-button chrome.
   const [posterShown, setPosterShown] = useState(true);
   const desktopPoster = "/intro-frame.avif";
   const mobilePoster = "/intro-frame-mobile.avif";
   const [posterSrc, setPosterSrc] = useState(desktopPoster);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Callback ref: force-mute the instant the node exists. React doesn't reliably
-  // apply the `muted` attribute (esp. via SSR), and Safari refuses muted
-  // autoplay unless the element is *genuinely* muted at play time — this guarantees it.
+  // Force-mutes the video node immediately since Safari blocks autoplay unless it's genuinely muted at play time.
   const setVideoRef = (node: HTMLVideoElement | null) => {
     videoRef.current = node;
     if (node) {
@@ -85,20 +81,12 @@ export default function IntroLoader({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isFinished) return;
-    // The intro clip now opens with a ~1s BLACK lead-in before the epilepsy
-    // warning (which starts at 00:00:01:00 / 1.0s). So at handover we rewind to
-    // frame 0 and play IMMEDIATELY: the grain crossfades out (0.6s) over that
-    // black runway, we reveal the *playing* black video (not the static poster,
-    // which caused the old lighter wash), and the warning lands ~0.4s later —
-    // fully in view, at full opacity. (Replaces the old REVEAL_MS delay hack.)
-    // autoPlay is kept on the element for reliable iOS unlock; this rewind+play
-    // is also the backup for taller iPhones whose muted autoplay is deferred.
+    // Rewinds and plays immediately at handover — the clip's ~1s black lead-in covers the grain crossfade before the epilepsy warning appears.
     video.pause();
     video.currentTime = 0;
     video.muted = true; // re-assert before play — Safari blocks autoplay otherwise
     video.play().catch(() => {
-      // Autoplay blocked (e.g. Low Power Mode) — leave the poster up so the
-      // intro reads as branded, not broken. User still enters via the nav.
+      // Autoplay blocked — poster stays up so entry still reads as branded, not broken.
     });
   }, [isFinished, activeVideoSrc]);
 
@@ -133,8 +121,7 @@ export default function IntroLoader({
                 />
               </video>
 
-              {/* Single-line loader — bottom-left animated dots, same
-                  treatment as the site’s other loaders. */}
+              {/* Single-line loader with animated dots, matching the site's other loaders. */}
               <div className="absolute bottom-8 left-8 lg:bottom-10 lg:left-10 z-10">
                 <span className="loader-text-intro font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/80" />
               </div>
@@ -188,19 +175,17 @@ export default function IntroLoader({
             className="absolute inset-0 w-full h-full object-cover mix-blend-screen pointer-events-none opacity-[0.90]"
           />
 
-          {/* Poster fallback — covers the video until it actually plays, hiding
-              Safari's blocked-autoplay button. Tapping it manually starts the
-              clip (covers Low Power Mode). Fades out the moment playback begins. */}
+          {/* Opaque poster fallback — fully covers the video (and any native play-button chrome) until playback truly begins. */}
           <img
             src={posterSrc}
             alt=""
             onClick={() => videoRef.current?.play().catch(() => {})}
             style={{
-              opacity: posterShown ? 0.9 : 0,
+              opacity: posterShown ? 1 : 0,
               pointerEvents: posterShown ? "auto" : "none",
               transition: "opacity 0.3s ease",
             }}
-            className="absolute inset-0 w-full h-full object-cover mix-blend-screen z-[5] cursor-pointer"
+            className="absolute inset-0 w-full h-full object-cover bg-black z-[5] cursor-pointer"
           />
         </motion.div>
       </motion.div>
