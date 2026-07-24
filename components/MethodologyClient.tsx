@@ -86,6 +86,30 @@ export default function MethodologyPage() {
   const trackRef = React.useRef<HTMLDivElement>(null);
   const trackX = useMotionValue(0);
   const [dragLeft, setDragLeft] = React.useState(0);
+  // Reset the carousel to the first card each time it's reopened.
+  React.useEffect(() => {
+    if (showProcess) trackX.set(0);
+  }, [showProcess, trackX]);
+
+  // Grain videos have no native lazy-loading, so each card's clip only mounts once it's dragged near the viewport (index 0 loads immediately).
+  const [grainReady, setGrainReady] = React.useState<Set<number>>(() => new Set([0]));
+  React.useEffect(() => {
+    if (!showProcess || isMobile) return;
+    const track = trackRef.current;
+    if (!track) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const idx = Number((entry.target as HTMLElement).dataset.idx);
+          setGrainReady((prev) => (prev.has(idx) ? prev : new Set(prev).add(idx)));
+        });
+      },
+      { rootMargin: "400px" },
+    );
+    Array.from(track.children).forEach((child) => io.observe(child));
+    return () => io.disconnect();
+  }, [showProcess, isMobile]);
   // Card-aligned resting positions the carousel snaps to on release.
   const snapPointsRef = React.useRef<number[]>([0]);
   React.useEffect(() => {
@@ -884,9 +908,10 @@ export default function MethodologyPage() {
                   />
 
                   <div className="relative z-10 px-12 mb-8 flex justify-between items-center pointer-events-none gap-4">
-                    <span className="text-[12px] tracking-[0.6em] text-white/80 uppercase font-brand-secondary-thin">
+                    <span className="text-[12px] tracking-[0.6em] text-white/80 uppercase font-brand-secondary-thin whitespace-nowrap">
                       JUDAION METHODOLOGY | EST. 2025
                     </span>
+                    <div className="flex-1 h-px bg-white/20" />
                     {/* Close hint — styled like the cursor tags, icon on the right */}
                     <div className="flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2">
                       <img
@@ -913,7 +938,8 @@ export default function MethodologyPage() {
                     {STEPS.map((step, i) => (
                       <div
                         key={step.id}
-                        className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[1px] duration-900 cursor-grab active:cursor-grabbing"
+                        data-idx={i}
+                        className="min-w-[700px] h-[650px] flex flex-col justify-end group transition-all overflow-hidden relative border border-white/70 lg:border-white/20 lg:hover:border-white/90 border-[1px] lg:border-[1px] duration-900 cursor-grab active:cursor-grabbing"
                       >
                         <div className="absolute inset-0 z-0">
                           {/* AVIF→WEBP; only the first (visible-on-open) card loads
@@ -940,6 +966,21 @@ export default function MethodologyPage() {
                                 "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%)",
                             }}
                           />
+                          {/* Grain overlay — mounted only once this card is near the viewport (videos have no native lazy-loading); fades out on hover. */}
+                          {grainReady.has(i) && (
+                            <video
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none"
+                            >
+                              <source
+                                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+                                type="video/mp4"
+                              />
+                            </video>
+                          )}
                         </div>
                         {/* SCAN LINES — same as Narrative pillars (fade in on hover) */}
                         <div className="absolute inset-0 z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">

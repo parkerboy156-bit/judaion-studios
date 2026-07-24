@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
+import { preload } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import {
   motion,
@@ -151,7 +152,7 @@ function FolderIcon({
 
   const inner = (
     <div
-      className={`relative flex flex-col items-center gap-2.5 select-none px-4 pt-3 pb-2.5 border transition-colors duration-500 rounded-sm ${
+      className={`relative overflow-hidden flex flex-col items-center gap-2.5 select-none px-4 pt-3 pb-2.5 border transition-colors duration-500 ${
         selected
           ? "border-white/50 bg-white/[0.10]"
           : hovered
@@ -159,6 +160,19 @@ function FolderIcon({
             : "border-transparent"
       }`}
     >
+      {/* Scan lines — same treatment as the archive grid/methodology carousel; shown while this folder is selected. */}
+      <div
+        className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${selected ? "opacity-100" : "opacity-0"}`}
+      >
+        <div
+          className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+            backgroundSize: "100% 3px",
+          }}
+        />
+      </div>
       <img
         src="/folder-icon.webp"
         alt=""
@@ -506,6 +520,8 @@ function OpenFolderView({
         if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
         setEnlargedId(asset.id);
       };
+      // Mobile: one tap opens (easier to discover); desktop keeps double-click.
+      const openPdfHandlerProp = { [isMobile ? "onClick" : "onDoubleClick"]: openPdf };
       if (asset.thumb)
         return (
           <img
@@ -513,7 +529,7 @@ function OpenFolderView({
             alt={asset.title || folder.title}
             draggable={false}
             decoding="async"
-            onDoubleClick={openPdf}
+            {...openPdfHandlerProp}
             onMouseEnter={() => !isMobile && setShowTag(true)}
             onMouseLeave={() => setShowTag(false)}
             className={`block border border-white/10 select-none cursor-pointer ${sizeCls}`}
@@ -521,7 +537,7 @@ function OpenFolderView({
         );
       return (
         <button
-          onDoubleClick={openPdf}
+          {...openPdfHandlerProp}
           onMouseEnter={() => !isMobile && setShowTag(true)}
           onMouseLeave={() => setShowTag(false)}
           className="group relative w-full bg-[#121212] border border-white/15 flex flex-col justify-between text-left select-none p-6 lg:p-7 cursor-pointer"
@@ -543,7 +559,7 @@ function OpenFolderView({
               PDF Document
             </span>
             <span className="font-brand-cn text-[10px] tracking-[0.3em] uppercase text-white/70 opacity-70 group-hover:opacity-100">
-              Double-click to open →
+              {isMobile ? "Tap to open →" : "Double-click to open →"}
             </span>
           </div>
         </button>
@@ -560,9 +576,12 @@ function OpenFolderView({
         alt={asset.title || folder.title}
         draggable={false}
         decoding="async"
-        onDoubleClick={() => {
-          if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
-          setEnlargedId(asset.id);
+        {...{
+          // Mobile: one tap opens (easier to discover); desktop keeps double-click.
+          [isMobile ? "onClick" : "onDoubleClick"]: () => {
+            if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
+            setEnlargedId(asset.id);
+          },
         }}
         onLoad={(e) => recordDims(asset.id, e.currentTarget)}
         onMouseEnter={() => !isMobile && setShowTag(true)}
@@ -927,8 +946,11 @@ function OpenFolderView({
                     onDragStart={() => {
                       zoomMoved.current = true;
                     }}
-                    onDoubleClick={() => {
-                      if (!zoomMoved.current) setEnlargedId(null);
+                    {...{
+                      // Mobile: one tap closes (matches the one-tap open); desktop keeps double-click.
+                      [isMobile ? "onClick" : "onDoubleClick"]: () => {
+                        if (!zoomMoved.current) setEnlargedId(null);
+                      },
                     }}
                     onMouseEnter={() => !isMobile && setShowTag(true)}
                     onMouseLeave={() => setShowTag(false)}
@@ -1085,8 +1107,8 @@ function OpenFolderView({
                     </div>
                   </div>
                 </div>
-                {/* Top fade — subtle black gradient that fades out downward. Sits below the grip, above the content. */}
-                <div className="pointer-events-none absolute inset-x-0 top-6 z-20 h-12 bg-gradient-to-b from-black/85 to-transparent" />
+                {/* Top fade — flush with the sheet's top edge (not offset below the grip) so there's no seam where the scrolling content's own background peeks through. */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-16 bg-gradient-to-b from-black to-transparent" />
               </motion.div>
             </motion.div>
           )}
@@ -1251,26 +1273,46 @@ const STATUS_HINTS = [
   { icon: "/arrows-icon.png", text: "Arrow keys to navigate" },
   { icon: "/drag-icon.png", text: "Folders are draggable" },
 ];
+// Globe icon (no site asset exists for "website") — same stroke-line
+// treatment as the other inline SVGs in this file (currentColor, opacity-driven).
+function GlobeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+    </svg>
+  );
+}
+
 function DesktopStatusBar({
   openTitle,
   instagramUrl,
   linkedinUrl,
+  websiteUrl,
 }: {
   openTitle: string | null;
   instagramUrl?: string;
   linkedinUrl?: string;
+  websiteUrl?: string;
 }) {
-  const hasSocial = !!(instagramUrl || linkedinUrl);
-  // Mobile bottom bar auto-swaps between engage-live-asset + socials and the
-  // copyright line (the narrow width can't show both at once).
+  const hasLinks = !!(instagramUrl || linkedinUrl || websiteUrl);
+  // Mobile bottom bar cycles copyright ⇄ "All Rights Reserved" ⇄ (if any
+  // links exist) engage-live-asset — the narrow width can't show it all at once.
+  const totalSteps = hasLinks ? 3 : 2;
   const [activeIndex, setActiveIndex] = useState(0);
   useEffect(() => {
-    if (!hasSocial) return;
     const t = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % 3);
+      setActiveIndex((prev) => (prev + 1) % totalSteps);
     }, 4500);
     return () => clearInterval(t);
-  }, [hasSocial]);
+  }, [totalSteps]);
 
   return (
     <>
@@ -1292,43 +1334,59 @@ function DesktopStatusBar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="relative z-10 w-full flex items-center justify-between gap-5"
+              className={`relative z-10 w-full flex items-center gap-5 ${
+                hasLinks ? "justify-between" : "justify-end"
+              }`}
             >
-              <div className="relative flex items-center gap-4 pointer-events-auto">
-                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
-                  Engage Live Asset
-                </span>
-                {instagramUrl && (
-                  <a
-                    href={instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="opacity-70 hover:opacity-100 transition-opacity duration-200"
-                    aria-label="Instagram"
-                  >
-                    <img
-                      src="/insta-icon.png"
-                      alt="Instagram"
-                      className="h-[22px] w-auto"
-                    />
-                  </a>
-                )}
-                {linkedinUrl && (
-                  <a
-                    href={linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="opacity-70 hover:opacity-100 transition-opacity duration-200"
-                    aria-label="LinkedIn"
-                  >
-                    <img
-                      src="/linkedin-icon.png"
-                      alt="LinkedIn"
-                      className="h-[22px] w-auto"
-                    />
-                  </a>
-                )}
-              </div>
+              {/* "Engage Live Asset" only renders when at least one link exists — otherwise it's a dead label. */}
+              {hasLinks && (
+                <div className="relative flex items-center gap-4 pointer-events-auto">
+                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
+                    Engage Live Asset
+                  </span>
+                  {instagramUrl && (
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                      aria-label="Instagram"
+                    >
+                      <img
+                        src="/insta-icon.png"
+                        alt="Instagram"
+                        className="h-[22px] w-auto"
+                      />
+                    </a>
+                  )}
+                  {linkedinUrl && (
+                    <a
+                      href={linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                      aria-label="LinkedIn"
+                    >
+                      <img
+                        src="/linkedin-icon.png"
+                        alt="LinkedIn"
+                        className="h-[22px] w-auto"
+                      />
+                    </a>
+                  )}
+                  {websiteUrl && (
+                    <a
+                      href={websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                      aria-label="Website"
+                    >
+                      <GlobeIcon className="h-[20px] w-[20px]" />
+                    </a>
+                  )}
+                </div>
+              )}
               <div className="relative flex items-center gap-5">
                 <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55">
                   Copyright © {new Date().getFullYear()} Judaion Studios. All
@@ -1385,76 +1443,81 @@ function DesktopStatusBar({
       >
         <div className="absolute inset-0 bg-black/70 pointer-events-none" />
         <div className="relative z-10 min-w-0 flex-1">
-          {hasSocial ? (
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeIndex}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-                className="flex items-center gap-4 min-w-0"
-              >
-                {/* Step 0: Main Copyright */}
-                {activeIndex === 0 && (
-                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
-                    Copyright © {new Date().getFullYear()} Judaion Studios.
-                  </span>
-                )}
+          {/* Cycles copyright ⇄ "All Rights Reserved" ⇄ (only if hasLinks) engage-live-asset. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeIndex}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="flex items-center gap-4 min-w-0"
+            >
+              {/* Step 0: Main Copyright */}
+              {activeIndex === 0 && (
+                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
+                  Copyright © {new Date().getFullYear()} Judaion Studios.
+                </span>
+              )}
 
-                {/* Step 1: All Rights Reserved */}
-                {activeIndex === 1 && (
-                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
-                    All Rights Reserved.
-                  </span>
-                )}
+              {/* Step 1: All Rights Reserved */}
+              {activeIndex === 1 && (
+                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
+                  All Rights Reserved.
+                </span>
+              )}
 
-                {/* Step 2: Engage Live Asset */}
-                {activeIndex === 2 && (
-                  <>
-                    <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 shrink-0">
-                      Engage Live Asset
-                    </span>
-                    {instagramUrl && (
-                      <a
-                        href={instagramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Instagram"
-                        className="opacity-80 hover:opacity-100 transition-opacity duration-200"
-                      >
-                        <img
-                          src="/insta-icon.png"
-                          alt="Instagram"
-                          className="h-[20px] w-auto"
-                        />
-                      </a>
-                    )}
-                    {linkedinUrl && (
-                      <a
-                        href={linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="LinkedIn"
-                        className="opacity-70 hover:opacity-100 transition-opacity duration-200"
-                      >
-                        <img
-                          src="/linkedin-icon.png"
-                          alt="LinkedIn"
-                          className="h-[20px] w-auto"
-                        />
-                      </a>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 truncate">
-              Copyright © {new Date().getFullYear()} Judaion Studios. All Rights
-              Reserved.
-            </span>
-          )}
+              {/* Step 2: Engage Live Asset — only ever reached when hasLinks (totalSteps caps the cycle at 2 otherwise). */}
+              {activeIndex === 2 && (
+                <>
+                  <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/55 shrink-0">
+                    Engage Live Asset
+                  </span>
+                  {instagramUrl && (
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Instagram"
+                      className="opacity-80 hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <img
+                        src="/insta-icon.png"
+                        alt="Instagram"
+                        className="h-[20px] w-auto"
+                      />
+                    </a>
+                  )}
+                  {linkedinUrl && (
+                    <a
+                      href={linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="LinkedIn"
+                      className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <img
+                        src="/linkedin-icon.png"
+                        alt="LinkedIn"
+                        className="h-[20px] w-auto"
+                      />
+                    </a>
+                  )}
+                  {websiteUrl && (
+                    <a
+                      href={websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Website"
+                      className="opacity-70 hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <GlobeIcon className="h-[18px] w-[18px]" />
+                    </a>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
         <img
           src="/j-logo.svg"
@@ -1472,6 +1535,8 @@ export default function ArchiveCatalogue({
   wallpapers?: string[];
 }) {
   const router = useRouter();
+  // Shared folder-window description background — same asset for every project, so hint the browser to fetch it now rather than waiting for the first folder open.
+  preload("/folder-description-bg.avif", { as: "image", fetchPriority: "high" });
   // Focus-view wallpaper — one picked at random per session from public/archive-wallpapers/.
   const [wallpaper] = useState<string | null>(() =>
     wallpapers.length
@@ -1848,7 +1913,7 @@ export default function ArchiveCatalogue({
               type="video/mp4"
             />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/70 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/75 pointer-events-none" />
         </div>
 
         {/* ── HEADER ── */}
@@ -1928,24 +1993,34 @@ export default function ArchiveCatalogue({
 
           <nav
             ref={scrollRef as any}
-            className="relative z-10 archive-nav-scroller flex flex-wrap gap-x-8 gap-y-2 mb-1"
+            className="relative z-10 archive-nav-scroller flex flex-wrap gap-x-7 gap-y-2 mb-1"
           >
-            {categories.map((cat) => (
-              <button
-                key={cat.name}
-                onClick={() => setActiveCategory(cat.name)}
-                data-active={activeCategory === cat.name}
-                className={`text-[18px] font-brand-cn uppercase tracking-widest transition-colors duration-300 relative pb-1 cursor-pointer ${
-                  activeCategory === cat.name
-                    ? "text-white"
-                    : "text-white/40 hover:text-white/50"
-                }`}
-              >
-                {cat.name}
-                {activeCategory === "All" && cat.name === "All" && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-white" />
+            {categories.map((cat, i) => (
+              <React.Fragment key={cat.name}>
+                <button
+                  onClick={() => setActiveCategory(cat.name)}
+                  data-active={activeCategory === cat.name}
+                  className={`text-[14px] font-brand-secondary-thin uppercase tracking-[0.1em] transition-colors duration-300 relative pb-1 cursor-pointer ${
+                    activeCategory === cat.name
+                      ? "text-white"
+                      : "text-white/40 hover:text-white/50"
+                  }`}
+                >
+                  {cat.name}
+                  {/* "All" always stays underlined, marking it as the distinct reset option regardless of the active category; opacity tracks the text (full white when active, dimmed to match otherwise). */}
+                  {cat.name === "All" && (
+                    <span
+                      className={`absolute bottom-0 left-0 w-full h-[2px] transition-colors duration-300 ${
+                        activeCategory === "All" ? "bg-white" : "bg-white/40"
+                      }`}
+                    />
+                  )}
+                </button>
+                {/* Vertical divider separating "All" from the rest of the categories. */}
+                {cat.name === "All" && i === 0 && categories.length > 1 && (
+                  <span className="h-6 w-px bg-white/20 self-center" />
                 )}
-              </button>
+              </React.Fragment>
             ))}
           </nav>
         </header>
@@ -1961,7 +2036,7 @@ export default function ArchiveCatalogue({
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/10 cursor-default select-none"
+                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/15 hover:border-white/45 duration-800 cursor-pointer select-none "
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -1970,11 +2045,14 @@ export default function ArchiveCatalogue({
                 >
                   {/* Cover — first image, or a branded placeholder for image-less projects. */}
                   {firstImage(item) ? (
-                    <img
-                      src={firstImage(item) as string}
-                      alt={item.title}
-                      className="w-full h-auto block object-cover grid-image-reveal"
-                    />
+                    // Wrapper keeps the mount reveal animation (which also animates filter); img carries the permanent desaturation so the two don't clobber each other.
+                    <div className="grid-image-reveal">
+                      <img
+                        src={firstImage(item) as string}
+                        alt={item.title}
+                        className="w-full h-auto block object-cover grayscale-[30%] saturate-[100%] transition-all duration-800 scale-[100%] group-hover:scale-[100.5%] duration-900"
+                      />
+                    </div>
                   ) : (
                     <div className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-3 grid-image-reveal">
                       <span className="font-brand-cn text-[16px] text-orange-600 leading-none">
@@ -1988,9 +2066,20 @@ export default function ArchiveCatalogue({
                       </span>
                     </div>
                   )}
-                  {/* Hover overlay with title */}
-                  <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-6">
-                    <p className="font-brand-other text-white text-[16px] uppercase tracking-[0.15em] leading-tight text-center">
+                  {/* Scan lines — same treatment as the Methodology carousel; fades in on hover. */}
+                  <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
+                      }}
+                    />
+                  </div>
+                  {/* Hover — top-to-bottom gradient with the title in the top-left, instead of a full dark overlay. */}
+                  <div className="absolute z-10 top-0 inset-x-0 h-95 bg-gradient-to-b from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-start p-4">
+                    <p className="font-brand-other-semi text-white text-[17px] uppercase tracking-[0.1em] leading-tight">
                       {item.title}
                     </p>
                   </div>
@@ -2011,11 +2100,14 @@ export default function ArchiveCatalogue({
                   }}
                 >
                   {firstImage(item) ? (
-                    <img
-                      src={firstImage(item) as string}
-                      alt={item.title}
-                      className={`w-full object-cover block grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
-                    />
+                    // Wrapper keeps the mount reveal animation (which also animates filter); img carries the permanent desaturation so the two don't clobber each other.
+                    <div className="grid-image-reveal">
+                      <img
+                        src={firstImage(item) as string}
+                        alt={item.title}
+                        className={`w-full object-cover block grayscale-[30%] saturate-[90%] ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                      />
+                    </div>
                   ) : (
                     <div
                       className={`w-full bg-[#141414] flex flex-col items-center justify-center gap-2 grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
@@ -2031,8 +2123,20 @@ export default function ArchiveCatalogue({
                       </span>
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-center justify-center px-4 py-2 backdrop-blur-sm">
-                    <p className="font-brand-other text-white text-[13px] uppercase tracking-[0.1em] leading-tight text-center">
+                  {/* Scan lines — same treatment as the Methodology carousel; fades in on hover. */}
+                  <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
+                      }}
+                    />
+                  </div>
+                  {/* Hover — top-to-bottom gradient with the title in the top-left, instead of a full dark overlay. */}
+                  <div className="absolute z-10 top-0 inset-x-0 h-24 bg-gradient-to-b from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-start p-3">
+                    <p className="font-brand-other text-white text-[12px] uppercase tracking-[0.1em] leading-tight">
                       {item.title}
                     </p>
                   </div>
@@ -2049,6 +2153,7 @@ export default function ArchiveCatalogue({
             </div>
           )}
         </main>
+
 
         {/* ── FOCUS VIEW ── */}
         <AnimatePresence>
@@ -2098,6 +2203,7 @@ export default function ArchiveCatalogue({
                 openTitle={openFolder?.title ?? null}
                 instagramUrl={selectedProject.instagram_url || undefined}
                 linkedinUrl={selectedProject.linkedin_url || undefined}
+                websiteUrl={selectedProject.website_url || undefined}
               />
 
               {/* Focus body — single full-screen folder desktop. */}

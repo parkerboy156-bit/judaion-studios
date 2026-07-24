@@ -35,6 +35,7 @@ interface ArchiveItem {
   folders?: FolderEntry[];
   instagram_url?: string;
   linkedin_url?: string;
+  website_url?: string;
   created_at?: string;
 }
 
@@ -208,6 +209,7 @@ export default function AdminPortal() {
     content: "",
     instagram_url: "",
     linkedin_url: "",
+    website_url: "",
   });
   const [folders, setFolders] = useState<FolderDraft[]>([blankFolder()]);
 
@@ -313,7 +315,7 @@ export default function AdminPortal() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", author: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "" });
+    setFormData({ title: "", author: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "", website_url: "" });
     setFolders([blankFolder()]);
     setEditingId(null);
   };
@@ -791,6 +793,21 @@ export default function AdminPortal() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
+                    Client Website URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.website_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, website_url: e.target.value })
+                    }
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    placeholder="https://clientdomain.com"
+                  />
+                </div>
+
                 {uploading && (
                   <div className="mb-6 space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter text-orange-600">
@@ -950,6 +967,7 @@ export default function AdminPortal() {
                                     content: item.content,
                                     instagram_url: item.instagram_url || "",
                                     linkedin_url: item.linkedin_url || "",
+                                    website_url: item.website_url || "",
                                   });
                                   // Load existing folders; fall back to wrapping
                                   // legacy file_url into a single folder.

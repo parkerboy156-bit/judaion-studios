@@ -21,6 +21,8 @@
   --font-brand-secondary-heavy: "Avenir-Heavy", sans-serif;
   --font-brand-italic-thin-cn: "Helvetica-Thin-Italic", sans-serif;
   --font-brand-other: "Khand-Bold", sans-serif;
+  --font-brand-other-medium: "Khand-Medium", sans-serif;
+  --font-brand-other-semi: "Khand-SemiBold", sans-serif;
 }
 
 /* Ensure your @font-face is still at the bottom of the file as you had it */
@@ -65,7 +67,6 @@
 }
 
 @font-face {
-  /* CHANGE THIS NAME to match the theme alias exactly */
   font-family: "HelveticaNowDisplay-CnMedIt";
   src: url("/fonts/HelveticaNowDisplay-CnMedIt.woff2") format("woff2");
   font-weight: 500;
@@ -105,6 +106,26 @@
     url("/fonts/Khand-Bold.woff") format("woff"),
     url("/fonts/Khand-Bold.ttf") format("truetype");
   font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Khand-Medium";
+  src:
+    url("/fonts/Khand-Medium.woff2") format("woff2"),
+    url("/fonts/Khand-Medium.woff") format("woff"),;
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Khand-SemiBold";
+  src:
+    url("/fonts/Khand-SemiBold.woff2") format("woff2"),
+    url("/fonts/Khand-SemiBold.woff") format("woff"),;
+  font-weight: 600;
   font-display: swap;
   font-style: normal;
 }
