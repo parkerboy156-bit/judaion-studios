@@ -1096,7 +1096,7 @@ function OpenFolderView({
                           backgroundPosition: "center",
                         }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/30" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
                     </div>
                     <div className="relative z-10">
                       <div className="px-6 pt-12 pb-8">
@@ -1107,8 +1107,8 @@ function OpenFolderView({
                     </div>
                   </div>
                 </div>
-                {/* Top fade — flush with the sheet's top edge (not offset below the grip) so there's no seam where the scrolling content's own background peeks through. */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-16 bg-gradient-to-b from-black to-transparent" />
+                {/* Top fade — extends down past the grip strip so the solid-black top blends smoothly into the content (no visible hard black block). */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20 bg-gradient-to-b from-black via-black/70 to-transparent" />
               </motion.div>
             </motion.div>
           )}
@@ -2123,8 +2123,8 @@ export default function ArchiveCatalogue({
                       </span>
                     </div>
                   )}
-                  {/* Scan lines — same treatment as the Methodology carousel; fades in on hover. */}
-                  <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {/* Scan lines — always on, same as the Methodology mobile stack (no hover on touch). */}
+                  <div className="absolute inset-0 z-20 pointer-events-none opacity-100">
                     <div
                       className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
                       style={{
