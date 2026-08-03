@@ -363,7 +363,7 @@ export function NarrativeBioMobile({ bioIn }: { bioIn: boolean }) {
               -mr cancels the trailing letter-space so it lands flush. */}
           <div className="flex items-center">
             <span className="h-px flex-1 bg-white/60" />
-            <span className="font-brand-cn uppercase text-white text-[17px] leading-none tracking-[0.60em] whitespace-nowrap pl-[0.9em] -mr-[0.60em]">
+            <span className="font-brand-cn uppercase text-white text-[17px] leading-none tracking-[0.50em] whitespace-nowrap pl-[0.9em] -mr-[0.60em]">
               {BIO_KICKER}
             </span>
           </div>
@@ -384,7 +384,7 @@ export function NarrativeBioMobile({ bioIn }: { bioIn: boolean }) {
             shirt. Below PARKER too, so PARKER still blends against it. */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-[55vw] z-[15] bg-gradient-to-t from-black/2 via-black/35 to-transparent pointer-events-none"
+          className="absolute inset-x-0 bottom-0 h-[55vw] z-[15] bg-gradient-to-t from-black/2 via-black/55 to-transparent pointer-events-none"
         />
 
         {/* PARKER — clip-path reveal; mobile size/kerning, no nowrap needed */}
