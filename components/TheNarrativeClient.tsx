@@ -245,27 +245,39 @@ export default function TheNarrative() {
         </picture>
         {/* Grain video overlay — masked to fade out toward the bottom (grain only up top).
             The mask also keeps this off the hardware-overlay path, which is why this
-            video never caused the whole-window flash — see NarrativeVideoPlate. */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover opacity-45 pointer-events-none"
-          style={{
-            maskImage:
-              "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
-            WebkitMaskImage:
-              "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
-          }}
-        >
-          <source
-            src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
-            type="video/mp4"
-          />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/0 to-transparent pointer-events-none" />
+            video never caused the whole-window flash — see NarrativeVideoPlate.
+
+            DESKTOP ONLY, and not merely hidden: mobile promotes the video to its
+            own compositing layer, which breaks the backdrop the <h1> below needs
+            for mix-blend-difference — the headline rendered as flat white instead
+            of inverting. Guarded in JS so the element (and its request) never
+            exists on mobile; `hidden` alone would still create the layer. The
+            grain is barely perceptible at phone size, so nothing is lost. */}
+        {!isMobile && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover opacity-45 pointer-events-none"
+            style={{
+              maskImage:
+                "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
+              WebkitMaskImage:
+                "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
+            }}
+          >
+            <source
+              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+              type="video/mp4"
+            />
+          </video>
+        )}
+        {/* Top scrim. Lighter below lg: the grain video used to sit over this on
+            desktop and lifted the top, so without it mobile read too dark.
+            Tune the mobile value only — `lg:` keeps desktop exactly as it was. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 lg:from-black/65 via-black/0 to-transparent pointer-events-none" />
 
         {/* ELEVATOR DOWN — faint top-left accent. Descends on hover; on touch
             there is no hover, so `auto` runs the same motion on a timer. */}

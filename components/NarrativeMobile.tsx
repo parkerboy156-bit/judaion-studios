@@ -376,7 +376,7 @@ export function NarrativeBioMobile({ bioIn }: { bioIn: boolean }) {
         <img
           src="/ZP-1-mobile.avif"
           alt="Zion Parker"
-          className="absolute bottom-0 left-[8%] z-10 h-[104%] w-auto object-contain object-bottom pointer-events-none select-none"
+          className="absolute bottom-0 left-[12%] z-10 h-[100%] w-auto object-contain object-bottom pointer-events-none select-none"
         />
 
         {/* LEGIBILITY SCRIM — sits between the cutout (z-10) and the name
