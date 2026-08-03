@@ -169,17 +169,23 @@ html.lenis body {
 
 /* ── VIDEO CONTROLS — kill the native "start playback" / play button that iOS &
    macOS Safari draw over muted, inline videos when they can't autoplay (slow
-   LTE/data, Low Power Mode, Data Saver). Every <video> on the site is muted &
-   decorative or gated behind an opaque fallback image, so this chrome should
-   NEVER appear — when a video can't play, we want the fallback frame alone, no
-   button. Trade-off: on truly-blocked autoplay a video won't start without a
-   user tap (decorative clips just hold their frame; the intro stays on its
-   fallback still + the "Begin the Tour" nav). ── */
-video::-webkit-media-controls,
-video::-webkit-media-controls-panel,
-video::-webkit-media-controls-play-button,
-video::-webkit-media-controls-overlay-play-button,
-video::-webkit-media-controls-start-playback-button {
+   LTE/data, Low Power Mode, Data Saver). A DECORATIVE video is muted and either
+   background texture or gated behind an opaque fallback image, so this chrome
+   should never appear — when it can't play we want the fallback frame alone.
+   Trade-off: on truly-blocked autoplay it won't start without a user tap
+   (background clips just hold their frame; the intro stays on its fallback
+   still + the "Begin the Tour" nav).
+
+   Add `controls` to any video the user is meant to operate and it opts out of
+   all of this automatically — no extra class needed. ── */
+/* SCOPED to :not([controls]) — decorative videos only. A <video controls> is
+   there to BE operated (the archive catalogue's asset player), and the
+   unscoped version stripped its panel too, leaving no way to play or seek. */
+video:not([controls])::-webkit-media-controls,
+video:not([controls])::-webkit-media-controls-panel,
+video:not([controls])::-webkit-media-controls-play-button,
+video:not([controls])::-webkit-media-controls-overlay-play-button,
+video:not([controls])::-webkit-media-controls-start-playback-button {
   display: none !important;
   -webkit-appearance: none !important;
   opacity: 0 !important;

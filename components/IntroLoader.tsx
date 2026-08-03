@@ -115,8 +115,10 @@ export default function IntroLoader({
                 playsInline
                 className="absolute inset-0 w-full h-full object-cover opacity-80"
               >
+                {/* Root-relative: a bare "dust-overlay.mp4" resolves against the
+                    current route, so it would 404 on any nested path. */}
                 <source
-                  src="dust-overlay.mp4"
+                  src="/dust-overlay.mp4"
                   type="video/mp4"
                 />
               </video>
