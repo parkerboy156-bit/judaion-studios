@@ -230,6 +230,7 @@ export default function Contact() {
                             setFormOpen(false);
                           }
                         }}
+                        data-lenis-prevent
                         className="fixed inset-y-0 right-0 z-[70] w-full lg:w-1/2 bg-black/75 backdrop-blur-sm border-l border-white/10 overflow-y-auto flex flex-col px-8 lg:px-16 touch-pan-y"
                       >
                         {/* Mobile-only close — tap or swipe left (desktop uses ESC / click-outside) */}
@@ -813,8 +814,8 @@ export default function Contact() {
             className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
           >
             <motion.img
-              src="/re-enter.webp"
-              className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
+              src="/enter.png"
+              className="w-32 h-auto mb-4 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
               animate={{ x: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             />

@@ -349,8 +349,8 @@ export default function Tier1() {
                 className="flex items-center cursor-pointer group bg-transparent border-none p-0"
               >
                 <motion.img
-                  src="/return-to.webp"
-                  className="w-16 lg:w-20 xl:w-24 h-auto opacity-80 group-hover:opacity-100"
+                  src="/exit.png"
+                  className="w-16 lg:w-20 xl:w-24 h-auto opacity-80 group-hover:opacity-100 duration-300 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
                   alt="Return"
@@ -362,13 +362,25 @@ export default function Tier1() {
                 className="group flex items-center bg-black/60 text-white border border-white/20 hover:bg-white hover:text-black hover:border-neutral-200 px-4 py-[9px] cursor-pointer rounded-sm transition-colors duration-800"
               >
                 <div className="flex items-center gap-3">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="M2 7l10 7 10-7" />
-                  </svg>
+                  {/* MAIL ICON — white at rest (dark button), crossfades to
+                      black on hover (button flips to a white background). */}
+                  <span className="relative h-[22px] w-[22px] shrink-0">
+                    <img
+                      src="/mail-icon-white.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-contain transition-opacity duration-300 group-hover:opacity-0"
+                    />
+                    <img
+                      src="/mail-icon.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    />
+                  </span>
                   <div className="h-7 w-[1.5px] bg-white group-hover:bg-black transition-colors duration-200" />
                 </div>
-                <span className="font-brand-bold text-[13px] lg:text-[15px] uppercase tracking-[0.12em] ml-3">
+                <span className="font-brand-other-medium text-[13px] lg:text-[16px] uppercase tracking-[0.20em] ml-3">
                   Build Your Authority
                 </span>
               </button>

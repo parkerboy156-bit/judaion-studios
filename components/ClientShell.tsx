@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import IntroLoader from "./IntroLoader";
 import RotateNotice from "./RotateNotice";
+import SmoothScroll from "./SmoothScroll";
 
 const LoadingContext = createContext({ isLoaded: false });
 export const useLoading = () => useContext(LoadingContext);
@@ -178,6 +179,9 @@ export default function ClientShell({
 
   return (
     <LoadingContext.Provider value={{ isLoaded }}>
+      {/* Site-wide smooth scroll (floor routes, desktop-only) */}
+      <SmoothScroll />
+
       {/* Phone-landscape "rotate to portrait" prompt (CSS-gated, top of stack) */}
       <RotateNotice />
 

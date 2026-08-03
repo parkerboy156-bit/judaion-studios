@@ -4,6 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import ElevatorArrow from "./ElevatorArrow";
 import projectArchiveBgAvif from "@/public/project-archive-home-bg.avif";
 
 // ─────────────────────────────────────────────
@@ -311,12 +312,7 @@ export default function ProjectArchive() {
                 href="/services"
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
-                <motion.img
-                  src="/down-stairs-last-floor.webp"
-                  className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                  animate={{ x: [0, -5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <ElevatorArrow src="/elevator-down.png" dir="down" className="w-23 mb-2" />
                 <div className="flex flex-col items-start font-brand-secondary-thin">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
                     Previous Floor
@@ -338,12 +334,7 @@ export default function ProjectArchive() {
                 href="/thenarrative"
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
-                <motion.img
-                  src="/upstairs.webp"
-                  className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <ElevatorArrow src="/elevator-up.png" dir="up" className="w-23 mb-2" />
                 <div className="flex flex-col items-end font-secondary-thin text-right">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
                     Next Floor
@@ -371,12 +362,7 @@ export default function ProjectArchive() {
                 href="/services"
                 className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
               >
-                <motion.img
-                  src="/down-stairs-last-floor.webp"
-                  className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                  animate={{ x: [0, -5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <ElevatorArrow src="/elevator-down.png" dir="down" className="w-23 mb-2" />
                 <div className="flex flex-col items-start font-brand-secondary-thin">
                   <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
                     Previous Floor
@@ -398,14 +384,9 @@ export default function ProjectArchive() {
                 href="/thenarrative"
                 className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
               >
-                <motion.img
-                  src="/upstairs.webp"
-                  className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <div className="flex flex-col items-end font-secondary-thin text-right">
-                  <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-secondary-thin">
+                <ElevatorArrow src="/elevator-up.png" dir="up" className="w-23 mb-2" />
+                <div className="flex flex-col items-end font-brand-secondary-thin text-right">
+                  <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">
                     Next Floor
                   </span>
                   <span className="text-[13px] tracking-[0.6em] uppercase text-white/80 group-hover:text-white transition-colors duration-500 font-brand-secondary-thin">

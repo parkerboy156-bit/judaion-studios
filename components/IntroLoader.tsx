@@ -68,7 +68,7 @@ export default function IntroLoader({
       }, finalDelay);
 
       return () => clearTimeout(navTimer);
-    }, 4200);
+    }, 2500);
 
     return () => clearTimeout(bootTimer);
   }, [shouldShow]);
@@ -153,12 +153,9 @@ export default function IntroLoader({
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
               <img
-                src="/start-the-tour.webp"
-                className="w-30 h-auto opacity-70 group-hover:opacity-100 transition-opacity duration-700"
+                src="/start-the-tour.png"
+                className="w-37 h-auto opacity-70 group-hover:opacity-100 transition-all duration-700 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
               />
-              <span className="lg:inline font-brand-secondary-thin text-[10px] tracking-[0.4em] uppercase text-white/50">
-                [Begin the Tour]
-              </span>
             </motion.div>
           </motion.div>
 

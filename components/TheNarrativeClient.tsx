@@ -1,717 +1,811 @@
-"use client"; // REQUIRED: Component utilizes Framer Motion and Browser APIs
+"use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
-import heroBgAvif from "@/public/hero-bg-block.avif";
-import heroBgPng from "@/public/hero-bg-block.webp";
-import archiveheaderAvif from "@/public/archive-header.avif";
-import archiveheaderWebp from "@/public/archive-header.webp";
+import ElevatorArrow from "./ElevatorArrow";
+import NarrativeVideoPlate from "./NarrativeVideoPlate";
+import NarrativeMobile, {
+  NarrativeBioMobile,
+  NarrativeCtaMobile,
+} from "./NarrativeMobile";
+import { useIsMobile } from "./useIsMobile";
+import {
+  TITLES,
+  KICKER,
+  CENTER_LINE,
+  BIO_LABEL,
+  BIO_KICKER,
+  BIO_NAME,
+  BIO_ROLE,
+  BIO_PARAGRAPHS,
+  clamp01,
+  type Title,
+} from "./narrative.data";
 
+/* ------------------------------------------------------------------
+   THE NARRATIVE — FLOOR 04
+   SECTION 01: HERO
+   SECTION 02: THE NARRATIVE — PINNED SCROLL STAGE
+
+   Scroll choreography (driven by one progress value p, 0 → 1):
+     p 0.00 → 0.36   "SECT.2 THE NARRATIVE" kerning widens; overlay → 57%.
+     p 0.32 → 0.68   four titles wipe in (right → left), staggered,
+     p 0.66 → 0.72   then the four body boxes fade in.
+     p 0.72 → 1.00   DWELL — everything sits in its final state, pinned,
+                     so users can linger and hover the titles before release.
+
+   Hover (once boxes are in):
+     - hovered title stays clean; the other three get struck + dimmed
+     - background crossfades to the hovered title's image
+     - that title's body box lifts to full opacity; the rest stay faint
+------------------------------------------------------------------- */
+
+/* map v from [a,b] onto [0,1], clamped */
+
+/* fixed positioning + text alignment per corner */
+const CORNER_POS: Record<Title["corner"], string> = {
+  tl: "top-[10%] left-8 lg:left-16 text-left items-start",
+  bl: "top-[calc(10%+15rem)] left-8 lg:left-16 text-left items-start",
+  tr: "top-[10%] right-8 lg:right-16 text-right items-end",
+  br: "top-[calc(10%+15rem)] right-8 lg:right-16 text-right items-end",
+};
 export default function TheNarrative() {
-  const [hoveredPillar, setHoveredPillar] = useState<number | null>(null);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const isMobile = useIsMobile(1024); // swap the pinned Principles stage for the mobile version below lg
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const outroRef = useRef<HTMLDivElement | null>(null);
+  const [p, setP] = useState(0);
+  const [q, setQ] = useState(0); // bio→CTA outro stage progress
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [showHint, setShowHint] = useState(false);
+  const [showOutroHint, setShowOutroHint] = useState(false);
+  const [ctaHover, setCtaHover] = useState(false);
+  const [ctaPos, setCtaPos] = useState({ x: 0, y: 0 });
+  const [elevIn, setElevIn] = useState(false); // hero elevator fade-in on entry
+  const [kernLow, setKernLow] = useState(0.06); // kern-start bound; rises on scroll-up
 
-  function handlePillarMove(e: React.MouseEvent, index: number) {
-    setHoveredPillar(index);
-    setCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
-  }
-  function handlePillarLeave() {
-    setHoveredPillar(null);
-  }
+  useEffect(() => {
+    const t = setTimeout(() => setElevIn(true), 1100);
+    return () => clearTimeout(t);
+  }, []);
 
-  const [heroHovered, setHeroHovered] = useState(false);
-  const [heroImageHovered, setHeroImageHovered] = useState(false);
-  const [heroCoords, setHeroCoords] = useState({ x: 0, y: 0 });
+  /* Warm the below-the-fold bio/CTA/hover images so a first scroll-in never waits
+     on a decode — that decode-on-reveal was the entry flash. Fully decode (not
+     just fetch) so the bitmap is ready to paint. Cheap now they're small AVIFs. */
+  useEffect(() => {
+    // Read the breakpoint directly rather than via useIsMobile: that hook
+    // starts false and corrects on mount, which would run this twice and warm
+    // BOTH image sets on mobile. Keep 1023 in step with useIsMobile's 1024.
+    const mobile = window.matchMedia("(max-width: 1023px)").matches;
+    const srcs = [
+      "/section-3-bg.avif", // bio plate — the flash culprit
+      "/ZP-1.avif", // founder cutout
+      "/cta-bg.avif",
+      // Only the variant this viewport actually paints — derived from TITLES so
+      // it can't drift out of step with the plates the stages render.
+      ...TITLES.map((t) => (mobile ? (t.mobileImage ?? t.image) : t.image)),
+    ];
+    const imgs = srcs.map((src) => {
+      const img = new Image();
+      img.src = src;
+      img.decode?.().catch(() => {}); // ignore aborts/unsupported
+      return img;
+    });
+    return () => imgs.forEach((img) => (img.src = ""));
+  }, []);
 
-  function handleHeroMove(e: React.MouseEvent) {
-    const overRightBlock = e.clientX > window.innerWidth / 2;
-    setHeroHovered(true);
-    setHeroImageHovered(overRightBlock);
-    setHeroCoords({ x: Math.round(e.clientX), y: Math.round(e.clientY) });
-  }
-  function handleHeroLeave() {
-    setHeroHovered(false);
-    setHeroImageHovered(false);
-  }
+  /* Scroll-driven choreography. Smoothing now comes from the GLOBAL Lenis
+     (SmoothScroll, floor routes desktop-only), which eases the real scroll
+     position — so this loop just reads that (already-smoothed) position each
+     frame and tracks it 1:1. A local lerp on top would double-smooth (laggy);
+     the kerning has no CSS transition so it rides Lenis without snapping. */
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    // Track scroll directly — Lenis owns the smoothing globally now.
+    const easeP = 1;
+
+    let renderedP = 0;
+    let raf = 0;
+    // Direction-aware kern-start bound: short lead-in going down (0.06), but a
+    // longer hold going up (0.18) so the line finishes un-kerning with a buffer
+    // before the hero arrives. Smoothed (renderedLow) so reversing never snaps.
+    let targetLow = 0.06;
+    let renderedLow = 0.06;
+    let prevRP = 0;
+
+    const targets = () => {
+      const rect = stage.getBoundingClientRect();
+      const scrollable = rect.height - window.innerHeight;
+      const tp = scrollable > 0 ? clamp01(-rect.top, 0, scrollable) : 0;
+
+      let tq = 0;
+      const outro = outroRef.current;
+      if (outro) {
+        const oRect = outro.getBoundingClientRect();
+        const oScroll = oRect.height - window.innerHeight;
+        tq = oScroll > 0 ? clamp01(-oRect.top, 0, oScroll) : 0;
+      }
+      return [tp, tq] as const;
+    };
+
+    const frame = () => {
+      const [tp, tq] = targets();
+      renderedP += (tp - renderedP) * easeP;
+      // settle exactly when close enough (kills endless sub-pixel updates)
+      if (Math.abs(tp - renderedP) < 0.0002) renderedP = tp;
+
+      // pick the low bound from scroll direction (idle keeps the current one),
+      // then ease toward it so a mid-scroll reversal glides instead of jumping
+      if (renderedP < prevRP - 0.00003) targetLow = 0.18; // scrolling up
+      else if (renderedP > prevRP + 0.00003) targetLow = 0.06; // scrolling down
+      renderedLow += (targetLow - renderedLow) * 0.05;
+      prevRP = renderedP;
+
+      setP(renderedP);
+      setQ(tq); // direct — React bails if unchanged, so no idle churn on the bio
+      setKernLow(renderedLow);
+      raf = requestAnimationFrame(frame);
+    };
+
+    // seed at the true position so a mid-page reload doesn't animate from 0
+    const [seedP, seedQ] = targets();
+    renderedP = seedP;
+    prevRP = seedP;
+    setP(seedP);
+    setQ(seedQ);
+    raf = requestAnimationFrame(frame);
+
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  /* ---- bio name entrance: fire once when the section enters view ---- */
+  const bioRef = useRef<HTMLElement | null>(null);
+  const [bioIn, setBioIn] = useState(false);
+
+  useEffect(() => {
+    const node = bioRef.current;
+    if (!node) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        // Hysteresis: latch ON at 0.9, only reset once mostly out of view (≤0.1).
+        // A single 0.9 threshold chattered under Lenis's smooth settle (ratio
+        // hovering around 0.9), replaying the entrance — a flash.
+        const r = entries[0].intersectionRatio;
+        if (r >= 0.9) setBioIn(true);
+        else if (r <= 0.1) setBioIn(false);
+      },
+      { threshold: [0.1, 0.9] },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, []);
+
+  /* Clear any stuck hover when the titles aren't on-stage — scrolling away while
+     the cursor sits over a title never fires onMouseLeave, so the image + body
+     box would otherwise stay lit when you leave and return. */
+  const titlesPresent = p >= 0.66 && p < 0.99;
+  useEffect(() => {
+    if (!titlesPresent) setHovered(null);
+  }, [titlesPresent]);
+
+  /* Scroll hint appears on a dwell TIMER (not scroll) once titles have landed;
+     resets if the user scrolls back out of the dwell zone. */
+  const inDwell = p >= 0.72 && p < 0.99;
+  useEffect(() => {
+    if (!inDwell) {
+      setShowHint(false);
+      return;
+    }
+    const t = setTimeout(() => setShowHint(true), 3500);
+    return () => clearTimeout(t);
+  }, [inDwell]);
+
+  /* Bio→CTA outro: while the bio is pinned in its dwell, a timer shows a chevron;
+     it hides once the CTA starts rising. */
+  const outroDwell = q >= 0.08 && q < 0.45;
+  useEffect(() => {
+    if (!outroDwell) {
+      setShowOutroHint(false);
+      return;
+    }
+    const t = setTimeout(() => setShowOutroHint(true), 2500);
+    return () => clearTimeout(t);
+  }, [outroDwell]);
+
+  /* ---- derived animation values ---- */
+  const kernPhase = clamp01(p, kernLow, 0.36); // kernLow: short down, longer up-hold
+  const overlayOpacity = kernPhase * 0.57;
+  const titlesPhase = clamp01(p, 0.32, 0.68);
+  const boxesPhase = clamp01(p, 0.66, 0.72); // boxes fade in after titles land
+  // p 0.72 → 1.00 is dwell — the section stays pinned in its final state.
+
+  /* CTA rises over the pinned bio after a dwell; heavy ease-out arrival.
+     q 0 → 0.5 dwell on bio, q 0.5 → 0.9 the CTA slides up, then rests. */
+  const ctaRaw = clamp01(q, 0.45, 0.85);
+  const ctaRise = 1 - Math.pow(1 - ctaRaw, 3); // easeOutCubic
+  const ctaTranslate = (1 - ctaRise) * 100; // %: 100 (below fold) → 0 (rested)
+  // CTA content reveals after the bar has largely rested
+  const ctaLineReveal = clamp01(ctaRise, 0.91, 1.0); // line draws after
 
   return (
     <main className="relative bg-black">
-      {/* SURGICAL MASK retired — the global elevator wipe (ClientShell) now
-          owns the fade-from-black on entry. */}
-      <div className="relative w-full min-h-screen bg-black ">
-        {/* 1. THE FOOLPROOF VIDEO LAYER */}
-        <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
-          <video
-            poster="/global-bg-poster.avif"
-            key="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
-            muted
-            autoPlay
-            loop
-            playsInline
-            preload="auto"
-            className="w-full h-full object-cover opacity-65"
+      {/* ===== SECTION 01: HERO ===== */}
+      <section className="relative isolate w-full h-screen overflow-hidden bg-black">
+        {/* Desktop bg ≥1024px, portrait mobile bg below — only the match loads */}
+        <picture>
+          <source srcSet="/section-1-bg.avif" media="(min-width: 1024px)" />
+          <img
+            src="/section-1-bg-mobile.avif"
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        </picture>
+        {/* Grain video overlay — masked to fade out toward the bottom (grain only up top).
+            The mask also keeps this off the hardware-overlay path, which is why this
+            video never caused the whole-window flash — see NarrativeVideoPlate. */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover opacity-45 pointer-events-none"
+          style={{
+            maskImage:
+              "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, black 0%, black 15%, transparent 60%)",
+          }}
+        >
+          <source
+            src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/grain%20videograin.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/0 to-transparent pointer-events-none" />
+
+        {/* ELEVATOR DOWN — faint top-left accent. Descends on hover; on touch
+            there is no hover, so `auto` runs the same motion on a timer. */}
+        <Link
+          href="/projectarchive"
+          aria-label="Project Archive"
+          className={`group absolute top-[47vh] left-[2.5vw] z-20 w-16 lg:w-23 ${elevIn ? "opacity-100" : "opacity-0"} transition-opacity duration-800 cursor-pointer invert`}
+        >
+          <ElevatorArrow
+            src="/elevator-down.png"
+            dir="down"
+            className="w-full"
+            glow={false}
+            auto={isMobile}
+          />
+        </Link>
+
+        <div className="absolute bottom-[4vh] left-0 right-0 px-[2.5vw]">
+          <div className="flex w-full items-center gap-[1vw] font-brand-secondary-heavy text-[10px] lg:text-[11px] uppercase tracking-[0.60em] text-black mb-[4vh]">
+            <span className="shrink-0">JUDAION</span>
+            <span aria-hidden="true" className="flex-1 h-[1px] bg-black/50" />
+            <span className="shrink-0">Studios</span>
+          </div>
+          <div
+            aria-label={KICKER}
+            className="flex w-full justify-between font-brand-cn uppercase text-black/80 text-[clamp(11px,3.2vw,13px)] lg:text-[2.6vw] leading-none mb-[2vh] select-none"
           >
-            <source
-              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
-              type="video/mp4"
-            />
-          </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/30 pointer-events-none" />
+            {KICKER.split("").map((char, i) => (
+              <span
+                key={i}
+                aria-hidden="true"
+                className={char === " " ? "w-[1.2vw]" : ""}
+              >
+                {char === " " ? "" : char}
+              </span>
+            ))}
+          </div>
+          <h1 className="relative font-brand-other uppercase text-white text-[15vw] leading-[0.82] tracking-[0em] whitespace-nowrap mix-blend-difference select-none">
+            I Rebuilt Myself
+          </h1>
         </div>
+      </section>
 
-        {/* 2. THE CONTENT LAYER (Z-index 10 to stay above video) */}
-        <div className="relative z-10 w-full bg-transparent text-white font-brand-secondary-thin selection:bg-orange-800/30">
-          {/* SECTION 1: THE HERO (PRECISION LAYERED BLOCK) */}
-          <section
-            className="h-screen w-full flex flex-col justify-center px-10 lg:px-20 border-b border-white/10 relative overflow-hidden"
-            style={{ cursor: heroImageHovered ? "pointer" : "default" }}
-            onMouseMove={handleHeroMove}
-            onMouseLeave={handleHeroLeave}
-          >
-            {/* NAVIGATION: RETURN TO Project Archive */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1, duration: 1 }}
-              className="absolute top-23 left-13 z-50 pointer-events-auto"
-            >
-              <Link
-                href="/projectarchive"
-                className="flex flex-col items-start gap-2 lg:flex-row lg:items-center group no-underline appearance-none bg-transparent border-none cursor-pointer"
-              >
-                <motion.img
-                  src="/down-stairs-last-floor.webp"
-                  className="w-20 h-auto opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain shrink-0"
-                  animate={{ x: [0, -5, 0] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              </Link>
-            </motion.div>
+      {/* ===== SECTION 02: PINNED SCROLL STAGE ===== */}
+      {/* Desktop only — the pinned rAF stage doesn't work at mobile widths;
+          below lg we swap in the scroll-activated NarrativeMobile version.
+          (Guarded in JS, not CSS, so the desktop scroll loop never mounts on
+          mobile — the loop's `if (!stage) return` no-ops when unmounted.) */}
+      {isMobile ? (
+        <NarrativeMobile />
+      ) : (
+        <div ref={stageRef} className="relative w-full h-[420vh] bg-black">
+        <div className="sticky top-0 h-screen w-full overflow-hidden isolate">
+          {/* BASE PLATE — video over its own poster still; the still carries
+              the plate if the video can't play (see NarrativeVideoPlate). */}
+          <NarrativeVideoPlate />
 
-            {/* --- HALF-SCREEN BACKGROUND IMAGE BLOCK --- */}
-            {/* Positioned absolute, z-0 (behind text), half width, right aligned */}
-            <div
-              className={`absolute top-0 right-0 w-1/2 h-full z-0 overflow-hidden pointer-events-none rounded-sm border-[1px] lg:border-[2px] transition-colors duration-800 border-white/60 ${heroImageHovered ? "lg:border-white/60" : "lg:border-white/10"}`}
-            >
-              {/* SCAN LINES — fade in when mouse is over the right block */}
-              <div
-                className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-800 opacity-100 ${heroImageHovered ? "lg:opacity-100" : "lg:opacity-0"}`}
-              >
-                <div
-                  className="pillar-scanlines absolute inset-[-12px] bg-black/[0.08] "
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
-                    backgroundSize: "100% 3px",
-                  }}
-                />
-              </div>
-              <picture>
-                {/* Primary: The modern AVIF version */}
-                <source srcSet={heroBgAvif.src} type="image/avif" />
-
-                {/* Fallback: The original PNG version */}
-                <img
-                  src={heroBgPng.src}
-                  alt="Hero Feature"
-                  className="w-full h-full object-cover opacity-80"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    zIndex: -1,
-                  }}
-                  // Ensures this loads before secondary assets
-                  fetchPriority="high"
-                />
-              </picture>
-            </div>
-
-            {/* SCROLL LABEL */}
-            <div className="absolute bottom-8 right-3 flex items-center space-x-6">
-              <motion.img
-                src="/scroll-down.webp"
-                alt="Scroll Down"
-                className="w-25 h-25 opacity-80"
-                animate={{ y: [0, 6, 0] }}
-                transition={{
-                  duration: 1.6,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-            </div>
-
-            {/* Asset label — live on hero hover */}
-            <div
-              className={`absolute top-[97%] left-[02%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
-            >
-              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
-                <span className="text-white/60">Asset 3</span>
-                <span className="text-white/40"> "ARCHITECTURE"</span>
-              </span>
-            </div>
-
-            {/* Y axis — live on hero hover */}
-            <div
-              className={`absolute top-[97%] left-[35%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
-            >
-              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
-                <span className="text-white">Y: </span>
-                <span className="text-white/50">{heroCoords.y} PX</span>
-              </span>
-            </div>
-
-            {/* X axis — live on hero hover */}
-            <div
-              className={`absolute top-[97%] left-[20%] flex items-center space-x-6 transition-opacity duration-300 ${heroHovered ? "opacity-100" : "opacity-0"}`}
-            >
-              <span className="font-brand-cn text-[11px] uppercase tracking-[0.15em] whitespace-nowrap">
-                <span className="text-white">X: </span>
-                <span className="text-white/50">{heroCoords.x} PX</span>
-              </span>
-            </div>
-
-            {/* --- CONTENT LAYER (Z-10 to stay over the new image block) --- */}
-            <h1 className="relative z-10 flex flex-col font-brand-cn uppercase leading-[1]">
-              {/* LINE 1: Establishing The */}
-              <div className="flex justify-center w-full py-2 self-center gap-x-4">
-                <span className="hero-secondary-text-top text-[1.7vw] tracking-[0.1em] text-white/50">
-                  We establish the
-                </span>
-              </div>
-
-              {/* LINE 2: *Architecture */}
-              <span className="text-[13vw] tracking-[0.10em] text-white font-brand-other ml-[-25px]">
-                <span className="text-orange-600 font-brand-cn">*</span>
-                Architecture
-              </span>
-
-              {/* LINE 3: For Your business's */}
-              <div className="flex justify-center w-full py-5 self-center gap-x-4">
-                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/50 ">
-                  For
-                </span>
-                <span className="hero-secondary-text-bottom text-[3.3vw] tracking-[0.1em] text-white/98 font-brand-xbold-italic-cn">
-                  Your Vision's
-                </span>
-              </div>
-
-              {/* LINE 4: *PERMANANCE */}
-              <span className="text-[13vw] tracking-[0.13em] text-white font-brand-other ml-[-25px]">
-                <span className="text-orange-600 font-brand-cn">*</span>
-                PERMANENCE
-              </span>
-            </h1>
-          </section>
-
-          {/* SECTION 2: THE SPLIT BLOCK (Transparent Backgrounds) */}
-          <section className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-transparent ">
-            <div className="h-[60vh] lg:h-screen sticky top-0 bg-white/5 overflow-hidden ">
-              <video
-                muted
-                autoPlay
-                loop
-                playsInline
-                preload="auto"
-                className="w-full h-full object-cover"
-              >
-                <source
-                  src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/Raw%20Logo%20Videologo-video-raw.mp4"
-                  type="video/mp4"
-                />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-
-            <div className="flex flex-col justify-center p-10 lg:p-30 space-y-15 ">
-              <div className="space-y-9">
-                {/* HEADER */}
-                <div className=" inline-block mb-25">
-                  {/* MAIN HEADING */}
-                  <h2 className="about-main-title text-[clamp(2rem,4vw,5.625rem)] font-brand-bold uppercase tracking-[0.1em] text-white leading-none">
-                    THE NARRATIVE
-                  </h2>
-
-                  {/* THE ARCHITECTURAL UNDERLINE */}
-                  <div className="h-[1px] bg-white mt-4 origin-left" />
-                </div>
-
-                {/* PARAGRAPH GROUP 1 */}
-                <div className="space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 border-t border-white/20" />
-                    <h4 className="text-[22px] tracking-[0.1em] uppercase font-brand-secondary-heavy shrink-0">
-                      THE ARCHITECT
-                    </h4>
-                  </div>
-                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Born from the convergence of two names — Zion & Judah. The
-                    brand originated as a personal reformation. It was shifted
-                    towards rigid discipline and "hacking away at the
-                    unnesential".
-                  </p>
-                  <p className="text-white/70 text-[16px] leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Before it built identities for others, it was an identity in
-                    need of its own architecture. The name JUDAION was the first
-                    asset, the first identity and the first monolith built by
-                    the architect.
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-white/20">
-                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
-                    - WE BUILD THE MONOLITHS THAT DEFINE BRANDS.
-                  </span>
-                </div>
-
-                {/* PARAGRAPH GROUP 1 */}
-                <div className="space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 border-t border-white/20" />
-                    <h4 className="text-[22px] tracking-[0.1em] uppercase  font-brand-secondary-heavy">
-                      THE COMMITMENT
-                    </h4>
-                  </div>
-                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Originally rooted in art-school aesthetics, previous work
-                    was obsessed with seeking validation and creating "pretty
-                    pictures", this caused a structural decay in early
-                    freelancing work. The transition from freelancing to
-                    partnership invoked a shift from "what can I add" to "what
-                    is essential."
-                  </p>
-                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    This is the primary law of the studio: discipline comes from
-                    foundation
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-white/20">
-                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
-                    - THE EVOLUTION FROM ART TO ARCHITECTURE.
-                  </span>
-                </div>
-
-                {/* PARAGRAPH GROUP 1 */}
-                <div className="space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 border-t border-white/20" />
-                    <h4 className="text-[22px] tracking-[0.1em] uppercase font-brand-secondary-heavy shrink-0">
-                      THE PRINCIPLE
-                    </h4>
-                  </div>
-                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Most identities suffer from structural decay and the
-                    accumulation of visual noise, trends and aesthetic volume
-                    designed to wow rather than to endure. We go beyond creating "pretty pictures". We architect monoliths engineered for authority and permanence.
-                  </p>
-                  <p className="text-white/70 text-[16px] leading-[1.9] tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                    Logic over aesthetics. Foundation over trends.
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-white/20">
-                  <span className="font-brand-secondary-thin text-[11px] text-white/40 italic leading-[1.7] tracking-[0.3em] shrink-0">
-                    - BUILT TO OUTLAST THE NOISE.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION 3: THE CORE PILLARS (CONNECTED ARCHITECTURE) */}
-          <section
-            className="py-32 px-10 lg:px-20 bg-gradient-to-b from-black/70 to-transparent relative overflow-hidden border-t border-white/10"
+          {/* SCROLL-DRIVEN BLACK OVERLAY → 57% — sits BEHIND the hover images
+              so darkening the base plate never lightens on hover, and a
+              hovered image (on top) shows at full brightness. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-black pointer-events-none"
             style={{
-              zIndex: 2,
-              backdropFilter: "blur(3px)",
-              WebkitBackdropFilter: "blur(5px)",
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.50) 100%)",
+              opacity: overlayOpacity,
+              transition: "opacity 600ms ease-out",
             }}
-          >
-            {/* HEADER LABEL */}
-            <div className="flex justify-between items-end mb-20 border-b border-white/60 pb-10">
-              <h3 className="about-pillars-title text-[11px] uppercase tracking-[0.5em] font-brand-secondary-heavy text-white/70">
-                JUDAION CORE PILLARS | 01 — 03
-              </h3>
-              <span className="about-pillars-date text-[10px] font-brand-secondary-thin text-white/90 tracking-[0.5em] uppercase">
-                EST.2025
-              </span>
-            </div>
+          />
 
-            {/* THE CONNECTED FLEX CONTAINER */}
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-0 relative">
-              {/* PILLAR 01 */}
-              <div
-                className="group w-full lg:w-[30%] flex flex-col gap-3"
-                onMouseMove={(e) => handlePillarMove(e, 0)}
-                onMouseLeave={handlePillarLeave}
-              >
-                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-900 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
-                  <img
-                    src="/vision.webp"
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                  />
-                  {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
-                    <div
-                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
-                        backgroundSize: "100% 3px",
-                      }}
-                    />
-                  </div>
-                  <div className="relative z-10 space-y-5">
-                    <h4 className="pillar-item-title text-[clamp(2rem,3.8vw,5.625rem)] tracking-[0.7em] font-brand-other uppercase text-white">
-                      VISION
-                    </h4>
-                    <p className="text-white/60 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed">
-                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
-                        *{" "}
-                      </span>
-                      Identifying the core truth by hacking away at the
-                      unessential noise.
-                    </p>
-                  </div>
-                </div>
-                {/* Asset label — visible only on hover */}
-                <div
-                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 0 ? "opacity-100" : "opacity-0"}`}
-                >
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white/60">Asset 01</span>{" "}
-                    &nbsp;"VISION"
-                  </span>
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white">X: </span>
-                    <span className="text-white/50">{coords.x} PX</span>
-                    &nbsp;&nbsp;
-                    <span className="text-white">Y: </span>
-                    <span className="text-white/50">{coords.y} PX</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* CONNECTOR LINE 1 */}
-              <div className="hidden lg:flex flex-col justify-center items-center w-[5%] h-px space-y-2">
-                <div className="w-full h-[1px] bg-white/40"></div>
-                <div className="w-full h-[1px] bg-white/10"></div>
-                <div className="w-full h-[1px] bg-white/40"></div>
-              </div>
-
-              {/* PILLAR 02 */}
-              <div
-                className="group w-full lg:w-[30%] flex flex-col gap-3"
-                onMouseMove={(e) => handlePillarMove(e, 1)}
-                onMouseLeave={handlePillarLeave}
-              >
-                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
-                  <img
-                    src="/structure.webp"
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                  />
-                  {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
-                    <div
-                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
-                        backgroundSize: "100% 3px",
-                      }}
-                    />
-                  </div>
-                  <div className="relative z-10 space-y-80">
-                    <h4 className="pillar-item-title2 text-[clamp(2rem,3.8vw,5.625rem)] tracking-[0.3em] font-brand-other uppercase text-white">
-                      STRUCTURE
-                    </h4>
-                    <p className="text-white/75 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed">
-                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
-                        *{" "}
-                      </span>
-                      Engineering a rigid framework designed to withstand the
-                      pressure of trends.
-                    </p>
-                  </div>
-                </div>
-                {/* Asset label — visible only on hover */}
-                <div
-                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 1 ? "opacity-100" : "opacity-0"}`}
-                >
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white/60">Asset 02</span>{" "}
-                    &nbsp;"STRUCTURE"
-                  </span>
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white">X: </span>
-                    <span className="text-white/50">{coords.x} PX</span>
-                    &nbsp;&nbsp;
-                    <span className="text-white">Y: </span>
-                    <span className="text-white/50">{coords.y} PX</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* CONNECTOR LINE 2 */}
-              <div className="hidden lg:flex flex-col justify-center items-center w-[5%] h-px space-y-2">
-                <div className="w-full h-[1px] bg-white/10"></div>
-                <div className="w-full h-[1px] bg-white/10"></div>
-                <div className="w-full h-[1px] bg-white/40"></div>
-              </div>
-
-              {/* PILLAR 03 */}
-              <div
-                className="group w-full lg:w-[30%] flex flex-col gap-3"
-                onMouseMove={(e) => handlePillarMove(e, 2)}
-                onMouseLeave={handlePillarLeave}
-              >
-                <div className="relative border border-white/70 lg:border-white/20 lg:hover:border-white/70 border-[1px] lg:border-[2px] duration-800 rounded-sm p-5 min-h-[450px] flex flex-col justify-between overflow-hidden bg-black hover:cursor-pointer">
-                  <img
-                    src="/identity.webp"
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
-                  />
-                  {/* SCAN LINES — fade in on hover */}
-                  <div className="absolute inset-0 z-[5] pointer-events-none opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
-                    <div
-                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
-                        backgroundSize: "100% 3px",
-                      }}
-                    />
-                  </div>
-                  <div className="relative z-10 ">
-                    <h4 className="pillar-item-title3 text-[clamp(2rem,3.9vw,5.625rem)] tracking-[0.4em] font-brand-other uppercase text-white">
-                      IDENTITY
-                    </h4>
-                    <p className="text-white/60 text-sm tracking-[0em] font-brand-secondary-thin leading-relaxed max-w-[350px]">
-                      <span className="font-brand-cn text-[clamp(16px,1.04vw,20px)] text-orange-600">
-                        *{" "}
-                      </span>
-                      Deploying a monochromatic signature that commands
-                      permanence in a crowded landscape.
-                    </p>
-                  </div>
-                </div>
-                {/* Asset label — visible only on hover */}
-                <div
-                  className={`flex items-center justify-between px-1 transition-opacity duration-300 ${hoveredPillar === 2 ? "opacity-100" : "opacity-0"}`}
-                >
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white/60">Asset 03</span>{" "}
-                    &nbsp;"IDENTITY"
-                  </span>
-                  <span className="font-brand-cn text-[10px] uppercase tracking-[0.15em] text-white/40 whitespace-nowrap">
-                    <span className="text-white">X: </span>
-                    <span className="text-white/50">{coords.x} PX</span>
-                    &nbsp;&nbsp;
-                    <span className="text-white">Y: </span>
-                    <span className="text-white/50">{coords.y} PX</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION 4: FULL-WIDTH CINEMATIC VIDEO */}
-          <section className="h-[80vh] w-full bg-black/20 overflow-hidden relative">
-            <video
-              muted
-              autoPlay
-              loop
-              playsInline
-              preload="auto"
-              className="w-full h-full object-cover grayscale hover:scale-108 transition-transform duration-[3s]"
-            >
-              <source
-                src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Section%204JDS-section-4-color.mp4"
-                type="video/mp4"
-              />
-              Your browser does not support the video tag.
-            </video>
-
-            {/* DARKEN OVERLAY — dims the video behind the heading */}
-            <div className="absolute inset-0 bg-black/50 pointer-events-none" />
-
-            {/* CORNER BLUR — softens only the edges/corners (mask is clear in
-                the centre) so the vignette zone is blurred, not tinted.
-                Tune: blur(Npx) for softness; the mask % for how far it reaches. */}
-            <div
-              className="absolute inset-0 z-[5] pointer-events-none"
+          {/* HOVER IMAGE LAYER — one plate per title, crossfaded */}
+          {TITLES.map((t, i) => (
+            <img
+              key={t.index}
+              src={t.image}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              loading="eager"
+              fetchPriority="low"
+              className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none will-change-[opacity,clip-path,transform]"
               style={{
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                maskImage:
-                  "radial-gradient(ellipse at center, transparent 50%, black 92%)",
-                WebkitMaskImage:
-                  "radial-gradient(ellipse at center, transparent 50%, black 92%)",
+                filter: "brightness(0.70)", // soften the plates so they aren't harsh
+                opacity: hovered === i ? 1 : 0,
+                transform: hovered === i ? "scale(1.03)" : "scale(1)", // very subtle drift-in, scaling up so no edge shows
+                clipPath:
+                  hovered === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
+                WebkitClipPath:
+                  hovered === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
+                transition:
+                  "opacity 1500ms ease-out, transform 1700ms cubic-bezier(0.16, 1, 0.3, 1), clip-path 1500ms cubic-bezier(0.16, 1, 0.3, 1), -webkit-clip-path 1700ms cubic-bezier(0.16, 1, 0.3, 1)",
               }}
             />
+          ))}
 
-            {/* VIGNETTE — plain darkened edges, no colour fringe.
-                Tune the 0.7 alpha for strength; 160px/30px for spread. */}
-            <div
-              className="absolute inset-0 z-[5] pointer-events-none"
-              style={{ boxShadow: "inset 0 0 160px 30px rgba(0,0,0,0.8)" }}
-            />
+          {/* CENTERED KERNING LINE — sits BELOW the boxes (z-10) */}
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center px-[3vw] pointer-events-none"
+            aria-label={CENTER_LINE}
+          >
+            <span
+              className="font-brand-thin-cn uppercase text-white text-[clamp(11px,1.5vw,20px)] whitespace-nowrap"
+              style={{
+                letterSpacing: `${kernPhase * 4}em`,
+                paddingLeft: `${kernPhase * 4}em`,
+                opacity: 1 - clamp01(p, 0.52, 0.66) * 0.80, // ease down to ~0.15, not fully out
+                // No CSS transition — the rAF lerp on `p` already smooths this
+                // every frame; a transition on top re-creates the snap.
+              }}
+            >
+              {CENTER_LINE}
+            </span>
+          </div>
 
-            {/* CENTERED OVERLAY CONTENT */}
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-8 gap-4 pointer-events-none">
-              <span className="hidden lg:block text-[10px] tracking-[0.5em] uppercase text-white/52 font-brand-secondary-thin">
-                JUDAION STUDIOS | STUDIO FEED
-              </span>
-              {/* Heading + body grouped: the group is sized to the heading
-                  (w-fit), so the left-aligned body lines up with the title's
-                  left edge while the title itself stays centred in the section. */}
-              <div className="flex flex-col items-start gap-4 w-fit max-w-full">
-                <h2 className="commitment-heading text-white text-[clamp(2rem,4vw,5.625rem)] font-brand-other tracking-[0.2em] uppercase">
-                  Where Commitment Meets the Grid
-                </h2>
-                <span className="commitment-body-text hidden lg:block max-w-2xl text-left text-white/59 text-[14px] leading-[1.6] tracking-[0em] font-brand-secondary-thin text-justify">
-                  Most designers create visuals in a vacuum and don't take the
-                  time to understand your brands mission or vision which leads
-                  to a disconnect which costs trust and leaves you with a brand
-                  that fails to convert. We build identities rooted in logic and
-                  structure designed to endure. The commitment to permanence is
-                  the commitment that lasts.
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION 5: THE LEADERSHIP (SPLIT ARCHITECTURE) */}
-          <section className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-transparent relative overflow-hidden">
-            {/* THE GRADIENT OVERLAY */}
-            <div className="absolute inset-0  bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
-
-            {/* LEFT BLOCK: DYNAMIC IMAGE SWITCH */}
-            <div className="relative z-10 h-[70vh] lg:h-screen overflow-hidden group cursor-pointer">
-              {/* IMAGE 01: INITIAL STATE (Arms Crossed) */}
-              <img
-                src="/ZJ-1.webp"
-                alt="Lead Architect - State A"
-                loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out group-hover:opacity-0"
-              />
-
-              {/* IMAGE 02: HOVER STATE (Hand in Pocket) */}
-              <img
-                src="/ZJ-2.webp"
-                alt="Lead Architect - State B"
-                loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-700 ease-in-out group-hover:opacity-90 group-hover:scale-100"
-              />
-            </div>
-
-            {/* RIGHT BLOCK: NAME & BIO */}
-            <div className="relative overflow-hidden flex flex-col justify-between p-12 lg:p-32 h-full bg-cover bg-center bg-no-repeat rounded-sm border border-white/10">
-              <picture>
-                <source srcSet={archiveheaderAvif.src} type="image/avif" />
-                <img
-                  src={archiveheaderWebp.src}
-                  alt=""
-                  aria-hidden="true"
-                  className="absolute inset-0 w-full h-full object-cover object-center -z-20"
-                />
-              </picture>
-
+          {/* BODY BOXES — all anchored top-left (01's spot); only the hovered
+              title's box shows. z-20, above the Sect line. */}
+          {TITLES.map((t, i) => {
+            const isActive = hovered === i;
+            return (
               <div
-                className="absolute inset-0 bg-black/60 -z-10"
-                aria-hidden="true"
-              />
-
-              {/* CENTER BLOCK: IDENTITY & BIO (Spaced for maximum authority) */}
-              <div className="flex flex-col space-y-20 py-24">
-                <div className="space-y-6">
-                  <h2 className="architect-signature-name text-[clamp(2rem,4.5vw,6.625rem)] font-brand-other uppercase tracking-[0.2em] text-white leading-none">
-                    <span className="border-b-2 border-white ">
-                      ZION{" "}
-                      <span className="font-brand-other text-white">
-                        PARKER
-                      </span>
-                    </span>
-                  </h2>
-
-                  {/* ROLE TITLE */}
-                  <div className="flex items-center space-x-4">
-                    <span className="architect-signature-title text-[clamp(1.5rem,1.8vw,2.25rem)] tracking-[0.4em] uppercase text-white/89 font-brand-cn italic">
-                      Chief Creative Officer
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-white/60 text-sm lg:text-base leading-relaxed tracking-[0em] font-brand-secondary-thin max-w-auto text-justify">
-                  Zion Judah Parker is the architect of the JUDAION system. His
-                  methodology focuses on extracting the core truth of an
-                  organisation to build identities backed by structural logic.
-                  Guided by a philosophy of permanence, he engineers enduring
-                  brand foundations for founders who require their visual
-                  presence to operate with absolute authority.
+                key={t.index}
+                className={`absolute z-20 flex flex-col overflow-hidden pointer-events-none top-[10%] ${
+                  t.side === "left"
+                    ? "left-8 lg:left-16 text-left items-start"
+                    : "right-8 lg:right-16 text-right items-end"
+                }`}
+                style={{
+                  width: t.w,
+                  height: t.h,
+                  opacity: isActive ? 1 : 0,
+                  transition: isActive
+                    ? "opacity 700ms ease-out 1100ms" // wait for the image to land, then fade in
+                    : "opacity 300ms ease-out", // leave promptly, no delay
+                }}
+              >
+                <span className="font-brand-cn text-[10px] lg:text-[11px] tracking-[0.2em] text-white/30 mb-2">
+                  {t.index}
+                </span>
+                <p className="font-brand-secondary-thin text-justify text-white/75 text-[9.5px] lg:text-[13px] leading-[1.6] tracking-[0.07em]">
+                  {t.body}
                 </p>
               </div>
+            );
+          })}
 
-              {/* BOTTOM ANCHOR: SIGNATURE / INDEX */}
-              <div className="pt-8 border-t border-white/20">
-                <span className="operational-lead text-[10px] tracking-[0.16em] uppercase text-white/30 font-brand-secondary-thin">
-                  JUDAION (Pty) Ltd is a registered studio in the Republic of
-                  South Africa. All rights reserved. &copy; 2026
-                </span>
-              </div>
+          {/* FOUR TITLES — wipe in right → left, staggered */}
+          <div className="absolute inset-x-0 bottom-[6vh] z-30 px-8 lg:px-16 flex justify-between items-end gap-8 pointer-events-none">
+            {/* LEFT COLUMN */}
+            <div className="flex flex-col gap-1 lg:gap-2 items-start">
+              {TITLES.filter((t) => t.side === "left").map((t, i) => {
+                const idx = TITLES.indexOf(t);
+                return (
+                  <TitleLine
+                    key={t.index}
+                    title={t}
+                    reveal={clamp01(titlesPhase, i * 0.2, i * 0.2 + 0.62)}
+                    struck={hovered !== null && hovered !== idx}
+                    onHover={() => setHovered(idx)}
+                    onLeave={() => setHovered(null)}
+                  />
+                );
+              })}
             </div>
-          </section>
+            {/* RIGHT COLUMN */}
+            <div className="flex flex-col gap-1 lg:gap-2 items-end text-right">
+              {TITLES.filter((t) => t.side === "right").map((t, i) => {
+                const idx = TITLES.indexOf(t);
+                return (
+                  <TitleLine
+                    key={t.index}
+                    title={t}
+                    reveal={clamp01(
+                      titlesPhase,
+                      i * 0.2 + 0.09,
+                      i * 0.2 + 0.71,
+                    )}
+                    struck={hovered !== null && hovered !== idx}
+                    onHover={() => setHovered(idx)}
+                    onLeave={() => setHovered(null)}
+                    align="right"
+                  />
+                );
+              })}
+            </div>
+          </div>
 
-          {/* SECTION 6: THE CALL TO ACTION (FINAL PROTOCOL) */}
-          <section
-            className="about-cta-section h-[70vh] w-full flex flex-col lg:flex-row items-center justify-between px-12 lg:px-32 border-t border-white/10 bg-transparent relative overflow-hidden"
+          {/* SCROLL HINT — appears on a dwell timer so lingering users know to keep going */}
+          <div
+            aria-hidden="true"
+            className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-40 pointer-events-none"
             style={{
-              zIndex: 2,
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(5px)",
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.70) 100%)",
+              opacity: showHint ? 1 : 0,
+              transition: "opacity 900ms ease-out",
             }}
           >
-            {/* LEFT: TEXT STACK */}
-            <div className="flex flex-col items-start space-y-4">
-              <span className="cta-meta-tag text-[10px] uppercase tracking-[1em] text-white/40 font-brand-secondary-thin">
-                [NEXT FLOOR]
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.55)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="narrative-chevron-drift"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
+        </div>
+      )}
+      {/* ===== SECTION 03: BIO ===== */}
+      {/* Drop in after Section 2's closing </div>, before </main>.
+         Normal document flow — follows the pinned stage.
+
+         Stacking (bottom → top):
+           plate → PARKER (mix-blend-difference) → cutout PNG → text/UI
+         The name spans full width like the hero and blends against the
+         plate; the cutout sits IN FRONT so you overlap the letters. */}
+      {/* ===== OUTRO STAGE: bio pinned as a backdrop, CTA rises over it ===== */}
+      <div ref={outroRef} className="relative w-full h-[250vh] bg-black">
+        <section
+          ref={bioRef}
+          className="sticky top-0 isolate w-full h-screen overflow-hidden bg-black"
+        >
+          {/* SCALE WRAPPER — the whole bio composition recedes (scales down)
+              as the CTA rises. PARKER + cutout live inside together, so their
+              mix-blend stays intact. Overlay/hint/CTA are OUTSIDE this. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `scale(${1 - ctaRise * 0.07})`,
+              transformOrigin: "center center",
+              // No will-change: it eagerly promoted this mix-blend layer, which
+              // painted white for one frame on first composite (the whole-section
+              // flash on first scroll-in). The scale still promotes on demand.
+            }}
+          >
+            {/* Below lg the same composition is stacked instead of overlapped;
+                everything outside this wrapper (hint, overlay, CTA) is shared. */}
+            {isMobile ? (
+              <NarrativeBioMobile bioIn={bioIn} />
+            ) : (
+            <>
+            {/* TEXTURED BACKGROUND PLATE */}
+            <img
+              src="/section-3-bg.avif"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-black/25 pointer-events-none" />
+
+            {/* SECTION LABEL RULE — full-width line behind the cutout, with the
+            section tag at the right. Sits above the plate, below the cutout. */}
+            <div className="absolute top-[11%] left-0 right-0 z-[5] flex items-center gap-3 px-[3vw] pointer-events-none">
+              <span className="h-[1px] flex-1 bg-white/20" />
+              <span className="font-brand-thin-cn uppercase text-white text-[10px] lg:text-[11px] tracking-[0.58em] whitespace-nowrap">
+                {BIO_LABEL}
               </span>
-              <h2 className="cta-main-title text-4xl lg:text-6xl font-brand-cn tracking-[0.3em] uppercase text-white leading-tight">
-                BUILD YOUR <br />
-                <span className="cta-accent-title font-brand-other text-white text-[90px] ">
-                  AUTHORITY
-                </span>
-              </h2>
             </div>
 
-            {/* RIGHT: CTA ASSET ANCHOR */}
-            <div className="relative group cursor-pointer mt-13 lg:mt-0">
-              <Link
-                href="/contact"
-                className="relative z-10 overflow-hidden  p-5 transition-all duration-500 cursor-pointer"
-              >
-                <img
-                  src="/CTA.webp"
-                  alt="Execute Protocol"
-                  loading="lazy"
-                  className="w-100 lg:w-240 h-auto"
-                />
-              </Link>
+            {/* ZION kicker — rises in on entry AND wipes via clip-path. Hidden
+            state keeps a 1px sliver (not opacity:0) so the mix-blend layer never
+            goes cold — opacity would both cold-start the layer AND break the
+            difference blend mid-fade (opacity ≠ 1 makes a stacking context). */}
+            <div
+              className="absolute bottom-[16vw] lg:bottom-[17vw] left-0 right-0 z-30 px-[2vw] pointer-events-none mix-blend-difference"
+              style={{
+                transform: bioIn ? "translateY(0)" : "translateY(1.2em)",
+                clipPath: bioIn ? "inset(0 0 0 0)" : "inset(calc(100% - 1px) 0 0 0)",
+                WebkitClipPath: bioIn ? "inset(0 0 0 0)" : "inset(calc(100% - 1px) 0 0 0)",
+                transition:
+                  "transform 1200ms cubic-bezier(0.16,1,0.3,1), clip-path 1100ms cubic-bezier(0.16,1,0.3,1)",
+              }}
+            >
+              <div className="flex items-center pl-[0.7em] pr-[0vw]">
+                <span className="font-brand-cn uppercase text-white/90 text-[3.4vw] lg:text-[2.7vw] leading-none tracking-[1em] whitespace-nowrap">
+                  {BIO_KICKER}
+                </span>
+                <span className="h-[1.5px] flex-1 bg-white/50" />
+              </div>
             </div>
-          </section>
-        </div>
+
+            {/* CUTOUT — z-10, static. Stays put so PARKER's blend against it holds. */}
+            <img
+              src="/ZP-1.avif"
+              alt="Zion Parker"
+              className="absolute bottom-0 left-[2%] lg:left-[5%] z-10 h-[94%] lg:h-[98%] w-auto object-contain object-bottom pointer-events-none select-none"
+            />
+
+            {/* PARKER — z-20, direct child of the section so it blends against
+            the cutout + plate below it. Wipes UP via clip-path (a transform
+            would create a stacking context and break the blend).
+            Hidden state keeps a 1px sliver (not full inset(100%)) so the
+            mix-blend layer never goes cold — a cold first-composite on reveal
+            was the entry flash. The sliver is imperceptible on a 20vw wordmark. */}
+            <h2
+              className="absolute bottom-2 left-0 right-0 z-20 px-[2vw] font-brand-other uppercase text-white text-[19vw] lg:text-[20vw] leading-[0.78] tracking-[0.4em] whitespace-nowrap mix-blend-difference pointer-events-none"
+              style={{
+                clipPath: bioIn ? "inset(0 0 0 0)" : "inset(calc(100% - 1px) 0 0 0)",
+                WebkitClipPath: bioIn ? "inset(0 0 0 0)" : "inset(calc(100% - 1px) 0 0 0)",
+                transition: "clip-path 1500ms cubic-bezier(0.16,1,0.3,1) 150ms",
+              }}
+            >
+              {BIO_NAME}
+            </h2>
+
+            {/* ===== TITLE — own container, kerned wide ===== */}
+            <div className="absolute top-[20%] left-[41%] right-[3%] z-30 text-left pointer-events-none">
+              <h3
+                className="font-brand-secondary-heavy italic uppercase text-white text-[6vw] lg:text-[2.4vw] leading-[0.95] tracking-[0.5em] whitespace-nowrap"
+                style={{
+                  opacity: bioIn ? 1 : 0,
+                  transform: bioIn ? "translateY(0)" : "translateY(12px)",
+                  transition:
+                    "opacity 800ms ease-out 1200ms, transform 800ms cubic-bezier(0.16,1,0.3,1) 1200ms",
+                }}
+              >
+                {BIO_ROLE}
+              </h3>
+            </div>
+
+            {/* ===== BODY — own container, independent position ===== */}
+            <div
+              className="absolute top-[29%] left-[41%] right-[3%] z-30 text-justify pointer-events-none"
+              style={{
+                opacity: bioIn ? 1 : 0,
+                transform: bioIn ? "translateY(0)" : "translateY(12px)",
+                transition:
+                  "opacity 800ms ease-out 1500ms, transform 800ms cubic-bezier(0.16,1,0.3,1) 1500ms",
+              }}
+            >
+              <div className="flex flex-col gap-4 lg:gap-5 max-w-[122ch]">
+                {BIO_PARAGRAPHS.map((para, i) => (
+                  <p
+                    key={i}
+                    className="font-brand-secondary-thin text-white/70 text-[10px] lg:text-[15px] leading-[1.55] tracking-[0.04em] text-justify"
+                  >
+                    {para}
+                  </p>
+                ))}
+              </div>
+            </div>
+            </>
+            )}
+            {/* END SCALE WRAPPER */}
+          </div>
+
+          {/* SCROLL HINT — dwell timer, cues the CTA rise below. Desktop only. */}
+          <div
+            aria-hidden="true"
+            className="hidden lg:block absolute bottom-[3vh] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+            style={{
+              opacity: showOutroHint ? 1 : 0,
+              transition: "opacity 900ms ease-out",
+            }}
+          >
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.55)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="narrative-chevron-drift"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          {/* DEPTH OVERLAY — bio recedes into shadow as the CTA rises over it */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-[35] bg-black pointer-events-none"
+            style={{ opacity: ctaRise * 0.6 }}
+          />
+          {/* ===== CTA — rises up over the pinned bio after the dwell =====
+           Whole bar is one link to /contact. Arrow is code-drawn so it
+           always spans the gap between the CTA text and the elevator. */}
+          <div
+            className="absolute inset-x-0 bottom-0 z-40 will-change-transform"
+            style={{
+              transform: `translateY(${ctaTranslate}%)`,
+              boxShadow: `0 -${40 * ctaRise}px ${60 * ctaRise}px rgba(0,0,0,${0.7 * ctaRise})`,
+            }}
+          >
+            <Link
+              href="/contact"
+              aria-label="Build your authority — contact the studio"
+              className="group relative block w-full overflow-hidden"
+              onMouseEnter={() => setCtaHover(true)}
+              onMouseLeave={() => setCtaHover(false)}
+              onMouseMove={(e) => setCtaPos({ x: e.clientX, y: e.clientY })}
+            >
+              {/* ORANGE BACKGROUND PLATE */}
+              <img
+                src="/cta-bg.avif"
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+
+              {/* CONTENT — one row on desktop; below lg the four assets stack
+                  into two rows so nothing gets cut. Rise/plate/link unchanged. */}
+              {isMobile ? (
+                <NarrativeCtaMobile lineReveal={ctaLineReveal} />
+              ) : (
+              <div className="relative z-10 flex items-center gap-6 lg:gap-11 px-6 lg:px-10 py-5 lg:py-4">
+                {/* MAIL ICON */}
+                <img
+                  src="/mail-icon.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-6 lg:h-10 w-auto shrink-0 object-contain"
+                />
+
+                {/* CTA TEXT — Khand, YOUR bold */}
+                <span
+                  className="font-brand-other uppercase text-black text-[5vw] lg:text-[3vw] leading-none tracking-[0.27em] whitespace-nowrap shrink-0"
+                >
+                  <span className="font-brand-other-medium">Build </span>
+                  <span className="font-bold">Your </span>
+                  <span className="font-brand-other-medium">Authority</span>
+                </span>
+
+                {/* ARROW — code-drawn line + head, flexes to fill the gap */}
+                {/* LINE — plain, spans the gap */}
+                {/* LINE — draws left→right after the text, guiding the eye to the elevator */}
+                <span className="relative flex-1 min-w-[3rem] h-[2px] flex items-center">
+                  <span
+                    className="block h-[2.5px] bg-black origin-left"
+                    style={{
+                      width: `${ctaLineReveal * 100}%`,
+                      transition: "width 500ms cubic-bezier(0.16,1,0.3,1)",
+                    }}
+                  />
+                </span>
+
+                {/* ELEVATOR — rises on hover, like ascending a floor */}
+                <span className="relative shrink-0 h-28 lg:h-28 overflow-hidden flex items-end">
+                  <img
+                    src="/cta-elevator.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-28 w-auto object-contain transition-transform duration-600 ease-out group-hover:-translate-y-[120%]"
+                  />
+                  <img
+                    src="/cta-elevator.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute left-0 bottom-0 h-28 w-auto object-contain translate-y-[120%] transition-transform duration-600 ease-out group-hover:translate-y-0"
+                  />
+                </span>
+              </div>
+              )}
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      {/* CURSOR TAG — desktop, shown on CTA hover; same format as the archive tag */}
+      <div
+        aria-hidden="true"
+        className="hidden lg:flex fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
+        style={{
+          left: ctaPos.x,
+          top: ctaPos.y,
+          opacity: ctaHover ? 1 : 0,
+          transition: "opacity 500ms ease-out",
+        }}
+      >
+        <img
+          src="/right-click.png"
+          alt=""
+          className="w-5 h-auto filter brightness-110"
+        />
+        <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
+          Next floor ~ 05 CONTACT
+        </span>
       </div>
     </main>
+  );
+}
+
+/* Single title. `reveal` 0→1 drives a right-to-left clip-path wipe.
+   clip-path preserves mix-blend-difference (opacity would break it). */
+function TitleLine({
+  title,
+  reveal,
+  struck,
+  onHover,
+  onLeave,
+  align = "left",
+}: {
+  title: Title;
+  reveal: number;
+  struck: boolean;
+  onHover: () => void;
+  onLeave: () => void;
+  align?: "left" | "right";
+}) {
+  const clip = `inset(0 0 0 ${(1 - reveal) * 100}%)`;
+  const interactive = reveal >= 1; // only hoverable once fully wiped in
+
+  return (
+    <button
+      type="button"
+      onMouseEnter={onHover}
+      onFocus={onHover}
+      onMouseLeave={onLeave}
+      onBlur={onLeave}
+      tabIndex={interactive ? 0 : -1}
+      className={`${
+        interactive
+          ? "pointer-events-auto cursor-pointer"
+          : "pointer-events-none"
+      } bg-transparent border-none appearance-none p-0 m-0 flex items-end gap-2 lg:gap-3 focus:outline-none`}
+    >
+      <span className="relative inline-block">
+        <span
+          className="block font-brand-other uppercase text-white leading-[1] tracking-[0.01em] text-[9vw] lg:text-[8.5vw] transition-opacity duration-300 ease-out"
+          style={{
+            clipPath: clip,
+            WebkitClipPath: clip,
+            opacity: struck ? 0.35 : 1,
+          }}
+        >
+          {title.word}
+        </span>
+      </span>
+
+      <span
+        className="font-brand-cn text-[13px] lg:text-[16px] tracking-[0.15em] text-white/60 pb-[0.7em] shrink-0"
+        style={{ opacity: reveal }}
+      >
+        {title.index}
+      </span>
+    </button>
   );
 }

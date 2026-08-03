@@ -1934,8 +1934,8 @@ export default function ArchiveCatalogue({
                 className="flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
               >
                 <motion.img
-                  src="/return-to.webp"
-                  className="pt-8 w-22 h-auto opacity-70 group-hover:opacity-100"
+                  src="/exit.png"
+                  className="pt-8 w-25 h-auto opacity-75 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />
@@ -2000,7 +2000,7 @@ export default function ArchiveCatalogue({
                 <button
                   onClick={() => setActiveCategory(cat.name)}
                   data-active={activeCategory === cat.name}
-                  className={`text-[14px] font-brand-secondary-thin uppercase tracking-[0.1em] transition-colors duration-300 relative pb-1 cursor-pointer ${
+                  className={`text-[15px] font-brand-secondary-thin uppercase tracking-[0.1em] transition-colors duration-300 relative pb-1 cursor-pointer ${
                     activeCategory === cat.name
                       ? "text-white"
                       : "text-white/40 hover:text-white/50"
@@ -2016,10 +2016,6 @@ export default function ArchiveCatalogue({
                     />
                   )}
                 </button>
-                {/* Vertical divider separating "All" from the rest of the categories. */}
-                {cat.name === "All" && i === 0 && categories.length > 1 && (
-                  <span className="h-6 w-px bg-white/20 self-center" />
-                )}
               </React.Fragment>
             ))}
           </nav>
@@ -2050,7 +2046,7 @@ export default function ArchiveCatalogue({
                       <img
                         src={firstImage(item) as string}
                         alt={item.title}
-                        className="w-full h-auto block object-cover grayscale-[30%] saturate-[100%] transition-all duration-800 scale-[100%] group-hover:scale-[100.5%] duration-900"
+                        className="w-full h-auto block object-cover"
                       />
                     </div>
                   ) : (
@@ -2105,7 +2101,7 @@ export default function ArchiveCatalogue({
                       <img
                         src={firstImage(item) as string}
                         alt={item.title}
-                        className={`w-full object-cover block grayscale-[30%] saturate-[90%] ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                        className={`w-full object-cover block ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
                       />
                     </div>
                   ) : (

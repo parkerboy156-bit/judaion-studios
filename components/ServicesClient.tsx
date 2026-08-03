@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import * as React from "react";
 import Link from "next/link";
+import ElevatorArrow from "./ElevatorArrow";
 import servicesBgAvif from "@/public/service-home-bg.avif";
 
 export default function ServicesHome() {
@@ -168,7 +169,7 @@ export default function ServicesHome() {
                 : {
                     x: bgMoveX,
                     y: bgMoveY,
-                    scale: 1.04,
+                    scale: 1.03,
                     backgroundImage: `url(${servicesBgAvif.src})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
@@ -511,16 +512,7 @@ export default function ServicesHome() {
               href="/methodology"
               className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
             >
-              <motion.img
-                src="/down-stairs-last-floor.webp"
-                className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                animate={{ x: [0, -5, 0] }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
+              <ElevatorArrow src="/elevator-down.png" dir="down" className="w-23 mb-2" />
               <div className="flex flex-col items-start font-brand-secondary-thin text-left">
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">
                   Previous Floor
@@ -543,16 +535,7 @@ export default function ServicesHome() {
               href="/projectarchive"
               className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
             >
-              <motion.img
-                src="/upstairs.webp"
-                className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                animate={{ x: [0, 5, 0] }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
+              <ElevatorArrow src="/elevator-up.png" dir="up" className="w-23 mb-2" />
               <div className="flex flex-col items-end font-brand-secondary-thin text-right">
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">
                   Next Floor

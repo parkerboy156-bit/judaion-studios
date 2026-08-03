@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Lenis smooth-scroll (floor routes, desktop only) — recommended base rules. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
 @layer base {
   body {
     @apply bg-brand-black text-white antialiased;
@@ -14,6 +29,7 @@
   --font-brand-cn: "HelveticaNowDisplay-Cn", sans-serif;
   --font-brand-bold: "HelveticaNowMicro-CnBold", sans-serif;
   --font-brand-italic-cn: "HelveticaNowDisplay-CnLtIt", sans-serif;
+  --font-brand-thin-cn: "HelveticaNowDisplay-CnLt", sans-serif;
   --font-brand-xbold-italic-cn: "HelveticaNowDisplay-CnXBdIt", sans-serif;
   --font-brand-med-italic-cn: "HelveticaNowDisplay-CnMedIt", sans-serif;
   --font-brand-compressed: "Helvetica-Compressed", sans-serif;
@@ -53,6 +69,14 @@
 @font-face {
   font-family: "HelveticaNowDisplay-CnLtIt";
   src: url("/fonts/HelveticaNowDisplay-CnLtIt.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "HelveticaNowDisplay-CnLt";
+  src: url("/fonts/HelveticaNowDisplay-CnLt.woff2") format("woff2");
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -1275,6 +1299,15 @@ video::-webkit-media-controls-start-playback-button {
   animation: scanline-scroll 1.1s linear infinite;
 }
 
+/* Narrative dwell scroll-hint chevron — slow, heavy drift */
+@keyframes narrative-chevron-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(11px); }
+}
+.narrative-chevron-drift {
+  animation: narrative-chevron-drift 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
 /* ── ROTATE-TO-PORTRAIT PROMPT ──────────────────────────────────────────
    Hidden by default; only shown when a PHONE is held in landscape. The
    short max-height keeps it off tablets (their landscape height is ~768px+)
@@ -1345,6 +1378,20 @@ video::-webkit-media-controls-start-playback-button {
 }
 .grid-image-reveal {
   animation: revealColor 1s ease forwards;
+}
+
+/* Narrative title asterisk — glitches in on hover-select */
+.asterisk-glitch {
+  animation: asteriskGlitchIn 0.42s steps(1) 1 both;
+}
+@keyframes asteriskGlitchIn {
+  0%   { opacity: 0;   transform: translate(-3px, 2px);  clip-path: inset(0 0 70% 0); }
+  15%  { opacity: 1;   transform: translate(3px, -2px);  clip-path: inset(55% 0 0 0); }
+  30%  { opacity: 0.4; transform: translate(-2px, 1px);  clip-path: inset(0 0 30% 0); }
+  45%  { opacity: 1;   transform: translate(2px, 0);     clip-path: inset(25% 0 0 0); }
+  60%  { opacity: 0.7; transform: translate(-1px, -1px); clip-path: inset(0 0 10% 0); }
+  75%  { opacity: 1;   transform: translate(1px, 0);     clip-path: inset(0 0 0 0); }
+  100% { opacity: 1;   transform: translate(0, 0);       clip-path: inset(0 0 0 0); }
 }
 
 /* J logo glitch loader */
@@ -1420,31 +1467,57 @@ video::-webkit-media-controls-start-playback-button {
   content: "organising files.";
   animation: catalogueShuffle 4s steps(1) infinite;
 }
-/* Intro loader */
-@keyframes introLeadIn {
-  0%       { content: "navigating the vision."; }
-  7.69%    { content: "navigating the vision.."; }
-  15.38%   { content: "navigating the vision..."; }  /* holds 3 dots (0.4s) */
-  30.77%   { content: "building the system."; }
-  38.46%   { content: "building the system.."; }
-  46.15%   { content: "building the system..."; }     /* holds 3 dots (0.4s) */
-  61.54%   { content: "compiling identity..."; }
-  69.23%   { content: "compiling identity.."; }
-  76.92%   { content: "compiling identity..."; }    /* holds 3 dots (0.4s) */
-  92.31%   { content: "Initiating JUDAION Studios."; }     /* final line types in… */
-  100%     { content: "Initiating JUDAION Studios.."; }    /* …holds 2 dots; ::after blinks the 3rd */
-}
+/* Intro loader — static phrase, same cycling-dots pattern as .loader-text */
 .loader-text-intro::before {
-  content: "navigating the vision.";
-  animation: introLeadIn 2.6s steps(1) forwards;
+  content: "Initiating JUDAION Studios";
 }
-@keyframes introDotBlink {
-  0%   { opacity: 1; }
-  50%  { opacity: 0; }
-  100% { opacity: 1; }
+@keyframes introLoadingDots {
+  0%,20%   { content: "."; }
+  40%      { content: ".."; }
+  60%,100% { content: "..."; }
 }
 .loader-text-intro::after {
-  content: "."; /* the blinking third dot of "Authority established..." */
-  opacity: 0;   /* hidden until the phrase finishes typing (blink starts at 2.8s) */
-  animation: introDotBlink 0.8s steps(1) 2.8s infinite;
+  content: "...";
+  animation: introLoadingDots 1.2s steps(1) infinite;
+}
+/* ── ELEVATOR CYCLE — touch-screen replacement for the hover slide ──────────
+   Two identical copies travel in ONE direction: a "lead" copy exits, a
+   "follow" copy takes its place. Because both are the same image, the loop
+   restart (lead snapping back to 0, follow back off-screen) lands on pixels
+   identical to the frame before it — so the reset is invisible and the arrow
+   only ever appears to move one way. Toggling a single transform instead
+   would animate the return leg backwards, reading as a pendulum.
+   2.6s cycle = ~0.8s of travel (0→31%) then a ~1.8s hold, matching the
+   hover slide's duration-800 and the CTA's original 1800ms beat. */
+@keyframes elevator-lead-down {
+  0%   { transform: translateY(0); }
+  31%  { transform: translateY(120%); }
+  100% { transform: translateY(120%); }
+}
+@keyframes elevator-follow-down {
+  0%   { transform: translateY(-120%); }
+  31%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+@keyframes elevator-lead-up {
+  0%   { transform: translateY(0); }
+  31%  { transform: translateY(-120%); }
+  100% { transform: translateY(-120%); }
+}
+@keyframes elevator-follow-up {
+  0%   { transform: translateY(120%); }
+  31%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+.elev-lead-down   { animation: elevator-lead-down   2600ms ease-out infinite; }
+.elev-follow-down { animation: elevator-follow-down 2600ms ease-out infinite; }
+.elev-lead-up     { animation: elevator-lead-up     2600ms ease-out infinite; }
+.elev-follow-up   { animation: elevator-follow-up   2600ms ease-out infinite; }
+
+/* Both copies then sit at translateY(0) — identical images, perfectly
+   overlapped, so it simply reads as a single static arrow. */
+@media (prefers-reduced-motion: reduce) {
+  .elev-lead-down, .elev-follow-down, .elev-lead-up, .elev-follow-up {
+    animation: none;
+  }
 }

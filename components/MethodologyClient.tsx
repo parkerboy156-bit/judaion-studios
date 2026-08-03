@@ -15,6 +15,7 @@ import * as React from "react";
 import methodBgAvif from "@/public/method-bg-V2.1.avif";
 import methodBgPng from "@/public/method-bg-V2.1.webp";
 import Link from "next/link";
+import ElevatorArrow from "./ElevatorArrow";
 
 // ─────────────────────────────────────────────
 // METHODOLOGY HITBOX — sits over the billboard, opens the carousel.
@@ -674,9 +675,9 @@ export default function MethodologyPage() {
                           duration = speed. */}
                     {!open && (
                       <motion.div
-                        className="absolute left-1/2 top-1/2 rounded-full border border-white pointer-events-none blur-[0.5px]"
+                        className="absolute left-1/2 top-1/2 border border-white pointer-events-none blur-[0.5px]"
                         style={{ x: "-50%", y: "-50%", width: 13, height: 13 }}
-                        animate={{ opacity: [0, 0.3, 0], scale: [1, 2.0, 2.6] }}
+                        animate={{ opacity: [0, 0.2, 0], scale: [1, 2.0, 2.6] }}
                         transition={{
                           duration: 1.5,
                           repeat: Infinity,
@@ -693,7 +694,7 @@ export default function MethodologyPage() {
                         scale: open ? 1 : 0.9,
                       }}
                       transition={{ duration: 0.3 }}
-                      className="w-[7px] h-[7px] rounded-md bg-white"
+                      className="w-[6.2px] h-[6.2px] bg-white"
                     />
                   </div>
 
@@ -813,7 +814,7 @@ export default function MethodologyPage() {
                   className="fixed inset-0 w-screen h-screen bg-black/80 backdrop-blur-sm z-[100]"
                 >
                   {/* Scrollable cards region (the scrim + back button below are pinned siblings, not part of this scroll). */}
-                  <div className="absolute inset-0 overflow-y-auto overscroll-contain">
+                  <div data-lenis-prevent className="absolute inset-0 overflow-y-auto overscroll-contain">
                     <div className="flex flex-col gap-5 px-8 pt-38 pb-16">
                     {STEPS.map((step, i) => (
                       <div
@@ -994,8 +995,11 @@ export default function MethodologyPage() {
                           />
                         </div>
                         <div className="relative z-10 flex flex-col justify-end h-full p-8">
-                          <h3 className="text-white text-[55px] tracking-[0.55em] uppercase font-brand-other flex items-center">
+                          <h3 className="text-white text-[80px] tracking-[0.28em] uppercase font-brand-other flex items-center">
                             {step.title}
+                            <span className="font-brand-cn text-[13px] tracking-[0.15em] text-white/60 self-end pb-[1em] shrink-0">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
                           </h3>
                           {/* Description collapses off-hover so the title sits at the bottom; hover expands the row, sliding the title up as the text fades in. */}
                           <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-800 ease-out">
@@ -1058,8 +1062,8 @@ export default function MethodologyPage() {
               className="flex flex-col items-start group no-underline bg-transparent border-none cursor-pointer"
             >
               <motion.img
-                src="/exit-the-studio-1.webp"
-                className="w-20 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
+                src="/exit.png"
+                className="w-26 h-auto mb-4 opacity-70 group-hover:opacity-100 group-hover:-translate-x-2 transition-all duration-700 filter brightness-125 object-contain drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                 animate={{ x: [0, -5, 0] }}
                 transition={{
                   duration: 3,
@@ -1089,16 +1093,7 @@ export default function MethodologyPage() {
               href="/services"
               className="flex flex-col items-end group no-underline appearance-none bg-transparent border-none cursor-pointer text-right"
             >
-              <motion.img
-                src="/upstairs.webp"
-                className="w-22 h-auto mb-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-700 filter brightness-125 object-contain"
-                animate={{ x: [0, 5, 0] }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
+              <ElevatorArrow src="/elevator-up.png" dir="up" className="w-23 mb-2" />
               <div className="flex flex-col items-end font-brand-secondary-thin text-right">
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">
                   Next Floor
