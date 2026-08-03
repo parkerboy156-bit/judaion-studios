@@ -277,7 +277,7 @@ export default function TheNarrative() {
         {/* Top scrim. Lighter below lg: the grain video used to sit over this on
             desktop and lifted the top, so without it mobile read too dark.
             Tune the mobile value only — `lg:` keeps desktop exactly as it was. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 lg:from-black/65 via-black/0 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/85 lg:from-black/65 via-black/0 to-transparent pointer-events-none" />
 
         {/* ELEVATOR DOWN — faint top-left accent. Descends on hover; on touch
             there is no hover, so `auto` runs the same motion on a timer. */}
