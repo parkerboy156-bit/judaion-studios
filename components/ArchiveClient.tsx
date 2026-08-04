@@ -504,8 +504,15 @@ function OpenFolderView({
       return (
         <video
           src={url}
+          // Captured frame (admin portal). Without it an unplayed video is a
+          // black box — iOS draws a play glyph on it, desktop just shows black.
+          // Legacy assets uploaded before this have no thumb and stay black
+          // until re-uploaded; `undefined` simply omits the attribute.
+          poster={asset.thumb}
           controls
-          preload="metadata"
+          // No thumb → still fetch metadata so SOMETHING renders. With a poster
+          // there's nothing to show until play, so don't spend the request.
+          preload={asset.thumb ? "none" : "metadata"}
           className={`block bg-black border border-white/10 ${sizeCls}`}
           onPlay={onVideoPlay}
           onPause={onVideoRestore}

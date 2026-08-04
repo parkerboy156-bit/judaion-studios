@@ -114,6 +114,61 @@ async function makeThumb(
   }
 }
 
+// Capture a frame from a video as a WebP thumbnail — the same browsing-surface
+// role makeThumb plays for images. Without one, an unplayed <video> renders as
+// a black box (iOS adds a play glyph over it), so a video asset showed nothing
+// of itself until tapped. Also returns the natural dims, which feed the
+// archive's portrait/landscape grid logic exactly as an image's do.
+async function makeVideoThumb(
+  file: File,
+): Promise<{ blob: Blob | null; width: number; height: number } | null> {
+  if (!file.type.startsWith("video/")) return null;
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true; // required for the decode to proceed unattended
+    video.playsInline = true;
+    video.src = objectUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error("video decode failed"));
+    });
+
+    // Seek a little way in — frame 0 is very often a black leader or a fade-in,
+    // which would defeat the point. Capped so long videos don't seek far.
+    const target = Math.min(1.5, (video.duration || 0) * 0.25);
+    if (target > 0) {
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+        video.currentTime = target;
+        // Some browsers never fire onseeked for very short seeks — don't hang.
+        setTimeout(resolve, 2000);
+      });
+    }
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return null;
+    const scale = Math.min(1, THUMB_MAX / Math.max(vw, vh));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(vw * scale));
+    canvas.height = Math.max(1, Math.round(vh * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { blob: null, width: vw, height: vh };
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob(res, "image/webp", THUMB_QUALITY),
+    );
+    return { blob, width: vw, height: vh };
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 // Render a PDF's first page to a WebP thumbnail — the same browsing-surface role
 // makeThumb plays for images, so the archive shows the first page as a cover
 // instead of a generic document card. pdfjs is imported lazily (no bundle cost
@@ -397,18 +452,24 @@ export default function AdminPortal() {
             added = new Date().toISOString();
             const ext = a.file.name.split(".").pop();
             const isPdf = (ext || "").toLowerCase() === "pdf";
+            const isVideo = (a.file.type || "").startsWith("video/");
             const base = `${categoryName}/${projectName}/${folderName}/asset_${assets.length}_${Date.now()}`;
             url = await uploadFile(a.file, `${base}.${ext}`);
             // Thumbnail: image → downscaled WebP; PDF → first page rendered to
-            // WebP. Images keep the thumb only when it saves bytes; a PDF always
-            // keeps it (there's no other way to show a PDF as an image cover).
-            const t = isPdf ? await makePdfThumb(a.file) : await makeThumb(a.file);
+            // WebP; video → a captured frame. Images keep the thumb only when it
+            // saves bytes; PDFs and videos always keep it (there's no other way
+            // to show either as an image cover).
+            const t = isPdf
+              ? await makePdfThumb(a.file)
+              : isVideo
+                ? await makeVideoThumb(a.file)
+                : await makeThumb(a.file);
             if (t) {
               if (t.width && t.height) {
                 width = t.width;
                 height = t.height;
               }
-              if (t.blob && (isPdf || t.blob.size < a.file.size)) {
+              if (t.blob && (isPdf || isVideo || t.blob.size < a.file.size)) {
                 thumb = await uploadFile(t.blob, `${base}_thumb.webp`);
               }
             }
