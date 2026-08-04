@@ -904,9 +904,12 @@ function OpenFolderView({
               ) : enlarged && isPdfUrl(enlarged.url) ? (
                 /* ── INLINE PDF READER — the JUDAION reader fills the assets pane
               (not a new window); ESC / its own close button returns to the grid.
-              Sized wrapper gives mobile a concrete height (h-full is unreliable
-              inside the mobile scroll sheet). ── */
-                <div className="relative w-full h-[70vh] lg:h-full overflow-hidden">
+              Absolute, not h-full: the percentage chain (h-full → h-full →
+              flex-1) doesn't resolve reliably on mobile, which is why this was
+              pinned to a fixed 70vh — and that left ~30vh of dead black below
+              the reader. Insetting against the already-relative parent fills the
+              pane exactly without depending on percentage heights at all. ── */
+                <div className="absolute inset-0 overflow-hidden">
                   <PdfReader
                     variant="inline"
                     url={enlarged.url}
