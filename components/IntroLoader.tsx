@@ -25,6 +25,21 @@ export default function IntroLoader({
       node.defaultMuted = true;
     }
   };
+
+  // Dust overlay stays invisible until playback is confirmed — see the element.
+  const [dustPlaying, setDustPlaying] = useState(false);
+  const dustRef = useRef<HTMLVideoElement>(null);
+  const setDustRef = (node: HTMLVideoElement | null) => {
+    dustRef.current = node;
+    if (node) {
+      node.muted = true;
+      node.defaultMuted = true;
+      // Explicit play alongside the autoPlay attribute — Safari honours a
+      // direct call in some states where it ignores the attribute. A rejection
+      // is the blocked case and needs no handling: the element stays hidden.
+      node.play().catch(() => {});
+    }
+  };
   const mobileVideoSrc =
     "https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/JDS-Introloader-ALT-Mobile.mp4";
   const desktopVideoSrc =
@@ -108,12 +123,25 @@ export default function IntroLoader({
               transition={{ duration: 0.6, ease: "easeOut" }}
               className="absolute inset-0 z-[1010] bg-black"
             >
+              {/* Dust texture. Held at opacity 0 until `onPlaying` confirms real
+                  playback, then faded in. Under iOS Low Power Mode autoplay is
+                  refused and Safari paints its own "start playback" glyph over
+                  the element — the CSS that hides ::-webkit-media-controls-* is
+                  not dependable there, since Apple has tightened access to that
+                  shadow DOM. A transparent element cannot show a button, so this
+                  holds regardless of WHY playback fails (Low Power Mode, Data
+                  Saver, decode error). The layer behind is already black, which
+                  is what this texture sits on anyway — nothing is lost. */}
               <video
+                ref={setDustRef}
                 muted
                 autoPlay
                 loop
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover opacity-80"
+                aria-hidden="true"
+                onPlaying={() => setDustPlaying(true)}
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-700 ease-out"
+                style={{ opacity: dustPlaying ? 0.8 : 0 }}
               >
                 {/* Root-relative: a bare "dust-overlay.mp4" resolves against the
                     current route, so it would 404 on any nested path. */}

@@ -192,6 +192,29 @@ video:not([controls])::-webkit-media-controls-start-playback-button {
   pointer-events: none !important;
 }
 
+/* ── NO HARDWARE VIDEO OVERLAY — load-bearing, do not remove. ──────────────
+   Chromium promotes a "visually simple" playing video to a hardware overlay
+   with its own swap chain. Reconfiguring that overlay — when the video scrolls
+   out of view, or when its component UNMOUNTS — repaints the entire browser
+   window on some Windows GPU configs, tab strip included. Page CSS cannot
+   paint over browser chrome, which is how this was identified.
+
+   Seen twice: the narrative section-2 plate (scroll) and the archive
+   LoaderScreen (unmount at loader → content handover). Rather than patch each
+   one, disqualify every decorative video: a mask forces an ordinary render
+   surface, so there is no swap chain to reconfigure. The gradient is solid
+   black — nothing is masked out — and two stops keep it from being reduced
+   away as a no-op. `opacity` does NOT work as a disqualifier; it was tried.
+
+   No !important: videos with a REAL mask (the hero grain's fade-out) override
+   this with their own inline value and are already ineligible.
+   Excludes [controls] — the archive player is user-operated, and leaving it
+   overlay-eligible keeps its playback path fast. ── */
+video:not([controls]) {
+  mask-image: linear-gradient(to bottom, black 0%, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 100%);
+}
+
 /* 🏗️ PRESERVATION LOCK */
 .overflow-x-hidden {
   overflow-x: hidden !important;
