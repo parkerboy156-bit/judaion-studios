@@ -40,6 +40,21 @@ const INSPECTIONS = new Set([
 
 const clean = (p: string) => p.replace(/\/+$/, "") || "/";
 
+/* ── IN-APP HISTORY ───────────────────────────────────────────────────────
+   Counts client-side navigations THIS document has performed, so an exit
+   button can tell whether router.back() would land on one of our pages or
+   leave the site entirely.
+
+   Nothing the browser exposes can answer that: history.length counts other
+   origins' entries too, and Next's history.state looks the same on a fresh
+   load as it does after a push. The only reliable signal is one we record.
+
+   Module scope is deliberate — it resets on a hard load (so a deep link
+   correctly starts at zero) and survives client-side navigation (so it keeps
+   counting as you move around). Incremented from the pathname effect below. */
+let inAppNavigations = 0;
+export const hasInAppHistory = () => inAppNavigations > 0;
+
 type Phase = "cover" | "covered" | "reveal";
 type Transition = {
   dir: "up" | "down";
@@ -73,6 +88,11 @@ export default function ClientShell({
     const from = pathRef.current ? clean(pathRef.current) : null;
     const to = clean(pathname);
     pathRef.current = pathname;
+
+    // Record the navigation BEFORE the sweep guards below bail out — this
+    // tracks that we moved, not whether the move happened to animate.
+    // (A transition-only re-run has from === to, so it can't double count.)
+    if (from && from !== to) inAppNavigations += 1;
 
     // Skip first load, same path, or while a clicked sweep is already running.
     if (!from || from === to || transition) return;

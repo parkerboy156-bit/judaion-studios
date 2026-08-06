@@ -4,6 +4,7 @@ import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import InspectionLoader from "./InspectionLoader";
+import { hasInAppHistory } from "./ClientShell";
 
 // Hover/scan-line target fragments (everything except the static bg + environment)
 const HOVER_SRCS = [
@@ -407,8 +408,13 @@ export default function Tier3() {
           >
             <div className="absolute inset-0 bg-black/50 pointer-events-none" />
             <div className="relative z-10 px-12 xl:px-16 py-6 lg:py-8 flex items-center justify-between">
+              {/* Prefer history-back so the parent keeps its scroll position. On a
+                  deep link there is no in-app entry behind us and back() would
+                  leave the site, so fall back to where this tier is linked from. */}
               <button
-                onClick={() => router.back()}
+                onClick={() =>
+                  hasInAppHistory() ? router.back() : router.push("/services")
+                }
                 className="flex items-center cursor-pointer group bg-transparent border-none p-0"
               >
                 <motion.img

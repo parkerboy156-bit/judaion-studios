@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import PdfReader from "./PdfReader";
 import LoaderScreen from "./LoaderScreen";
+import { hasInAppHistory } from "./ClientShell";
 
 const VIDEO_EXTS = ["mp4", "webm", "ogg"];
 const isVideoUrl = (url: string) =>
@@ -1938,9 +1939,15 @@ export default function ArchiveCatalogue({
           <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
           <div className="flex flex-col">
             <div className="flex items-end gap-5">
-              {/* router.back() — clean history-back to the cached Archive page. */}
+              {/* Prefer history-back — it returns to the CACHED Archive page with
+                  its scroll position intact, which a push would reset. But on a
+                  deep link (/archivecatalogue opened directly) there is no in-app
+                  entry behind us and back() would leave the site, so fall back to
+                  the page this view belongs to. */}
               <button
-                onClick={() => router.back()}
+                onClick={() =>
+                  hasInAppHistory() ? router.back() : router.push("/projectarchive")
+                }
                 className="flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
               >
                 <motion.img
