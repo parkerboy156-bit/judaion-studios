@@ -189,17 +189,81 @@ export default function TheNarrative() {
     if (!titlesPresent) setHovered(null);
   }, [titlesPresent]);
 
-  /* Scroll hint appears on a dwell TIMER (not scroll) once titles have landed;
-     resets if the user scrolls back out of the dwell zone. */
   const inDwell = p >= 0.72 && p < 0.99;
+
+  /* ── SELF-DEMONSTRATING HOVER ───────────────────────────────────────────
+     Nothing signals the titles are interactive, so a reader who never thinks
+     to hover simply misses all four bodies. Instead of instructing them, the
+     stage performs the interaction once: title 01 lights up on its own, holds,
+     and releases.
+
+     It plays the REAL hover state (same `hovered` value a cursor sets), so
+     there is no second code path to keep in sync — and no separate "demo look"
+     that could drift from the actual behaviour.
+
+     Timing is dictated by the existing choreography, not chosen: the image
+     takes 1500ms and the body box is deliberately delayed 1100ms behind it, so
+     the reveal only completes at ~1800ms. Anything shorter shows a
+     half-crossfaded plate and no copy at all — a glitch, not an invitation.
+     Hence land (1.8s) → hold (2.2s) → release.
+
+     Fires once per visit. A real hover at any point cancels it and stops it
+     ever running: someone who already understands must never be interrupted. */
+  const [demoIndex, setDemoIndex] = useState<number | null>(null);
+  const demoSpentRef = useRef(false);
+  const demoTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  /* Called from the titles' own hover handler rather than an effect watching
+     `hovered` — the cursor arriving IS the cancellation, so handling it at the
+     source keeps cause and effect together (and avoids a cascading render). */
+  const retireDemo = () => {
+    demoSpentRef.current = true;
+    demoTimers.current.forEach(clearTimeout);
+    demoTimers.current = [];
+    setDemoIndex(null);
+  };
+
+  useEffect(() => {
+    if (!inDwell || demoSpentRef.current) return;
+    // Let the body boxes finish their own entrance (p 0.66 → 0.72) before
+    // taking the stage, so the two reveals don't overlap.
+    const start = setTimeout(() => {
+      if (demoSpentRef.current) return;
+      demoSpentRef.current = true; // spent on play, so it can't repeat
+      setDemoIndex(0);
+      // 1800ms to land + 2200ms to read.
+      const end = setTimeout(() => setDemoIndex(null), 4000);
+      demoTimers.current.push(end);
+    }, 800);
+    demoTimers.current.push(start);
+    return () => {
+      // Scrolling out mid-demo kills the timer that would have ended it, so
+      // reset here too — otherwise demoIndex sticks and the demo re-appears on
+      // the way back. (Cancelled during the 800ms lead-in it stays unspent, so
+      // a reader who scrolls out and returns still gets it.)
+      demoTimers.current.forEach(clearTimeout);
+      demoTimers.current = [];
+      setDemoIndex(null);
+    };
+  }, [inDwell]);
+
+  /* A cursor always wins over the demo, and scrolling the titles off-stage
+     drops it — gated here rather than in an effect so there's no state to keep
+     in sync. Everything downstream reads this, so the demo is indistinguishable
+     from a real hover. */
+  const activeTitle = hovered ?? (titlesPresent ? demoIndex : null);
+
+  /* Scroll hint appears on a dwell TIMER (not scroll) once titles have landed;
+     resets if the user scrolls back out of the dwell zone. Waits out the demo
+     so the two never share the screen. */
   useEffect(() => {
     if (!inDwell) {
       setShowHint(false);
       return;
     }
-    const t = setTimeout(() => setShowHint(true), 3500);
+    const t = setTimeout(() => setShowHint(true), demoIndex !== null ? 6000 : 3500);
     return () => clearTimeout(t);
-  }, [inDwell]);
+  }, [inDwell, demoIndex]);
 
   /* Bio→CTA outro: while the bio is pinned in its dwell, a timer shows a chevron;
      it hides once the CTA starts rising. */
@@ -360,12 +424,12 @@ export default function TheNarrative() {
               className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none will-change-[opacity,clip-path,transform]"
               style={{
                 filter: "brightness(0.70)", // soften the plates so they aren't harsh
-                opacity: hovered === i ? 1 : 0,
-                transform: hovered === i ? "scale(1.03)" : "scale(1)", // very subtle drift-in, scaling up so no edge shows
+                opacity: activeTitle === i ? 1 : 0,
+                transform: activeTitle === i ? "scale(1.03)" : "scale(1)", // very subtle drift-in, scaling up so no edge shows
                 clipPath:
-                  hovered === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
+                  activeTitle === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
                 WebkitClipPath:
-                  hovered === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
+                  activeTitle === i ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
                 transition:
                   "opacity 1500ms ease-out, transform 1700ms cubic-bezier(0.16, 1, 0.3, 1), clip-path 1500ms cubic-bezier(0.16, 1, 0.3, 1), -webkit-clip-path 1700ms cubic-bezier(0.16, 1, 0.3, 1)",
               }}
@@ -394,7 +458,7 @@ export default function TheNarrative() {
           {/* BODY BOXES — all anchored top-left (01's spot); only the hovered
               title's box shows. z-20, above the Sect line. */}
           {TITLES.map((t, i) => {
-            const isActive = hovered === i;
+            const isActive = activeTitle === i;
             return (
               <div
                 key={t.index}
@@ -433,8 +497,11 @@ export default function TheNarrative() {
                     key={t.index}
                     title={t}
                     reveal={clamp01(titlesPhase, i * 0.2, i * 0.2 + 0.62)}
-                    struck={hovered !== null && hovered !== idx}
-                    onHover={() => setHovered(idx)}
+                    struck={activeTitle !== null && activeTitle !== idx}
+                    onHover={() => {
+                      retireDemo();
+                      setHovered(idx);
+                    }}
                     onLeave={() => setHovered(null)}
                   />
                 );
@@ -453,8 +520,11 @@ export default function TheNarrative() {
                       i * 0.2 + 0.09,
                       i * 0.2 + 0.71,
                     )}
-                    struck={hovered !== null && hovered !== idx}
-                    onHover={() => setHovered(idx)}
+                    struck={activeTitle !== null && activeTitle !== idx}
+                    onHover={() => {
+                      retireDemo();
+                      setHovered(idx);
+                    }}
                     onLeave={() => setHovered(null)}
                     align="right"
                   />
