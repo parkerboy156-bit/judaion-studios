@@ -66,6 +66,16 @@ async function optimizeFile(file) {
   const srcExt = extname(file).toLowerCase();
   if (!IMAGE_EXTS.has(srcExt)) return;
 
+  // Already in the requested format — nothing to convert, so leave it alone.
+  // Without this, `--to avif` over a folder RE-ENCODES every existing .avif
+  // (same-format path, replaced whenever the result is a few bytes smaller),
+  // quietly losing a little quality on each run. `--to` means "convert"; use a
+  // same-format run without `--to` when you actually want to recompress.
+  if (toFormat && srcExt === `.${toFormat}`) {
+    console.log(`· ${file}  already ${toFormat}, skipped`);
+    return;
+  }
+
   const outExt = toFormat ? `.${toFormat}` : srcExt;
   const outPath = join(dirname(file), basename(file, srcExt) + outExt);
   // Compare RESOLVED absolute paths — a raw string compare breaks on Windows
