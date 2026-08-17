@@ -55,6 +55,13 @@ interface FolderAsset {
 // Browsing-surface URL: the thumb when it exists, else the master. Zoom always uses `url`.
 const displayUrl = (a: FolderAsset) => a.thumb || a.url;
 
+/* Folder-window description backdrop. The desktop art is a wide landscape
+   plate; in the mobile sheet it's `cover`d into a narrow column, which crops
+   hard into the middle and magnifies it — soft and over-zoomed. The mobile
+   file is the portrait-framed cut of the same artwork. */
+const DESC_BG = "/folder-description-bg.avif";
+const DESC_BG_MOBILE = "/folder-description-bg-mobile.avif";
+
 // Filename extension (e.g. "jpg"), stripped of any query/hash.
 const fileExt = (u: string) =>
   (u.split(/[?#]/)[0].split(".").pop() || "").toLowerCase();
@@ -371,6 +378,11 @@ function OpenFolderView({
   const [descOpen, setDescOpen] = useState(false);
   const sheetDrag = useDragControls();
 
+  /* Hold-to-read on the mobile meta marquee. Driven by touch handlers rather
+     than CSS :active — iOS only fires :active reliably when the element already
+     has a touch listener, which is exactly the thing we'd be relying on. */
+  const [metaPaused, setMetaPaused] = useState(false);
+
   // Desktop left-pane scroll cue — a down-chevron shown while the description
   // overflows and isn't yet scrolled to the bottom (hidden otherwise). Signals
   // that more copy continues beneath the pinned gradient footer.
@@ -624,6 +636,19 @@ function OpenFolderView({
         "—",
     },
   ];
+  // One field's label + value. Shared so the desktop scroller and the mobile
+  // marquee can never drift apart in styling.
+  const metaField = (f: { title: string; value: string }) => (
+    <div className="flex flex-col gap-1 shrink-0">
+      <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
+        {f.title}
+      </span>
+      <span className="font-brand-bold text-[11px] uppercase tracking-[0.06em] text-white/90 whitespace-nowrap">
+        {f.value}
+      </span>
+    </div>
+  );
+
   // Info fields row ("i" icon + Author/Category/Upload/Type). Shared by the
   // mobile sheet card (folderMeta) and the desktop left-pane pinned footer.
   const folderMetaInner = (
@@ -654,25 +679,55 @@ function OpenFolderView({
         />
         <circle cx="12" cy="7.75" r="1" fill="currentColor" />
       </svg>
-      {/* Divider-separated fields; scrolls horizontally when they exceed the
-        pane. pb keeps the values off the horizontal scrollbar. */}
-      <div className="desc-scroll flex items-stretch gap-4 overflow-x-auto min-w-0 pb-3">
-        {infoFields.map((f, i) => (
-          <React.Fragment key={f.title}>
-            {i > 0 && (
-              <div className="w-px self-stretch bg-white/20 shrink-0" />
-            )}
-            <div className="flex flex-col gap-1 shrink-0">
-              <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
-                {f.title}
-              </span>
-              <span className="font-brand-bold text-[11px] uppercase tracking-[0.06em] text-white/90 whitespace-nowrap">
-                {f.value}
-              </span>
-            </div>
-          </React.Fragment>
-        ))}
-      </div>
+      {isMobile ? (
+        /* Mobile: the fields are wider than a phone, so a scroller just looked
+           cut off and hid the affordance. Walk them past instead — see
+           .folder-meta-marquee. Two identical copies, translated exactly -50%,
+           so the loop reset is invisible. Every field carries a LEADING divider
+           here (unlike the desktop row) so the two copies chain seamlessly
+           rather than butting together without a separator. */
+        <div
+          className="overflow-hidden min-w-0 flex-1"
+          onTouchStart={() => setMetaPaused(true)}
+          onTouchEnd={() => setMetaPaused(false)}
+          onTouchCancel={() => setMetaPaused(false)}
+        >
+          <div
+            className="folder-meta-marquee flex items-stretch gap-4 w-max"
+            style={{ animationPlayState: metaPaused ? "paused" : "running" }}
+          >
+            {[0, 1].map((copy) => (
+              <div
+                key={copy}
+                className="flex items-stretch gap-4"
+                /* The duplicate is presentational — don't read it out twice. */
+                aria-hidden={copy === 1 || undefined}
+              >
+                {infoFields.map((f) => (
+                  <React.Fragment key={`${copy}-${f.title}`}>
+                    <div className="w-px self-stretch bg-white/20 shrink-0" />
+                    {metaField(f)}
+                  </React.Fragment>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* Desktop: the pane is wide enough that these usually fit; scroll is
+           the right fallback when they don't. pb keeps the values off the
+           horizontal scrollbar. */
+        <div className="desc-scroll flex items-stretch gap-4 overflow-x-auto min-w-0 pb-3">
+          {infoFields.map((f, i) => (
+            <React.Fragment key={f.title}>
+              {i > 0 && (
+                <div className="w-px self-stretch bg-white/20 shrink-0" />
+              )}
+              {metaField(f)}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -794,7 +849,7 @@ function OpenFolderView({
               <div
                 className="absolute inset-0"
                 style={{
-                  backgroundImage: "url('/folder-description-bg.avif')",
+                  backgroundImage: `url('${DESC_BG}')`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
@@ -817,9 +872,12 @@ function OpenFolderView({
               </div>
             </div>
             {/* Scroll cue — pulsing chevron; visible only while the description
-                overflows and isn't scrolled to the bottom. */}
+                overflows and isn't scrolled to the bottom.
+                Gated on `ready` as well: this sits at z-30, above the z-20
+                per-folder loader, so on a slow connection it pulsed over the
+                black loading screen pointing at copy nobody could see yet. */}
             <AnimatePresence>
-              {showScrollCue && (
+              {ready && showScrollCue && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.75, y: [0, 5, 0] }}
@@ -990,7 +1048,7 @@ function OpenFolderView({
                         <span className="font-brand-cn text-[10px] tracking-[0.3em] text-white/35">
                           {String(i + 1).padStart(2, "0")}
                         </span>
-                        <span className="font-brand-other uppercase text-white/85 text-[13px] tracking-[0.12em]">
+                        <span className="font-brand-other-semi uppercase text-white/85 text-[14px] tracking-[0.12em]">
                           {asTitle(a, i)}
                         </span>
                       </div>
@@ -1102,7 +1160,7 @@ function OpenFolderView({
                       <div
                         className="absolute inset-0"
                         style={{
-                          backgroundImage: "url('/folder-description-bg.avif')",
+                          backgroundImage: `url('${DESC_BG_MOBILE}')`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                         }}
@@ -1546,19 +1604,45 @@ export default function ArchiveCatalogue({
   wallpapers?: string[];
 }) {
   const router = useRouter();
-  // Shared folder-window description background — same asset for every project, so hint the browser to fetch it now rather than waiting for the first folder open.
-  preload("/folder-description-bg.avif", { as: "image", fetchPriority: "high" });
-  // Focus-view wallpaper — one picked at random per session from public/archive-wallpapers/.
-  const [wallpaper] = useState<string | null>(() =>
-    wallpapers.length
-      ? wallpapers[Math.floor(Math.random() * wallpapers.length)]
-      : null,
+  /* Shared folder-window description background — same asset for every project,
+     so hint the browser to fetch it now rather than waiting for the first
+     folder open. Only the variant this viewport will actually paint: warming
+     the desktop plate on a phone downloads a file that is never shown.
+     matchMedia rather than useIsMobile — that hook starts false and corrects on
+     mount, which would warm the wrong one first. Guarded for SSR, where the
+     hint is simply skipped. */
+  preload(
+    typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 1023px)").matches
+      ? DESC_BG_MOBILE
+      : DESC_BG,
+    { as: "image", fetchPriority: "high" },
   );
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
+
+  /* Focus-view wallpaper, from public/archive-wallpapers/ (drop a file in and
+     it's picked up automatically — see getWallpapers in the page).
+
+     Keyed to the PROJECT, not the session: opening a project always gives it
+     the same backdrop, so a project reads as a place you return to rather than
+     a lucky dip. Deriving it from the id rather than rolling a die also means
+     two projects opened back-to-back can't land on the same wallpaper and look
+     like nothing happened — with only a handful of files, random would repeat
+     often enough to feel broken.
+
+     Projects do share wallpapers once there are more projects than files; add
+     more images and they spread out on their own. */
+  const wallpaper = useMemo<string | null>(() => {
+    if (!wallpapers.length) return null;
+    const id = Number(selectedProject?.id);
+    if (!Number.isFinite(id)) return wallpapers[0];
+    return wallpapers[Math.abs(id) % wallpapers.length];
+  }, [selectedProject, wallpapers]);
+
   const [openFolder, setOpenFolder] = useState<Folder | null>(null);
   const [focusLoading, setFocusLoading] = useState(false);
   // OS click model: the currently selected (highlighted) folder on the desktop.
@@ -2100,12 +2184,18 @@ export default function ArchiveCatalogue({
               ))}
             </div>
           ) : (
-            /* Mobile: 2-column tight grid */
-            <div key={activeCategory} className="grid grid-cols-2 gap-2">
-              {filtered.map((item, index) => (
+            /* Mobile: same CSS-columns masonry as desktop, two columns and a
+               tighter gutter. Was a rigid grid that forced every cover to a
+               fixed 55vw (and every 5th to full-width at 50vw) — so covers were
+               cropped to a uniform height regardless of their real proportions,
+               and the periodic wide item made the rhythm feel mechanical.
+               Letting each cover keep its own aspect is what makes the desktop
+               version read well; mobile now does the same. */
+            <div key={activeCategory} className="columns-2 gap-2">
+              {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className={`group relative overflow-hidden bg-[#111] border border-white/10 select-none ${index % 5 === 0 ? "col-span-2" : ""}`}
+                  className="break-inside-avoid mb-2 group relative overflow-hidden bg-[#111] border border-white/10 select-none"
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -2118,12 +2208,14 @@ export default function ArchiveCatalogue({
                       <img
                         src={firstImage(item) as string}
                         alt={item.title}
-                        className={`w-full object-cover block ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                        className="w-full h-auto block object-cover"
                       />
                     </div>
                   ) : (
+                    // No cover to take a height from, so give the placeholder
+                    // the same portrait ratio the desktop one uses.
                     <div
-                      className={`w-full bg-[#141414] flex flex-col items-center justify-center gap-2 grid-image-reveal ${index % 5 === 0 ? "h-[50vw]" : "h-[55vw]"}`}
+                      className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-2 grid-image-reveal"
                     >
                       <span className="font-brand-cn text-[14px] text-orange-600 leading-none">
                         *
@@ -2222,7 +2314,7 @@ export default function ArchiveCatalogue({
               {/* Focus body — single full-screen folder desktop. */}
               <div className="h-full overflow-hidden">
                 <section className="relative flex items-center justify-center bg-black w-full h-full">
-                  {/* Desktop wallpaper — base layer (random per session). */}
+                  {/* Desktop wallpaper — base layer, keyed to this project. */}
                   {wallpaper && (
                     <img
                       src={wallpaper}

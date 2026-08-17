@@ -1550,3 +1550,27 @@ video:not([controls]) {
     animation: none;
   }
 }
+
+/* ── FOLDER META MARQUEE — mobile only ─────────────────────────────────────
+   The info fields (author / category / upload / type) are wider than a phone,
+   so they used to sit in a horizontal scroller and simply looked cut off. This
+   walks them past instead, so everything is legible without the user having to
+   discover a scroll.
+
+   Same seamless trick as the elevator: the track holds TWO identical copies and
+   travels exactly -50%, so the reset lands on pixels identical to the frame
+   before it and the loop is invisible. Linear timing — any easing would read as
+   the text stalling and lurching rather than drifting. */
+@keyframes folderMetaMarquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.folder-meta-marquee {
+  animation: folderMetaMarquee 20s linear infinite;
+}
+/* Static, and the caller restores overflow-x so the fields stay reachable. */
+@media (prefers-reduced-motion: reduce) {
+  .folder-meta-marquee {
+    animation: none;
+  }
+}
