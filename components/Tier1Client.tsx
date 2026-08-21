@@ -159,7 +159,7 @@ export default function Tier1() {
       details: [
         "– Primary Logo: The main brand mark that governs the brand. Will be used for general use across website, signage etc.",
         "– Secondary / Alternative logo: A horizontal or stacked version for spaces where the primary logo doesn't fit (e.g., narrow navigation bars or business cards)",
-        "– Brand Icon : A simplified version (favicon, social media profile picture) that remains legible at tiny sizes.",
+        "– Brand Icon: A simplified version (favicon, social media profile picture) that remains legible at tiny sizes.",
       ],
     },
     {
@@ -171,7 +171,7 @@ export default function Tier1() {
     {
       what: "THE BRAND STYLE GUIDE",
       details: [
-        '– The Manual : A 5-to-10-page pdf explaining how to use these assets, ensuring client does not "break" the brand when I am not there.',
+        '– The Manual: A 5-to-10-page pdf explaining how to use these assets, ensuring client does not "break" the brand when I am not there.',
         "– Typography Suite: Selection of primary and secondary fonts that ensure their brand speaks in a consistent tone.",
       ],
     },
