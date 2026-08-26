@@ -14,6 +14,12 @@ interface AssetEntry {
   added?: string; // ISO date
   width?: number; // master pixel dimensions (measured at upload)
   height?: number;
+  // Focus view: can this image be enlarged into the pan viewport? Written only
+  // when false (absent = zoomable), so legacy assets keep the old behaviour.
+  zoomable?: boolean;
+  // Shared label: images with the same group stack into one flickable tile in
+  // the focus view (a logo's colourways). Blank = its own tile.
+  group?: string;
 }
 
 interface FolderEntry {
@@ -58,6 +64,8 @@ interface AssetDraft {
   added?: string;
   width?: number;
   height?: number;
+  zoomable?: boolean;
+  group?: string;
 }
 
 interface FolderDraft {
@@ -73,6 +81,36 @@ const uid = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const blankAsset = (): AssetDraft => ({ id: uid(), title: "" });
+
+// Form rows: a stack's variants collapse into ONE row, everything else is its
+// own row — mirrors how the focus view tiles them.
+interface DraftRow {
+  key: string;
+  group?: string;
+  assets: AssetDraft[];
+}
+const draftRows = (assets: AssetDraft[]): DraftRow[] => {
+  const rows: DraftRow[] = [];
+  const byGroup = new Map<string, DraftRow>();
+  for (const a of assets) {
+    // Only images stack — the focus view gives videos and PDFs their own tile
+    // regardless, so grouping them here would misrepresent the result.
+    const g = draftKind(a) === "image" ? a.group?.trim() : "";
+    if (!g) {
+      rows.push({ key: a.id, assets: [a] });
+      continue;
+    }
+    const hit = byGroup.get(g);
+    if (hit) {
+      hit.assets.push(a);
+    } else {
+      const row = { key: `group:${g}`, group: g, assets: [a] };
+      byGroup.set(g, row);
+      rows.push(row);
+    }
+  }
+  return rows;
+};
 const blankFolder = (): FolderDraft => ({
   id: uid(),
   title: "",
@@ -82,6 +120,12 @@ const blankFolder = (): FolderDraft => ({
 
 const VIDEO_EXTS = ["mp4", "webm", "ogg"];
 const extOf = (s: string) => s.split(".").pop()?.toLowerCase() || "";
+// Kind of a draft asset, from the pending file's name or the stored url.
+const draftKind = (a: AssetDraft): "image" | "video" | "pdf" => {
+  const ext = extOf(a.file?.name || a.url || "");
+  if (VIDEO_EXTS.includes(ext)) return "video";
+  return ext === "pdf" ? "pdf" : "image";
+};
 
 // ── Auto-thumbnail: downscale an image to ≤1600px long edge and encode WebP
 // in the browser (canvas). The master is untouched — the designer never makes
@@ -234,7 +278,9 @@ function AssetThumb({ asset }: { asset: AssetDraft }) {
         <span className="text-red-700 font-black text-[10px]">PDF</span>
       </div>
     );
-  if (isVideo)
+  // Needs `src`: the object URL is set in an effect, so the render right after
+  // picking a file has none — and <video src=""> refetches the whole page.
+  if (isVideo && src)
     return (
       <video src={src} muted className="w-full h-full object-cover" />
     );
@@ -307,6 +353,48 @@ export default function AdminPortal() {
               assets: x.assets.map((a) =>
                 a.id === aid ? { ...a, file, url: undefined } : a,
               ),
+            }
+          : x,
+      ),
+    );
+  // ── Stacks ──
+  // A stack is several assets sharing an auto-generated `group` id. They upload
+  // exactly like any other asset; only the focus view treats them as one tile.
+  // Takes a File[], never the input's live FileList: the pickers clear
+  // `input.value` right after firing, which empties that FileList before this
+  // (deferred) state updater ever reads it.
+  const addStackFiles = (fid: string, group: string, files: File[]) => {
+    if (!files.length) return;
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets: [
+                ...x.assets,
+                ...files.map((file) => ({ ...blankAsset(), file, group })),
+              ],
+            }
+          : x,
+      ),
+    );
+  };
+  // Zoom is a property of the tile, so it applies to every variant at once.
+  const toggleAssetZoom = (fid: string, aid: string, group?: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets: (() => {
+                const target = x.assets.find((a) => a.id === aid);
+                const next = target?.zoomable === false;
+                return x.assets.map((a) =>
+                  (group ? a.group === group : a.id === aid)
+                    ? { ...a, zoomable: next }
+                    : a,
+                );
+              })(),
             }
           : x,
       ),
@@ -487,6 +575,9 @@ export default function AdminPortal() {
             ...(mime ? { mime } : {}),
             ...(added ? { added } : {}),
             ...(width && height ? { width, height } : {}),
+            // Only persisted when OFF — absent means zoomable.
+            ...(a.zoomable === false ? { zoomable: false } : {}),
+            ...(a.group?.trim() ? { group: a.group.trim() } : {}),
           });
         }
         resolvedFolders.push({
@@ -746,22 +837,67 @@ export default function AdminPortal() {
 
                       {/* Assets in this folder */}
                       <div className="space-y-3">
-                        {folder.assets.map((asset) => (
-                          <div key={asset.id} className="flex gap-3">
-                            {/* Thumb + file picker */}
-                            <label className="group relative w-16 h-16 shrink-0 cursor-pointer border border-white/10 bg-black/30 hover:border-orange-600 overflow-hidden transition-all">
-                              <input
-                                type="file"
-                                className="hidden"
-                                onChange={(e) => {
-                                  if (e.target.files && e.target.files[0]) {
-                                    setAssetFile(folder.id, asset.id, e.target.files[0]);
-                                  }
-                                  e.target.value = "";
-                                }}
-                              />
-                              <AssetThumb asset={asset} />
-                            </label>
+                        {draftRows(folder.assets).map((row) => {
+                          const asset = row.assets[0];
+                          return (
+                          <div key={row.key} className="flex gap-3">
+                            {/* Thumb + file picker. A stack shows every variant
+                                in one strip — first is the cover. */}
+                            {row.group ? (
+                              <div className="flex flex-wrap gap-2 w-[136px] shrink-0 content-start">
+                                {row.assets.map((v) => (
+                                  <div
+                                    key={v.id}
+                                    className="relative w-16 h-16 border border-white/10 bg-black/30 overflow-hidden"
+                                  >
+                                    <AssetThumb asset={v} />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeAsset(folder.id, v.id)
+                                      }
+                                      aria-label="Remove variant"
+                                      className="absolute top-0 right-0 h-5 w-5 bg-black/80 text-red-500/80 hover:text-red-400 text-[10px] leading-none cursor-pointer"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                                <label className="w-16 h-16 flex items-center justify-center cursor-pointer border border-dashed border-white/15 text-white/35 hover:border-orange-600/60 hover:text-orange-500 text-[9px] uppercase tracking-widest transition-all">
+                                  <input
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const picked = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      e.target.value = "";
+                                      addStackFiles(
+                                        folder.id,
+                                        row.group!,
+                                        picked,
+                                      );
+                                    }}
+                                  />
+                                  + Add
+                                </label>
+                              </div>
+                            ) : (
+                              <label className="group relative w-16 h-16 shrink-0 cursor-pointer border border-white/10 bg-black/30 hover:border-orange-600 overflow-hidden transition-all">
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      setAssetFile(folder.id, asset.id, e.target.files[0]);
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                />
+                                <AssetThumb asset={asset} />
+                              </label>
+                            )}
 
                             {/* Per-asset title (metadata — size/type/date —
                                 is captured automatically on upload) */}
@@ -775,9 +911,57 @@ export default function AdminPortal() {
                                 placeholder="ASSET TITLE (heading shown in the folder window)"
                                 className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] uppercase font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
                               />
+
+                              {row.group && (
+                                <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-orange-500/70">
+                                  Stack — {row.assets.length} variant
+                                  {row.assets.length === 1 ? "" : "s"} · first is
+                                  the cover
+                                </span>
+                              )}
+
+                              {/* Focus view: allow enlarging this image into
+                                  the pan viewport. Off suits aspect ratios the
+                                  zoom crops badly. Only shown where it does
+                                  something — videos have controls, PDFs open
+                                  the reader, and stacks flip instead. */}
+                              {draftKind(asset) === "image" && !row.group && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleAssetZoom(
+                                    folder.id,
+                                    asset.id,
+                                    row.group,
+                                  )
+                                }
+                                className="flex items-center gap-2 self-start cursor-pointer group/zoom"
+                              >
+                                <span
+                                  className={`h-3 w-3 shrink-0 border flex items-center justify-center transition-colors ${
+                                    asset.zoomable === false
+                                      ? "border-white/20"
+                                      : "border-orange-600 bg-orange-600"
+                                  }`}
+                                >
+                                  {asset.zoomable !== false && (
+                                    <span className="h-1 w-1 bg-black" />
+                                  )}
+                                </span>
+                                <span
+                                  className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] transition-colors ${
+                                    asset.zoomable === false
+                                      ? "text-white/25 group-hover/zoom:text-white/45"
+                                      : "text-white/50 group-hover/zoom:text-white/70"
+                                  }`}
+                                >
+                                  Zoomable
+                                </span>
+                              </button>
+                              )}
                             </div>
 
-                            {folder.assets.length > 1 && (
+                            {folder.assets.length > 1 && !row.group && (
                               <button
                                 type="button"
                                 onClick={() => removeAsset(folder.id, asset.id)}
@@ -787,15 +971,34 @@ export default function AdminPortal() {
                               </button>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
 
-                        <button
-                          type="button"
-                          onClick={() => addAsset(folder.id)}
-                          className="w-full border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer"
-                        >
-                          + Add Asset
-                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => addAsset(folder.id)}
+                            className="flex-1 border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer"
+                          >
+                            + Add Asset
+                          </button>
+
+                          {/* Stack — pick several files at once; they become ONE
+                              flickable tile in the focus view. */}
+                          <label className="flex-1 flex items-center justify-center border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer">
+                            <input
+                              type="file"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                const picked = Array.from(e.target.files || []);
+                                e.target.value = "";
+                                addStackFiles(folder.id, uid(), picked);
+                              }}
+                            />
+                            + Add Stack
+                          </label>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1050,6 +1253,8 @@ export default function AdminPortal() {
                                                   added: a.added,
                                                   width: a.width,
                                                   height: a.height,
+                                                  zoomable: a.zoomable,
+                                                  group: a.group,
                                                 }))
                                               : [blankAsset()],
                                         }))

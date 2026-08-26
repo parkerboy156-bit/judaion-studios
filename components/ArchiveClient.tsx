@@ -50,7 +50,57 @@ interface FolderAsset {
   added?: string; // ISO date
   width?: number; // master pixel dimensions (measured at upload)
   height?: number;
+  zoomable?: boolean; // false = view-only in the focus view; absent = zoomable
+  group?: string; // shared label — assets with the same one stack into one tile
 }
+
+// ── Asset stacks ──
+// Images sharing a `group` collapse into ONE tile you flick through (a logo's
+// colourways, say). The first is the cover: it owns the tile's position, its
+// portrait/landscape span and its grid number, so flicking never relayouts the
+// grid. Every variant stays a real asset in `folder.assets`, so preloading,
+// zoom and the flat `file_url` union all keep working untouched.
+// Videos and PDFs ignore `group` — they have their own player/reader tiles.
+interface AssetTile {
+  key: string;
+  cover: FolderAsset;
+  variants: FolderAsset[]; // always includes the cover, at index 0
+}
+
+// Loose-pile slots by depth (0 = top, face-up). Alternating x + rotation reads
+// as a dropped stack rather than a staircase. Scaled down from the old
+// full-screen PosterStack — these cards sit inside a grid cell.
+const STACK_SLOTS = [
+  { x: 0, y: 0, rotate: 0, scale: 1 },
+  { x: 14, y: 12, rotate: 2.4, scale: 0.965 },
+  { x: -13, y: 22, rotate: -2, scale: 0.935 },
+  { x: 11, y: 31, rotate: 1.6, scale: 0.91 },
+  { x: -9, y: 39, rotate: -1.4, scale: 0.885 },
+];
+const slotFor = (depth: number) =>
+  STACK_SLOTS[Math.min(depth, STACK_SLOTS.length - 1)];
+
+const groupAssets = (assets: FolderAsset[]): AssetTile[] => {
+  const tiles: AssetTile[] = [];
+  const byGroup = new Map<string, AssetTile>();
+  for (const a of assets) {
+    const stackable = a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url);
+    const g = stackable ? a.group?.trim() : "";
+    if (!g) {
+      tiles.push({ key: a.id, cover: a, variants: [a] });
+      continue;
+    }
+    const hit = byGroup.get(g);
+    if (hit) {
+      hit.variants.push(a);
+    } else {
+      const tile = { key: `group:${g}`, cover: a, variants: [a] };
+      byGroup.set(g, tile);
+      tiles.push(tile);
+    }
+  }
+  return tiles;
+};
 
 // Browsing-surface URL: the thumb when it exists, else the master. Zoom always uses `url`.
 const displayUrl = (a: FolderAsset) => a.thumb || a.url;
@@ -96,11 +146,31 @@ const ANCHORS = [
   { x: 50, y: 16 },
 ];
 
+// The list above is authored for VISUAL scatter, not in ring order, so taking
+// the first N put neighbours like {24,42} and {30,76} on screen together — two
+// folders in the same column, close enough to collide once their labels wrap.
+// Sorting by angle around the centre gives a true ring; picking evenly spaced
+// entries from it then spreads N folders as far apart as the ring allows.
+const ANCHOR_RING = [...ANCHORS].sort(
+  (a, b) =>
+    Math.atan2(a.y - 50, a.x - 50) - Math.atan2(b.y - 50, b.x - 50),
+);
+const anchorFor = (index: number, total: number) => {
+  if (total > ANCHOR_RING.length) return ANCHOR_RING[index % ANCHOR_RING.length];
+  return ANCHOR_RING[
+    Math.round((index * ANCHOR_RING.length) / total) % ANCHOR_RING.length
+  ];
+};
+
 // First ≤3 image assets of a folder — the "peek" fan shown on hover/selection.
 const peekImages = (folder: Folder) =>
-  folder.assets
+  groupAssets(folder.assets)
+    .map((t) => t.cover)
     .filter((a) => a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url))
     .slice(0, 3);
+
+// Assets as the viewer counts them — a stack reads as one item, not four.
+const tileCount = (assets: FolderAsset[]) => groupAssets(assets).length;
 
 // Preload one asset URL (image / video first-frame); PDFs resolve instantly (loaded lazily in the reader).
 const loadAssetUrl = (url: string) =>
@@ -125,6 +195,7 @@ const loadAssetUrl = (url: string) =>
 function FolderIcon({
   folder,
   index,
+  total,
   isMobile,
   stageRef,
   selected,
@@ -134,6 +205,7 @@ function FolderIcon({
   onOpen,
   onPrefetch,
 }: {
+  total: number; // folders on the stage — anchors spread to fill the ring
   folder: Folder;
   index: number;
   isMobile: boolean;
@@ -146,7 +218,7 @@ function FolderIcon({
   onPrefetch: () => void;
 }) {
   // Anchor (% of stage) the folder centres on; x/y are the drag delta from it (reset every visit).
-  const anchor = ANCHORS[index % ANCHORS.length];
+  const anchor = anchorFor(index, total);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   // Drag-vs-click guard: a real drag sets moved=true so the click that follows is ignored.
@@ -244,7 +316,7 @@ function FolderIcon({
           if (!moved.current) open();
         }}
         role="button"
-        aria-label={`${folder.title}, ${folder.assets.length} item${folder.assets.length === 1 ? "" : "s"}`}
+        aria-label={`${folder.title}, ${tileCount(folder.assets)} item${tileCount(folder.assets) === 1 ? "" : "s"}`}
         className="will-change-transform cursor-pointer"
       >
         {inner}
@@ -313,6 +385,7 @@ function FolderDesktop({
       key={f.id}
       folder={f}
       index={i}
+      total={folders.length}
       isMobile={isMobile}
       stageRef={stageRef}
       selected={f.id === selectedId}
@@ -420,27 +493,49 @@ function OpenFolderView({
   const openedAtRef = useRef(Date.now());
   const OPEN_GUARD_MS = 500;
 
-  // Portrait flag per asset (for the grid layout), measured on image load.
-  const [portraitMap, setPortraitMap] = useState<Record<string, boolean>>({});
+  // Aspect ratio (w/h) per asset, measured on image load — the grid needs more
+  // than portrait/landscape now that squares are treated separately.
+  const [ratioMap, setRatioMap] = useState<Record<string, number>>({});
   const recordDims = (id: string, el: HTMLImageElement) => {
-    if (!el.naturalWidth) return;
-    setPortraitMap((m) =>
-      id in m ? m : { ...m, [id]: el.naturalHeight > el.naturalWidth },
+    if (!el.naturalWidth || !el.naturalHeight) return;
+    setRatioMap((m) =>
+      id in m ? m : { ...m, [id]: el.naturalWidth / el.naturalHeight },
     );
   };
 
-  // Portrait? Prefer stored master dims, else the measured flag once loaded.
-  const isPortrait = (a: FolderAsset) =>
-    a.width && a.height ? a.height > a.width : !!portraitMap[a.id];
+  // Prefer the stored master dims, else the measured ratio once loaded.
+  const ratioOf = (a: FolderAsset) =>
+    a.width && a.height ? a.width / a.height : ratioMap[a.id];
+  const isPortrait = (a: FolderAsset) => {
+    const r = ratioOf(a);
+    return !!r && r < 1;
+  };
+  // Near-square (1080² logos, 4:5-ish crops). At full column width these blow
+  // up to fill the pane and read as a zoomed-in detail rather than an asset, so
+  // they get the same one-column + height-cap treatment as a stack.
+  const isSquarish = (a: FolderAsset) => {
+    const r = ratioOf(a);
+    return !!r && r >= 0.85 && r <= 1.18;
+  };
+  // Stacks: one tile per group, and the active variant within each.
+  const tiles = useMemo(() => groupAssets(folder.assets), [folder.assets]);
+  const [variantIndex, setVariantIndex] = useState<Record<string, number>>({});
+  const activeOf = (t: AssetTile) =>
+    t.variants[variantIndex[t.key] ?? 0] || t.cover;
+  // A swipe ends in a tap the browser still reports — suppress the zoom briefly.
+  const swipedAtRef = useRef(0);
+  const swipeStartRef = useRef(0);
+
   // Only pair portraits when there are ≥2; a lone vertical stays full-width.
-  const portraitCount = folder.assets.filter(isPortrait).length;
+  // Counted on covers, since covers are what the grid lays out.
+  const portraitCount = tiles.filter((t) => isPortrait(t.cover)).length;
   const gridPortraits = portraitCount >= 2;
 
   // Measure every visual asset (images AND videos) up-front with dedicated elements — cached media often never fires onLoad, which would leave the portrait grid blank.
   useEffect(() => {
     const record = (id: string, w: number, h: number) => {
       if (!w || !h) return;
-      setPortraitMap((m) => (id in m ? m : { ...m, [id]: h > w }));
+      setRatioMap((m) => (id in m ? m : { ...m, [id]: w / h }));
     };
     folder.assets.forEach((a) => {
       if (!a.url || isPdfUrl(a.url)) return;
@@ -498,10 +593,19 @@ function OpenFolderView({
       ? origin.top + origin.height / 2 - window.innerHeight / 2
       : 0;
 
-  // Cursor-attached tag (desktop) shown while hovering an image.
+  // Cursor-attached tag (desktop) shown while hovering an asset. Tracks WHAT is
+  // hovered, not just whether — a PDF opens the reader, so it needs its own
+  // wording rather than the generic zoom prompt.
   const tagX = useMotionValue(0);
   const tagY = useMotionValue(0);
-  const [showTag, setShowTag] = useState(false);
+  const [tagKind, setTagKind] = useState<"image" | "pdf" | "stack" | null>(
+    null,
+  );
+  const setShowTag = (on: boolean | "pdf" | "stack") =>
+    setTagKind(
+      on === false ? null : on === true ? "image" : (on as "pdf" | "stack"),
+    );
+  const showTag = tagKind !== null;
 
   const renderMedia = (asset: FolderAsset) => {
     const url = asset.url;
@@ -509,8 +613,9 @@ function OpenFolderView({
     // up huge (and a compressed thumb looks soft at that size). Cap its height
     // and centre it so it reads at a natural, crisp size. Paired portraits
     // (gridPortraits) keep their column width.
-    const sizeCls =
-      isPortrait(asset) && !gridPortraits
+    const sizeCls = isSquarish(asset)
+      ? "max-h-[42vh] w-auto max-w-full mx-auto h-auto"
+      : isPortrait(asset) && !gridPortraits
         ? "max-h-[72vh] w-auto max-w-full mx-auto h-auto"
         : "w-full h-auto";
     if (isVideoUrl(url))
@@ -550,7 +655,7 @@ function OpenFolderView({
             draggable={false}
             decoding="async"
             {...openPdfHandlerProp}
-            onMouseEnter={() => !isMobile && setShowTag(true)}
+            onMouseEnter={() => !isMobile && setShowTag("pdf")}
             onMouseLeave={() => setShowTag(false)}
             className={`block border border-white/10 select-none cursor-pointer ${sizeCls}`}
           />
@@ -558,7 +663,7 @@ function OpenFolderView({
       return (
         <button
           {...openPdfHandlerProp}
-          onMouseEnter={() => !isMobile && setShowTag(true)}
+          onMouseEnter={() => !isMobile && setShowTag("pdf")}
           onMouseLeave={() => setShowTag(false)}
           className="group relative w-full bg-[#121212] border border-white/15 flex flex-col justify-between text-left select-none p-6 lg:p-7 cursor-pointer"
           style={{ aspectRatio: "1 / 1.32" }}
@@ -586,6 +691,9 @@ function OpenFolderView({
       );
     }
     // Image — double-click zooms into the pan viewport; serves the WebP thumb (master only in zoom).
+    // Per-asset opt-OUT (admin): aspect ratios the cover-based zoom crops badly
+    // stay view-only. Absent flag = zoomable, so legacy assets are unchanged.
+    const zoomable = asset.zoomable !== false;
     return (
       <img
         // Measure immediately for cached images whose onLoad may never fire.
@@ -596,17 +704,20 @@ function OpenFolderView({
         alt={asset.title || folder.title}
         draggable={false}
         decoding="async"
-        {...{
-          // Mobile: one tap opens (easier to discover); desktop keeps double-click.
-          [isMobile ? "onClick" : "onDoubleClick"]: () => {
-            if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
-            setEnlargedId(asset.id);
-          },
-        }}
+        {...(zoomable
+          ? {
+              // Mobile: one tap opens (easier to discover); desktop keeps double-click.
+              [isMobile ? "onClick" : "onDoubleClick"]: () => {
+                if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
+                if (Date.now() - swipedAtRef.current < 400) return;
+                setEnlargedId(asset.id);
+              },
+            }
+          : {})}
         onLoad={(e) => recordDims(asset.id, e.currentTarget)}
-        onMouseEnter={() => !isMobile && setShowTag(true)}
+        onMouseEnter={() => !isMobile && zoomable && setShowTag(true)}
         onMouseLeave={() => setShowTag(false)}
-        className={`block border border-white/10 select-none cursor-pointer ${sizeCls}`}
+        className={`block border border-white/10 select-none ${zoomable ? "cursor-pointer" : ""} ${sizeCls}`}
       />
     );
   };
@@ -1034,28 +1145,196 @@ function OpenFolderView({
               ) : (
                 // Asset grid — 2 cols on desktop; landscapes span both, paired portraits take one each. grid-flow-dense backfills gaps.
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-x-8 lg:gap-y-14 [grid-auto-flow:dense] max-w-[1100px] mx-auto w-full">
-                  {folder.assets.map((a, i) => {
+                  {tiles.map((tile, i) => {
+                    // The cover drives layout; the active variant only swaps
+                    // the pixels, so flicking can never reflow the grid.
+                    const a = activeOf(tile);
+                    const stacked = tile.variants.length > 1;
+                    const idx = variantIndex[tile.key] ?? 0;
+                    const step = (n: number) =>
+                      setVariantIndex((m) => ({
+                        ...m,
+                        [tile.key]:
+                          (n + tile.variants.length) % tile.variants.length,
+                      }));
+                    // Stacks are square logo decks — a full-width column would
+                    // blow them up to fill the pane, so they keep one column.
                     const span =
-                      gridPortraits && isPortrait(a)
+                      (gridPortraits && isPortrait(tile.cover)) ||
+                      isSquarish(tile.cover) ||
+                      tile.variants.length > 1
                         ? "lg:col-span-1"
                         : "lg:col-span-2";
                     // Lone portraits are height-capped + centred (see renderMedia), so
                     // the caption must hug the image width instead of the full column —
                     // otherwise it floats out to the far left of the empty column.
-                    const capped = isPortrait(a) && !gridPortraits;
+                    const capped =
+                      isSquarish(tile.cover) ||
+                      (isPortrait(tile.cover) && !gridPortraits);
                     const caption = (
                       <div className="flex items-baseline gap-3">
                         <span className="font-brand-cn text-[10px] tracking-[0.3em] text-white/35">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <span className="font-brand-other-semi uppercase text-white/85 text-[14px] tracking-[0.12em]">
-                          {asTitle(a, i)}
+                          {/* Variants are untitled — the stack is named once, on
+                              its cover — so fall back to the cover's title. */}
+                          {a.title?.trim()
+                            ? asTitle(a, i)
+                            : asTitle(tile.cover, i)}
                         </span>
+                        {/* Position marker — squares, not dots. The deck itself
+                            is the control; this just says where you are. */}
+                        {stacked && (
+                          <span className="ml-auto flex items-center gap-3 pl-3">
+                            <span className="flex items-center gap-1.5">
+                              {tile.variants.map((v, n) => (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    step(n);
+                                  }}
+                                  aria-label={`Variant ${n + 1} of ${tile.variants.length}`}
+                                  className="p-1.5 -m-1.5 cursor-pointer"
+                                >
+                                  <span
+                                    className={`block h-1.5 w-1.5 transition-colors ${
+                                      n === idx
+                                        ? "bg-orange-600"
+                                        : "bg-white/30 hover:bg-white/60"
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </span>
+                            <span className="font-brand-cn text-[10px] tracking-[0.3em] text-white/35 tabular-nums">
+                              {String(idx + 1).padStart(2, "0")}/
+                              {String(tile.variants.length).padStart(2, "0")}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     );
+                    // ── Stack deck ──
+                    // Ported from the old full-screen PosterStack: the pile IS
+                    // the control. Click the top card to send it to the back,
+                    // click a peeking card to bring it forward. Double-click
+                    // still zooms. `order` is just the variants rotated by the
+                    // active index, so the deck needs no state of its own.
+                    const order = [
+                      ...tile.variants.slice(idx),
+                      ...tile.variants.slice(0, idx),
+                    ];
+                    const cover = tile.cover;
+                    const deck = (
+                      <div
+                        className="relative mx-auto w-full"
+                        style={{
+                          // Stack assets are square masters (1080²); the cap
+                          // stops one eating the whole pane the way a
+                          // full-column landscape would.
+                          aspectRatio:
+                            cover.width && cover.height
+                              ? `${cover.width} / ${cover.height}`
+                              : "1 / 1",
+                          maxWidth: "min(100%, 42vh)",
+                          // Room for the peek offsets below the top card.
+                          marginBottom: 48,
+                        }}
+                      >
+                        {order.map((v, depth) => {
+                          const slot = slotFor(depth);
+                          const isTop = depth === 0;
+                          return (
+                            <motion.div
+                              key={v.id}
+                              className="absolute inset-0"
+                              style={{ zIndex: 100 - depth }}
+                              initial={false}
+                              animate={{
+                                x: slot.x,
+                                y: slot.y,
+                                rotate: slot.rotate,
+                                scale: slot.scale,
+                              }}
+                              transition={{
+                                type: "spring",
+                                stiffness: 260,
+                                damping: 30,
+                              }}
+                            >
+                              <img
+                                ref={(el) => {
+                                  if (isTop && el && el.complete)
+                                    recordDims(cover.id, el);
+                                }}
+                                src={displayUrl(v)}
+                                alt={v.title || tile.cover.title || folder.title}
+                                draggable={false}
+                                decoding="async"
+                                onLoad={(e) =>
+                                  isTop && recordDims(cover.id, e.currentTarget)
+                                }
+                                onClick={() => {
+                                  if (
+                                    Date.now() - openedAtRef.current <
+                                    OPEN_GUARD_MS
+                                  )
+                                    return;
+                                  if (Date.now() - swipedAtRef.current < 400)
+                                    return;
+                                  // Top card steps forward; a peeking card
+                                  // jumps straight to the front.
+                                  // Stacks don't zoom — a single click is the
+                                  // only gesture, so it fires immediately.
+                                  step(
+                                    isTop
+                                      ? idx + 1
+                                      : tile.variants.findIndex(
+                                          (x) => x.id === v.id,
+                                        ),
+                                  );
+                                }}
+                                onMouseEnter={() =>
+                                  !isMobile && isTop && setShowTag("stack")
+                                }
+                                onMouseLeave={() => setShowTag(false)}
+                                className="block h-full w-full object-contain select-none cursor-pointer"
+                                style={{
+                                  filter: isTop
+                                    ? "drop-shadow(0 12px 24px rgba(0,0,0,0.45))"
+                                    : "drop-shadow(0 6px 14px rgba(0,0,0,0.5))",
+                                }}
+                              />
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    );
+
+                    // Mobile: swipe across the tile to flick. Guarded by a
+                    // distance threshold so a tap still means zoom.
+                    const swipe = stacked
+                      ? {
+                          onTouchStart: (e: React.TouchEvent) => {
+                            swipeStartRef.current = e.touches[0].clientX;
+                          },
+                          onTouchEnd: (e: React.TouchEvent) => {
+                            const dx =
+                              e.changedTouches[0].clientX -
+                              swipeStartRef.current;
+                            if (Math.abs(dx) < 40) return;
+                            swipedAtRef.current = Date.now();
+                            step(dx < 0 ? idx + 1 : idx - 1);
+                          },
+                        }
+                      : {};
                     return (
                       <motion.div
-                        key={a.id}
+                        key={tile.key}
+                        {...swipe}
                         initial={{ x: 50, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{
@@ -1066,7 +1345,12 @@ function OpenFolderView({
                         }}
                         className={`col-span-1 ${span} flex flex-col gap-4`}
                       >
-                        {capped ? (
+                        {stacked ? (
+                          <>
+                            {deck}
+                            {caption}
+                          </>
+                        ) : capped ? (
                           <div className="mx-auto flex w-fit max-w-full flex-col gap-4">
                             {renderMedia(a)}
                             {caption}
@@ -1217,7 +1501,11 @@ function OpenFolderView({
           <span className="font-brand-cn text-[10px] uppercase tracking-[0.3em] text-white whitespace-nowrap">
             {enlarged
               ? "Drag to pan — Double-click to close"
-              : "Double-click to open"}
+              : tagKind === "pdf"
+                ? "Double-click to open PDF"
+                : tagKind === "stack"
+                  ? "Click to flip"
+                  : "Double-click to open"}
           </span>
         </motion.div>
       )}
@@ -2297,7 +2585,7 @@ export default function ArchiveCatalogue({
               <DesktopMenuBar
                 folderCount={projectFolders.length}
                 assetCount={projectFolders.reduce(
-                  (n, f) => n + f.assets.length,
+                  (n, f) => n + tileCount(f.assets),
                   0,
                 )}
                 isAudioOn={isAudioOn}
