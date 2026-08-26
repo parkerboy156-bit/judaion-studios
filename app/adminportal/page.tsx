@@ -739,8 +739,8 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
-                    placeholder="TITLE"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    placeholder="Title"
                     required
                   />
                 </div>
@@ -755,7 +755,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, author: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
                     placeholder="e.g. JUDAION (Pty) Ltd"
                   />
                 </div>
@@ -809,8 +809,8 @@ export default function AdminPortal() {
                           type="text"
                           value={folder.title}
                           onChange={(e) => setFolderTitle(folder.id, e.target.value)}
-                          placeholder="FOLDER TITLE (e.g. OLD / NEW)"
-                          className="flex-1 bg-black/40 border border-white/10 p-3 font-brand-secondary-thin text-[11px] uppercase focus:border-orange-600 transition-colors outline-none cursor-text"
+                          placeholder="Folder title (e.g. Old / New)"
+                          className="flex-1 bg-black/40 border border-white/10 p-3 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text"
                         />
                         {folders.length > 1 && (
                           <button
@@ -831,7 +831,7 @@ export default function AdminPortal() {
                         onChange={(e) =>
                           setFolderDescription(folder.id, e.target.value)
                         }
-                        placeholder="FOLDER DESCRIPTION (optional — falls back to the project description if blank)"
+                        placeholder="Folder description (optional — falls back to the project description if blank)"
                         className="w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text resize-y"
                       />
 
@@ -908,8 +908,8 @@ export default function AdminPortal() {
                                 onChange={(e) =>
                                   setAssetTitle(folder.id, asset.id, e.target.value)
                                 }
-                                placeholder="ASSET TITLE (heading shown in the folder window)"
-                                className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] uppercase font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
+                                placeholder="Asset title (heading shown in the folder window)"
+                                className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
                               />
 
                               {row.group && (
@@ -1113,12 +1113,12 @@ export default function AdminPortal() {
               <div className="space-y-4">
                 <input
                   type="text"
-                  placeholder="NEW TAG NAME"
+                  placeholder="New tag name"
                   value={newOption.name}
                   onChange={(e) =>
                     setNewOption({ ...newOption, name: e.target.value })
                   }
-                  className="w-full bg-black/40 border border-white/10 p-4 text-[10px] font-black uppercase outline-none focus:border-orange-600 cursor-text"
+                  className="w-full bg-black/40 border border-white/10 p-4 text-[10px] font-black outline-none focus:border-orange-600 cursor-text"
                 />
                 <div className="flex gap-2">
                   <select
