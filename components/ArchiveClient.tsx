@@ -134,15 +134,20 @@ interface Folder {
   assets: FolderAsset[];
 }
 
-// Folder anchor positions (% of stage) — a scattered ring around the central safe-zone; each folder centres on its anchor. Cycles for >8 folders.
+// Folder anchor positions (% of stage) — a scattered ring around the central
+// safe-zone; each folder CENTRES on its anchor. Cycles for >8 folders.
+// The lower anchors sit higher than their mirrored top ones on purpose: an icon
+// hangs its caption BELOW the poster, so a low anchor pushes the label toward
+// the status bar and reads as falling off the stage, while a high one has the
+// poster's own height as headroom.
 const ANCHORS = [
   { x: 24, y: 42 },
   { x: 76, y: 54 },
-  { x: 30, y: 76 },
+  { x: 30, y: 72 },
   { x: 70, y: 24 },
   { x: 15, y: 64 },
   { x: 85, y: 36 },
-  { x: 50, y: 84 },
+  { x: 50, y: 74 },
   { x: 50, y: 16 },
 ];
 
