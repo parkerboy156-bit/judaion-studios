@@ -747,9 +747,7 @@ function OpenFolderView({
               .map((a) => (fileExt(a.url) ? fileExt(a.url).toUpperCase() : ""))
               .filter(Boolean),
           ),
-        ].join(" / ") ||
-        project?.resource_type ||
-        "—",
+        ].join(" / ") || "—",
     },
   ];
   // One field's label + value. Shared so the desktop scroller and the mobile
@@ -1914,6 +1912,7 @@ export default function ArchiveCatalogue({
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProject, setSelectedProject] = useState<any>(null);
 
@@ -2217,30 +2216,71 @@ export default function ArchiveCatalogue({
     };
   }, [selectedProject, projectFolders]);
 
-  async function fetchData() {
-    try {
-      setLoading(true);
-      const timer = new Promise((resolve) => setTimeout(resolve, 3000));
-      const fetchProjects = supabase
+  // One attempt at both queries. supabase-js reports failures in `res.error`
+  // rather than throwing, so an unchecked `.data || []` turns a dead request
+  // into a convincingly empty page — the cold-start "Nothing to see here" and
+  // vanished categories were both this. Throwing puts them on the retry path.
+  async function fetchOnce() {
+    const [projectsRes, categoriesRes] = await Promise.all([
+      supabase
         .from("archive")
         .select("*")
-        .order("created_at", { ascending: false });
-      const fetchCategories = supabase
+        .order("created_at", { ascending: false }),
+      // Filter-bar order is the admin's drag order; name is only a tiebreak.
+      supabase
         .from("catalogue_categories")
-        .select("name");
-      const [projectsRes, categoriesRes] = await Promise.all([
-        fetchProjects,
-        fetchCategories,
-        timer,
-      ]);
-      const projectData = projectsRes.data || [];
-      setCategories([{ name: "All" }, ...(categoriesRes.data || [])]);
+        .select("name,sort_order")
+        .order("sort_order", { nullsFirst: false })
+        .order("name"),
+    ]);
+    if (projectsRes.error) throw projectsRes.error;
+    if (categoriesRes.error) throw categoriesRes.error;
+    return {
+      projects: projectsRes.data || [],
+      categories: categoriesRes.data || [],
+    };
+  }
 
-      // Preload every grid cover so the grid renders from cache (simultaneous reveal).
-      const thumbnailUrls = projectData
-        .map((p: any) => firstImage(p))
-        .filter((u: string | null): u is string => Boolean(u));
-      await Promise.all(
+  async function fetchData() {
+    setLoading(true);
+    setLoadFailed(false);
+    const timer = new Promise((resolve) => setTimeout(resolve, 3000));
+
+    let data: { projects: any[]; categories: any[] } | null = null;
+    // Cold starts are exactly when a request is most likely to fail: no warm
+    // connection, and the database may still be waking. Two retries turn the
+    // reload the user was doing by hand into something automatic.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        data = await fetchOnce();
+        break;
+      } catch (err) {
+        console.error(`Archive fetch failed (attempt ${attempt + 1}/3):`, err);
+        if (attempt < 2)
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+    }
+
+    await timer;
+
+    if (!data) {
+      // Leave whatever is already on screen alone — replacing it with empties
+      // would turn a failed refetch into a blank page.
+      setLoadFailed(true);
+      setLoading(false);
+      return;
+    }
+
+    setCategories([{ name: "All" }, ...data.categories]);
+
+    // Preload every grid cover so the grid renders from cache (simultaneous
+    // reveal). Capped: a stalled request fires neither onload nor onerror, and
+    // an uncapped wait here would hold the loader open indefinitely.
+    const thumbnailUrls = data.projects
+      .map((p: any) => firstImage(p))
+      .filter((u: string | null): u is string => Boolean(u));
+    await Promise.race([
+      Promise.all(
         thumbnailUrls.map(
           (url: string) =>
             new Promise<void>((resolve) => {
@@ -2249,14 +2289,12 @@ export default function ArchiveCatalogue({
               img.src = url;
             }),
         ),
-      );
+      ),
+      new Promise((r) => setTimeout(r, 8000)),
+    ]);
 
-      setProjects(projectData);
-    } catch (err) {
-      console.error("System Fetch Error:", err);
-    } finally {
-      setLoading(false);
-    }
+    setProjects(data.projects);
+    setLoading(false);
   }
 
   const filtered = projects.filter(
@@ -2452,7 +2490,7 @@ export default function ArchiveCatalogue({
                         {item.title}
                       </span>
                       <span className="font-brand-cn text-[9px] tracking-[0.3em] uppercase text-white/40">
-                        {item.resource_type || "Archive"}
+                        Archive
                       </span>
                     </div>
                   )}
@@ -2517,7 +2555,7 @@ export default function ArchiveCatalogue({
                         {item.title}
                       </span>
                       <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/40">
-                        {item.resource_type || "Archive"}
+                        Archive
                       </span>
                     </div>
                   )}
@@ -2544,10 +2582,23 @@ export default function ArchiveCatalogue({
           )}
 
           {filtered.length === 0 && (
-            <div className="flex items-center justify-center py-80">
+            <div className="flex flex-col items-center justify-center gap-6 py-80">
               <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.5em] text-white/80">
-                Nothing to see here...YET
+                {/* A failed load is not an empty archive — say so, and offer the
+                    reload the user was performing manually. */}
+                {loadFailed
+                  ? "Couldn't reach the archive"
+                  : "Nothing to see here...YET"}
               </span>
+              {loadFailed && (
+                <button
+                  type="button"
+                  onClick={fetchData}
+                  className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.4em] text-white/50 hover:text-orange-500 border border-white/15 hover:border-orange-600/60 px-6 py-3 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              )}
             </div>
           )}
         </main>
