@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { requireUser } from "@/lib/apiAuth";
 
 const s3Client = new S3Client({
   region: process.env.OCI_REGION,
@@ -14,6 +15,12 @@ const s3Client = new S3Client({
 
 export async function POST(req: NextRequest) {
   try {
+    // Signing an upload for an arbitrary key is a write to the bucket — only
+    // a signed-in admin gets one. Without this, anyone could overwrite any
+    // object or fill the bucket.
+    if (!(await requireUser(req)))
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     // We now expect JSON with the path and type, not the actual file
     const { path, contentType } = await req.json();
 

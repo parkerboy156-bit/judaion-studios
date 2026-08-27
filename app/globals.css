@@ -1574,3 +1574,18 @@ video:not([controls]) {
     animation: none;
   }
 }
+
+/* Admin portal popups — toast drops in, dialog fades up. */
+@keyframes adminToastIn {
+  from { transform: translateY(-14px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes adminDialogIn {
+  from { transform: translateY(10px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes adminBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

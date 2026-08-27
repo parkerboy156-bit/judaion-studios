@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { Reorder } from "framer-motion";
 
 interface AssetEntry {
   id: string;
@@ -35,7 +36,6 @@ interface ArchiveItem {
   subtitle?: string;
   author?: string;
   category: string;
-  resource_type: string;
   content: string;
   file_url: string[];
   folders?: FolderEntry[];
@@ -48,6 +48,7 @@ interface ArchiveItem {
 interface MetaOption {
   id: number;
   name: string;
+  sort_order?: number; // drag position; drives the archive's filter-bar order
 }
 
 // Form-side draft of an asset — `file` is a pending upload, `url` is an
@@ -297,8 +298,53 @@ export default function AdminPortal() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
   const [categories, setCategories] = useState<MetaOption[]>([]);
-  const [resourceTypes, setResourceTypes] = useState<MetaOption[]>([]);
   const [archive, setArchive] = useState<ArchiveItem[]>([]);
+
+  // ── Dialogs ──
+  // Promise-based replacements for the browser's confirm()/alert(), which
+  // render as an OS chrome bar and break the portal's look. Same call shape:
+  // `if (!(await ask(...))) return;`
+  const [dialog, setDialog] = useState<{
+    kind: "alert" | "confirm";
+    title: string;
+    message: string;
+    danger?: boolean;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+  const ask = (
+    title: string,
+    message: string,
+    danger = false,
+  ): Promise<boolean> =>
+    new Promise((resolve) =>
+      setDialog({ kind: "confirm", title, message, danger, resolve }),
+    );
+  const notify = (title: string, message: string): Promise<boolean> =>
+    new Promise((resolve) =>
+      setDialog({ kind: "alert", title, message, resolve }),
+    );
+  const closeDialog = (ok: boolean) => {
+    dialog?.resolve(ok);
+    setDialog(null);
+  };
+
+  // ── Toast — brief confirmation that a write landed. ──
+  const [toast, setToast] = useState<{
+    kind: "success" | "danger";
+    message: string;
+  } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (kind: "success" | "danger", message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ kind, message });
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  };
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [newOption, setNewOption] = useState({ name: "", type: "category" });
@@ -306,7 +352,6 @@ export default function AdminPortal() {
     title: "",
     author: "",
     category: "",
-    resource_type: "",
     content: "",
     instagram_url: "",
     linkedin_url: "",
@@ -416,23 +461,35 @@ export default function AdminPortal() {
     fetchData();
   }, []);
 
+  // supabase-js reports failures in `res.error` instead of throwing, so an
+  // unchecked `data || []` renders a failed load as empty dropdowns and an
+  // empty archive list. Check, retry, and never overwrite good state with the
+  // results of a request that didn't land.
   async function fetchData() {
-    const { data: cat } = await supabase
-      .from("catalogue_categories")
-      .select("*")
-      .order("name");
-    const { data: res } = await supabase
-      .from("resource_types")
-      .select("*")
-      .order("name");
-    const { data: arc } = await supabase
-      .from("archive")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setCategories(cat || []);
-    setResourceTypes(res || []);
-    setArchive(arc || []);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const [cat, arc] = await Promise.all([
+        supabase
+          .from("catalogue_categories")
+          .select("*")
+          .order("sort_order", { nullsFirst: false })
+          .order("name"),
+        supabase
+          .from("archive")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
+      if (!cat.error && !arc.error) {
+        setCategories(cat.data || []);
+        setArchive(arc.data || []);
+        return;
+      }
+      console.error(
+        `Admin fetch failed (attempt ${attempt + 1}/3):`,
+        cat.error || arc.error,
+      );
+      if (attempt < 2)
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
   }
 
   const handleLogout = async () => {
@@ -440,25 +497,106 @@ export default function AdminPortal() {
     if (error) console.error("Error logging out:", error.message);
   };
 
+  // Drag reorder: paint the new order immediately, then persist positions.
+  // Spaced by 10s so a future single insert can slot between two without a
+  // full renumber.
+  const [savingOrder, setSavingOrder] = useState(false);
+  const orderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reorderCategories = (next: MetaOption[]) => {
+    setCategories(next);
+    // Debounced — a drag across several slots fires onReorder repeatedly, and
+    // only the position it settles in is worth writing.
+    if (orderTimer.current) clearTimeout(orderTimer.current);
+    orderTimer.current = setTimeout(async () => {
+      setSavingOrder(true);
+      const results = await Promise.all(
+        next.map((c, i) =>
+          supabase
+            .from("catalogue_categories")
+            .update({ sort_order: (i + 1) * 10 })
+            .eq("id", c.id),
+        ),
+      );
+      setSavingOrder(false);
+      const failed = results.find((r) => r.error);
+      if (failed) {
+        console.error("Category reorder failed:", failed.error);
+        showToast("danger", "Order not saved");
+        fetchData(); // fall back to the stored order rather than lying
+      }
+    }, 600);
+  };
+  useEffect(
+    () => () => {
+      if (orderTimer.current) clearTimeout(orderTimer.current);
+    },
+    [],
+  );
+
   const handleAddOption = async () => {
     if (!newOption.name) return;
-    const table =
-      newOption.type === "category" ? "catalogue_categories" : "resource_types";
-    await supabase.from(table).insert([{ name: newOption.name }]);
+    // New categories land at the end of the drag order, not alphabetically.
+    const last = categories[categories.length - 1]?.sort_order ?? 0;
+    await supabase
+      .from("catalogue_categories")
+      .insert([{ name: newOption.name, sort_order: last + 10 }]);
     setNewOption({ ...newOption, name: "" });
     fetchData();
   };
 
-  const handleDeleteOption = async (id: number, type: "category" | "type") => {
-    if (!confirm("CONFIRM_META_DELETION?")) return;
-    const table =
-      type === "category" ? "catalogue_categories" : "resource_types";
-    await supabase.from(table).delete().eq("id", id);
+  // Every asset URL a project owns — masters and their thumbs, plus the legacy
+  // flat file_url union for rows that predate folders.
+  const assetUrlsOf = (item: ArchiveItem): string[] => {
+    const urls: string[] = [];
+    for (const f of item.folders || [])
+      for (const a of f.assets || []) {
+        if (a.url) urls.push(a.url);
+        if (a.thumb) urls.push(a.thumb);
+      }
+    for (const u of item.file_url || []) if (u) urls.push(u);
+    return [...new Set(urls)];
+  };
+
+  // Delete objects from the bucket. Best-effort by design: the database row is
+  // already gone by the time this runs, so a failure leaves orphaned files —
+  // the status quo before this existed — rather than rows pointing at nothing.
+  const deleteFromBucket = async (urls: string[]) => {
+    if (!urls.length) return;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch("/api/storage", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ urls }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (err) {
+      console.error("Bucket cleanup failed (files orphaned):", err);
+    }
+  };
+
+  const handleDeleteOption = async (id: number) => {
+    if (
+      !(await ask(
+        "Delete tag",
+        "This removes the tag from the portal. Projects already using it keep their stored value.",
+        true,
+      ))
+    )
+      return;
+    await supabase.from("catalogue_categories").delete().eq("id", id);
     fetchData();
+    showToast("danger", "Tag deleted");
   };
 
   const resetForm = () => {
-    setFormData({ title: "", author: "", category: "", resource_type: "", content: "", instagram_url: "", linkedin_url: "", website_url: "" });
+    setFormData({ title: "", author: "", category: "", content: "", instagram_url: "", linkedin_url: "", website_url: "" });
     setFolders([blankFolder()]);
     setEditingId(null);
   };
@@ -476,11 +614,14 @@ export default function AdminPortal() {
       .filter((f) => f.assets.length > 0);
 
     if (cleanFolders.length === 0) {
-      alert("Add at least one folder with at least one asset.");
+      await notify(
+        "Nothing to save",
+        "Add at least one folder with at least one asset.",
+      );
       return;
     }
     if (cleanFolders.some((f) => !f.title.trim())) {
-      alert("Every folder needs a title.");
+      await notify("Missing folder title", "Every folder needs a title.");
       return;
     }
 
@@ -491,11 +632,21 @@ export default function AdminPortal() {
       const categoryName = formData.category.replace(/[^a-z0-9]/gi, "_").toLowerCase();
       const projectName = formData.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
+      // The presign route is admin-only now, so every request carries the
+      // session token. Read once — a long upload run shouldn't re-fetch it.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Signed out — sign in again to upload.");
+
       const uploadFile = async (file: File | Blob, path: string) => {
         // Step 1: Ask your API for a secure direct-upload link
         const res = await fetch("/api/upload", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({ path, contentType: file.type }),
         });
 
@@ -598,22 +749,56 @@ export default function AdminPortal() {
         file_url: flatUrls,
       };
 
+      // What this project owned BEFORE the write — read while the old row is
+      // still intact, since the update overwrites the only record of it.
+      let previousUrls: string[] = [];
+      if (editingId) {
+        const { data: prev } = await supabase
+          .from("archive")
+          .select("folders,file_url")
+          .eq("id", editingId)
+          .single();
+        if (prev) previousUrls = assetUrlsOf(prev as ArchiveItem);
+      }
+
       const { error: dbError } = editingId
         ? await supabase.from("archive").update(payload).eq("id", editingId)
         : await supabase.from("archive").insert([payload]);
 
       if (dbError) throw dbError;
 
+      // Edit cleanup: anything the project used to own and no longer does —
+      // assets removed from the form, and the old files behind a replaced one.
+      // Derived by subtraction from the row that was just written, so a URL is
+      // only ever deleted when the surviving payload demonstrably lacks it.
+      if (editingId && previousUrls.length) {
+        const kept = new Set<string>();
+        for (const f of resolvedFolders)
+          for (const a of f.assets) {
+            if (a.url) kept.add(a.url);
+            if (a.thumb) kept.add(a.thumb);
+          }
+        // A save always keeps at least one asset (cleanFolders enforces it), so
+        // an empty `kept` means something went wrong upstream — don't delete.
+        if (kept.size > 0) {
+          const orphaned = previousUrls.filter((u) => !kept.has(u));
+          if (orphaned.length) await deleteFromBucket(orphaned);
+        }
+      }
+
       setUploadProgress(100);
+      // Captured before resetForm() clears editingId.
+      const wasEdit = Boolean(editingId);
       setTimeout(() => {
         setUploading(false);
         setUploadProgress(0);
         resetForm();
         fetchData();
+        showToast("success", wasEdit ? "Project updated" : "Project uploaded");
       }, 1000);
     } catch (err: any) {
-      alert(err.message);
       setUploading(false);
+      await notify("Upload failed", err.message);
     }
   };
 
@@ -705,7 +890,7 @@ export default function AdminPortal() {
             </div>
             <button
               onClick={handleLogout}
-              className="font-brand-secondary-thin text-[11px] tracking-[0.2em] uppercase border border-white/20 px-6 py-3 text-white/60 hover:text-white hover:border-white/50 transition-all cursor-pointer mt-2"
+              className="font-brand-secondary-thin text-[11px] tracking-[0.2em] uppercase border border-white/20 px-6 py-3 text-white/60 hover:text-white hover:border-white/50 transition-all duration-[400ms] cursor-pointer mt-2"
             >
               Log Out
             </button>
@@ -722,8 +907,29 @@ export default function AdminPortal() {
                 <div className="font-brand-secondary-thin text-[10px] tracking-[0.3em] text-orange-600 uppercase mb-2">
                    Asset Manager
                 </div>
-                <div className="font-brand-other text-white text-[28px] leading-none tracking-wide uppercase">
-                  {editingId ? "Edit Project" : "New Project"}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="font-brand-other text-white text-[28px] leading-none tracking-wide uppercase">
+                    {editingId ? "Edit Project" : "New Project"}
+                  </div>
+                  {/* Leaving an edit had no exit — the form stayed bound to the
+                      project until you saved it. */}
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (
+                          await ask(
+                            "Exit edit",
+                            "Discard your changes and start a new project? Nothing already saved is affected.",
+                          )
+                        )
+                          resetForm();
+                      }}
+                      className="shrink-0 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/40 hover:text-orange-500 border border-white/15 hover:border-orange-600/60 px-4 py-2 transition-colors duration-[400ms] cursor-pointer"
+                    >
+                      Exit Edit
+                    </button>
+                  )}
                 </div>
                 <div className="h-[1px] w-full bg-white/10 mt-6" />
               </div>
@@ -739,7 +945,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                     placeholder="Title"
                     required
                   />
@@ -755,7 +961,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, author: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                     placeholder="e.g. JUDAION (Pty) Ltd"
                   />
                 </div>
@@ -810,7 +1016,7 @@ export default function AdminPortal() {
                           value={folder.title}
                           onChange={(e) => setFolderTitle(folder.id, e.target.value)}
                           placeholder="Folder title (e.g. Old / New)"
-                          className="flex-1 bg-black/40 border border-white/10 p-3 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                          className="flex-1 bg-black/40 border border-white/10 p-3 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                         />
                         {folders.length > 1 && (
                           <button
@@ -832,7 +1038,7 @@ export default function AdminPortal() {
                           setFolderDescription(folder.id, e.target.value)
                         }
                         placeholder="Folder description (optional — falls back to the project description if blank)"
-                        className="w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors outline-none cursor-text resize-y"
+                        className="w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text resize-y"
                       />
 
                       {/* Assets in this folder */}
@@ -863,7 +1069,7 @@ export default function AdminPortal() {
                                     </button>
                                   </div>
                                 ))}
-                                <label className="w-16 h-16 flex items-center justify-center cursor-pointer border border-dashed border-white/15 text-white/35 hover:border-orange-600/60 hover:text-orange-500 text-[9px] uppercase tracking-widest transition-all">
+                                <label className="w-16 h-16 flex items-center justify-center cursor-pointer border border-dashed border-white/15 text-white/35 hover:border-orange-600/60 hover:text-orange-500 text-[9px] uppercase tracking-widest transition-all duration-[400ms]">
                                   <input
                                     type="file"
                                     multiple
@@ -884,7 +1090,7 @@ export default function AdminPortal() {
                                 </label>
                               </div>
                             ) : (
-                              <label className="group relative w-16 h-16 shrink-0 cursor-pointer border border-white/10 bg-black/30 hover:border-orange-600 overflow-hidden transition-all">
+                              <label className="group relative w-16 h-16 shrink-0 cursor-pointer border border-white/10 bg-black/30 hover:border-orange-600 overflow-hidden transition-all duration-[400ms]">
                                 <input
                                   type="file"
                                   className="hidden"
@@ -938,7 +1144,7 @@ export default function AdminPortal() {
                                 className="flex items-center gap-2 self-start cursor-pointer group/zoom"
                               >
                                 <span
-                                  className={`h-3 w-3 shrink-0 border flex items-center justify-center transition-colors ${
+                                  className={`h-3 w-3 shrink-0 border flex items-center justify-center transition-colors duration-[400ms] ${
                                     asset.zoomable === false
                                       ? "border-white/20"
                                       : "border-orange-600 bg-orange-600"
@@ -949,7 +1155,7 @@ export default function AdminPortal() {
                                   )}
                                 </span>
                                 <span
-                                  className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] transition-colors ${
+                                  className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] transition-colors duration-[400ms] ${
                                     asset.zoomable === false
                                       ? "text-white/25 group-hover/zoom:text-white/45"
                                       : "text-white/50 group-hover/zoom:text-white/70"
@@ -978,14 +1184,14 @@ export default function AdminPortal() {
                           <button
                             type="button"
                             onClick={() => addAsset(folder.id)}
-                            className="flex-1 border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer"
+                            className="flex-1 border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all duration-[400ms] cursor-pointer"
                           >
                             + Add Asset
                           </button>
 
                           {/* Stack — pick several files at once; they become ONE
                               flickable tile in the focus view. */}
-                          <label className="flex-1 flex items-center justify-center border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all cursor-pointer">
+                          <label className="flex-1 flex items-center justify-center border border-dashed border-white/15 text-white/40 font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] py-2.5 hover:border-orange-600/60 hover:text-orange-500 transition-all duration-[400ms] cursor-pointer">
                             <input
                               type="file"
                               multiple
@@ -1006,7 +1212,7 @@ export default function AdminPortal() {
                   <button
                     type="button"
                     onClick={addFolder}
-                    className="w-full border border-orange-600/40 bg-orange-600/5 text-orange-500 font-brand-secondary-thin text-[10px] uppercase tracking-[0.25em] py-3 hover:bg-orange-600/10 hover:border-white hover:text-white transition-all cursor-pointer"
+                    className="w-full border border-orange-600/40 bg-orange-600/5 text-orange-500 font-brand-secondary-thin text-[10px] uppercase tracking-[0.25em] py-3 hover:bg-orange-600/10 hover:border-white hover:text-white transition-all duration-[400ms] cursor-pointer"
                   >
                     + Add Folder
                   </button>
@@ -1037,7 +1243,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, instagram_url: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                     placeholder="https://instagram.com/p/..."
                   />
                 </div>
@@ -1052,7 +1258,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, linkedin_url: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                     placeholder="https://linkedin.com/posts/..."
                   />
                 </div>
@@ -1067,7 +1273,7 @@ export default function AdminPortal() {
                     onChange={(e) =>
                       setFormData({ ...formData, website_url: e.target.value })
                     }
-                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors outline-none cursor-text"
+                    className="w-full bg-black/40 border border-white/10 p-4 font-brand-secondary-thin text-[12px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text"
                     placeholder="https://clientdomain.com"
                   />
                 </div>
@@ -1088,7 +1294,7 @@ export default function AdminPortal() {
                 )}
                 <button
                   disabled={uploading}
-                  className="w-full border border-white/40 bg-black text-white font-brand-secondary-thin text-[11px] uppercase tracking-[0.3em] py-5 hover:border-white hover:bg-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full border border-white/40 bg-black text-white font-brand-secondary-thin text-[11px] uppercase tracking-[0.3em] py-5 hover:border-white hover:bg-black transition-all duration-[400ms] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {uploading
                     ? "Processing..."
@@ -1121,19 +1327,9 @@ export default function AdminPortal() {
                   className="w-full bg-black/40 border border-white/10 p-4 text-[10px] font-black outline-none focus:border-orange-600 cursor-text"
                 />
                 <div className="flex gap-2">
-                  <select
-                    value={newOption.type}
-                    onChange={(e) =>
-                      setNewOption({ ...newOption, type: e.target.value })
-                    }
-                    className="bg-black/40 border border-white/10 p-3 text-[10px] font-black uppercase outline-none cursor-pointer"
-                  >
-                    <option value="category">Category</option>
-                    <option value="type">Asset Type</option>
-                  </select>
                   <button
                     onClick={handleAddOption}
-                    className="flex-1 border border-orange-600/50 bg-orange-600/10 text-orange-500 font-brand-secondary-thin text-[10px] uppercase tracking-[0.2em] py-3 hover:bg-orange-600/10 hover:border-white hover:text-white transition-all cursor-pointer"
+                    className="flex-1 border border-orange-600/50 bg-orange-600/10 text-orange-500 font-brand-secondary-thin text-[10px] uppercase tracking-[0.2em] py-3 hover:bg-orange-600/10 hover:border-white hover:text-white transition-all duration-[400ms] cursor-pointer"
                   >
                     Add
                   </button>
@@ -1142,52 +1338,46 @@ export default function AdminPortal() {
 
               <div className="space-y-6 pt-4">
                 <div className="space-y-2">
-                  <span className="text-[8px] font-black uppercase text-white/20 tracking-[0.3em]">
-                    Active Categories
-                  </span>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-[8px] font-black uppercase text-white/20 tracking-[0.3em]">
+                      Active Categories
+                    </span>
+                    <span className="font-brand-secondary-thin text-[8px] uppercase tracking-[0.2em] text-white/25">
+                      {savingOrder ? "Saving order…" : "Drag to reorder"}
+                    </span>
+                  </div>
+                  {/* Drag order IS the archive's filter-bar order. */}
+                  <Reorder.Group
+                    axis="x"
+                    values={categories}
+                    onReorder={reorderCategories}
+                    className="flex flex-wrap gap-2"
+                  >
                     {categories.map((c) => (
-                      <div
+                      <Reorder.Item
                         key={c.id}
-                        className="flex items-center border border-white/10 bg-black/30 px-3 py-1.5 gap-3"
+                        value={c}
+                        className="flex items-center border border-white/10 bg-black/30 px-3 py-1.5 gap-3 cursor-grab active:cursor-grabbing select-none"
+                        whileDrag={{
+                          scale: 1.04,
+                          borderColor: "rgba(234,88,12,0.6)",
+                        }}
                       >
                         <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.15em] text-white/70">
                           {c.name}
                         </span>
                         <button
-                          onClick={() => handleDeleteOption(c.id, "category")}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => handleDeleteOption(c.id)}
                           className="font-brand-secondary-thin text-[9px] text-orange-600/60 hover:text-orange-500 cursor-pointer uppercase tracking-widest"
                         >
                           ×
                         </button>
-                      </div>
+                      </Reorder.Item>
                     ))}
-                  </div>
+                  </Reorder.Group>
                 </div>
 
-                <div className="space-y-2">
-                  <span className="text-[8px] font-black uppercase text-white/20 tracking-[0.3em]">
-                    Active Asset Types
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {resourceTypes.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center border border-white/10 bg-black/30 px-3 py-1.5 gap-3"
-                      >
-                        <span className="font-brand-secondary-thin text-[10px] uppercase tracking-[0.15em] text-white/70">
-                          {r.name}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteOption(r.id, "type")}
-                          className="font-brand-secondary-thin text-[9px] text-orange-600/60 hover:text-orange-500 cursor-pointer uppercase tracking-widest"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           </section>
@@ -1213,13 +1403,13 @@ export default function AdminPortal() {
                       {items.map((item: ArchiveItem) => (
                         <div
                           key={item.id}
-                          className="group border border-white/10 bg-black/30 backdrop-blur-sm p-3 transition-all hover:border-white/20"
+                          className="group border border-white/10 bg-black/30 backdrop-blur-sm p-3 transition-all duration-[400ms] hover:border-white/20"
                         >
                           <div className="aspect-[4/5] overflow-hidden bg-black mb-3 relative">
-                            <div className="w-full h-full opacity-50 group-hover:opacity-100 transition-opacity duration-700">
+                            <div className="w-full h-full opacity-50 group-hover:opacity-100 transition-opacity duration-[400ms]">
                               {renderAssetPreview(item.file_url?.[0] || "")}
                             </div>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-[400ms]">
                               <button
                                 onClick={() => {
                                   setEditingId(item.id);
@@ -1227,7 +1417,6 @@ export default function AdminPortal() {
                                     title: item.title,
                                     author: item.author || "",
                                     category: item.category,
-                                    resource_type: item.resource_type,
                                     content: item.content,
                                     instagram_url: item.instagram_url || "",
                                     linkedin_url: item.linkedin_url || "",
@@ -1280,19 +1469,40 @@ export default function AdminPortal() {
                                     behavior: "smooth",
                                   });
                                 }}
-                                className="border border-white/40 bg-black/80 text-white w-2/3 py-3 font-brand-secondary-thin text-[9px] uppercase tracking-widest hover:border-white hover:bg-black/80 transition-all cursor-pointer"
+                                className="border border-white/40 bg-black/80 text-white w-2/3 py-3 font-brand-secondary-thin text-[9px] uppercase tracking-widest hover:border-white hover:bg-black/80 transition-all duration-[400ms] cursor-pointer"
                               >
                                 Edit Asset
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (confirm("PERMANENT_REMOVAL?")) {
-                                    await supabase
-                                      .from("archive")
-                                      .delete()
-                                      .eq("id", item.id);
-                                    fetchData();
+                                  if (
+                                    !(await ask(
+                                      "Delete project",
+                                      `"${item.title}" and every file it owns will be removed from the archive and the storage bucket. This cannot be undone.`,
+                                      true,
+                                    ))
+                                  )
+                                    return;
+                                  // Collect the URLs BEFORE the row goes — it's
+                                  // the only record of what this project owns.
+                                  const urls = assetUrlsOf(item);
+                                  const { error } = await supabase
+                                    .from("archive")
+                                    .delete()
+                                    .eq("id", item.id);
+                                  if (error) {
+                                    console.error("Delete failed:", error);
+                                    await notify(
+                                      "Delete failed",
+                                      "Nothing was removed — the project and its files are intact.",
+                                    );
+                                    return;
                                   }
+                                  // Row gone: now the files can't be orphaned
+                                  // by a half-finished delete.
+                                  await deleteFromBucket(urls);
+                                  fetchData();
+                                  showToast("danger", "Project deleted");
                                 }}
                                 className="font-brand-secondary-thin text-red-500/60 text-[9px] uppercase tracking-widest hover:text-red-400 cursor-pointer"
                               >
@@ -1304,7 +1514,7 @@ export default function AdminPortal() {
                             {item.title}
                           </p>
                           <p className="font-brand-secondary-thin text-[9px] text-white/30 uppercase tracking-[0.15em]">
-                            {item.resource_type}
+                            {item.category}
                           </p>
                         </div>
                       ))}
@@ -1315,6 +1525,110 @@ export default function AdminPortal() {
           </section>
         </main>
       </div>
+
+      {/* ── Toast — confirms a write landed, top-centre, auto-dismissing. ── */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+          <div
+            className={`flex items-center gap-3 border bg-[#0a0a0a]/95 backdrop-blur-sm px-5 py-3.5 shadow-2xl ${
+              toast.kind === "success"
+                ? "border-emerald-500/40"
+                : "border-red-500/40"
+            }`}
+            style={{ animation: "adminToastIn 500ms ease-out" }}
+          >
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                toast.kind === "success" ? "bg-emerald-500" : "bg-red-500"
+              }`}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#0a0a0a"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {toast.kind === "success" ? (
+                  <polyline points="4 12.5 9.5 18 20 6.5" />
+                ) : (
+                  <>
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                  </>
+                )}
+              </svg>
+            </span>
+            <span
+              className={`font-brand-secondary-thin text-[10px] uppercase tracking-[0.25em] whitespace-nowrap ${
+                toast.kind === "success" ? "text-emerald-300" : "text-red-300"
+              }`}
+            >
+              {toast.message}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dialog — replaces confirm()/alert() so prompts stay inside the
+          portal's own language instead of the browser's chrome bar. ── */}
+      {dialog && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm px-6"
+          style={{ animation: "adminBackdropIn 500ms ease-out" }}
+          onClick={() => closeDialog(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ animation: "adminDialogIn 500ms ease-out" }}
+            className="w-full max-w-[420px] border border-white/12 bg-[#0a0a0a] p-8 space-y-6"
+          >
+            <div className="space-y-2">
+              <div
+                className={`font-brand-secondary-thin text-[10px] tracking-[0.3em] uppercase ${
+                  dialog.danger ? "text-red-500/80" : "text-orange-600"
+                }`}
+              >
+                {dialog.kind === "confirm" ? "Confirm" : "Notice"}
+              </div>
+              <div className="font-brand-other text-white text-[22px] leading-none tracking-wide uppercase">
+                {dialog.title}
+              </div>
+            </div>
+
+            <p className="font-brand-secondary-thin text-[12px] leading-relaxed text-white/60">
+              {dialog.message}
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2">
+              {dialog.kind === "confirm" && (
+                <button
+                  type="button"
+                  onClick={() => closeDialog(false)}
+                  className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-white/40 hover:text-white border border-white/15 hover:border-white/40 px-5 py-3 transition-colors duration-[400ms] cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                autoFocus
+                onClick={() => closeDialog(true)}
+                className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] px-5 py-3 border transition-colors duration-[400ms] cursor-pointer ${
+                  dialog.danger
+                    ? "text-red-400 border-red-500/40 hover:bg-red-500/10 hover:border-red-500"
+                    : "text-orange-500 border-orange-600/50 hover:bg-orange-600/10 hover:border-orange-600"
+                }`}
+              >
+                {dialog.kind === "confirm" ? "Confirm" : "OK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
