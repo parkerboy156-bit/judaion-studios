@@ -351,7 +351,7 @@ export default function TheNarrative() {
           className={`group absolute top-[47vh] left-[2.5vw] z-20 w-16 lg:w-23 ${elevIn ? "opacity-100" : "opacity-0"} transition-opacity duration-800 cursor-pointer invert`}
         >
           <ElevatorArrow
-            src="/elevator-down.png"
+            src="/elevator-down.webp"
             dir="down"
             className="w-full"
             glow={false}
@@ -761,7 +761,7 @@ export default function TheNarrative() {
               <div className="relative z-10 flex items-center gap-6 lg:gap-11 px-6 lg:px-10 py-5 lg:py-4">
                 {/* MAIL ICON */}
                 <img
-                  src="/mail-icon.png"
+                  src="/mail-icon.webp"
                   alt=""
                   aria-hidden="true"
                   className="h-6 lg:h-10 w-auto shrink-0 object-contain"
@@ -792,13 +792,13 @@ export default function TheNarrative() {
                 {/* ELEVATOR — rises on hover, like ascending a floor */}
                 <span className="relative shrink-0 h-28 lg:h-28 overflow-hidden flex items-end">
                   <img
-                    src="/cta-elevator.png"
+                    src="/cta-elevator.webp"
                     alt=""
                     aria-hidden="true"
                     className="h-28 w-auto object-contain transition-transform duration-600 ease-out group-hover:-translate-y-[120%]"
                   />
                   <img
-                    src="/cta-elevator.png"
+                    src="/cta-elevator.webp"
                     alt=""
                     aria-hidden="true"
                     className="absolute left-0 bottom-0 h-28 w-auto object-contain translate-y-[120%] transition-transform duration-600 ease-out group-hover:translate-y-0"
@@ -823,7 +823,7 @@ export default function TheNarrative() {
         }}
       >
         <img
-          src="/right-click.png"
+          src="/right-click.webp"
           alt=""
           className="w-5 h-auto filter brightness-110"
         />

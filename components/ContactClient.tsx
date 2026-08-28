@@ -192,7 +192,7 @@ export default function Contact() {
                     className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
                   >
                     <img
-                      src="/right-click.png"
+                      src="/right-click.webp"
                       alt=""
                       className="w-5 h-auto filter brightness-110"
                     />

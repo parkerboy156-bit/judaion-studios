@@ -364,13 +364,13 @@ export default function Tier2() {
                       black on hover (button flips to a white background). */}
                   <span className="relative h-[22px] w-[22px] shrink-0">
                     <img
-                      src="/mail-icon-white.png"
+                      src="/mail-icon-white.webp"
                       alt=""
                       aria-hidden="true"
                       className="absolute inset-0 h-full w-full object-contain transition-opacity duration-300 group-hover:opacity-0"
                     />
                     <img
-                      src="/mail-icon.png"
+                      src="/mail-icon.webp"
                       alt=""
                       aria-hidden="true"
                       className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"

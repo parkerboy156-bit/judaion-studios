@@ -1497,7 +1497,7 @@ function OpenFolderView({
           className="fixed top-0 left-0 z-[150] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm px-3 py-2"
         >
           <img
-            src={enlarged ? "/drag-icon.png" : "/right-click.png"}
+            src={enlarged ? "/drag-icon.webp" : "/right-click.webp"}
             alt=""
             className="w-5 h-auto filter brightness-110"
           />
@@ -1629,9 +1629,9 @@ function DesktopMenuBar({
 
 // ── DesktopStatusBar — bottom strip (desktop): interaction hints + J-logo; hints hide while a folder is open. ──
 const STATUS_HINTS = [
-  { icon: "/right-click.png", text: "Click to select · Click again to open" },
+  { icon: "/right-click.webp", text: "Click to select · Click again to open" },
   { icon: "/arrows-icon.png", text: "Arrow keys to navigate" },
-  { icon: "/drag-icon.png", text: "Folders are draggable" },
+  { icon: "/drag-icon.webp", text: "Folders are draggable" },
 ];
 // Globe icon (no site asset exists for "website") — same stroke-line
 // treatment as the other inline SVGs in this file (currentColor, opacity-driven).

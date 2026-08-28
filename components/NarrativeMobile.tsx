@@ -220,7 +220,7 @@ export function NarrativeCtaMobile({ lineReveal }: { lineReveal: number }) {
           forcing the row wider than the viewport. */}
       <div className="flex items-center gap-4 min-w-0">
         <img
-          src="/mail-icon.png"
+          src="/mail-icon.webp"
           alt=""
           aria-hidden="true"
           className="h-6 w-auto shrink-0 object-contain"
@@ -251,14 +251,14 @@ export function NarrativeCtaMobile({ lineReveal }: { lineReveal: number }) {
           className="relative shrink-0 h-18 overflow-hidden flex items-end"
         >
           <img
-            src="/cta-elevator.png"
+            src="/cta-elevator.webp"
             alt=""
             aria-hidden="true"
             className="h-18 w-auto object-contain elev-lead-up"
             style={playState}
           />
           <img
-            src="/cta-elevator.png"
+            src="/cta-elevator.webp"
             alt=""
             aria-hidden="true"
             className="absolute left-0 bottom-0 h-18 w-auto object-contain elev-follow-up"

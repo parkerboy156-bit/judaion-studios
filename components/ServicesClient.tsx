@@ -489,7 +489,7 @@ export default function ServicesHome() {
               className="fixed top-0 left-0 z-[80] translate-x-5 translate-y-5 pointer-events-none flex items-center gap-2 bg-black/70 border border-white/10 backdrop-blur-sm px-3 py-2"
             >
               <img
-                src="/right-click.png"
+                src="/right-click.webp"
                 alt=""
                 className="w-5 h-auto filter brightness-110"
               />
@@ -512,7 +512,7 @@ export default function ServicesHome() {
               href="/methodology"
               className="flex flex-col items-start group no-underline appearance-none bg-transparent border-none cursor-pointer"
             >
-              <ElevatorArrow src="/elevator-down.png" dir="down" className="w-23 mb-2" />
+              <ElevatorArrow src="/elevator-down.webp" dir="down" className="w-23 mb-2" />
               <div className="flex flex-col items-start font-brand-secondary-thin text-left">
                 <span className="text-[10px] tracking-[0.5em] uppercase text-white/40 font-light font-brand-secondary-thin">
                   Previous Floor
