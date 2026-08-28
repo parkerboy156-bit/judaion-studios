@@ -16,7 +16,7 @@ export const BIO_ROLE = "Chief Creative Officer";
 export const BIO_PARAGRAPHS = [
   "I am the architect behind JUDAION Studios. My methodology begins with full extraction, sitting inside a founder’s vision until its structural truth is legible, all before a single asset gets built.",
   "My standards are non-negotiable, nothing decorative and nothing that won’t hold at scale. My studio operates as a one-man studio by design, not by limitation, every identity that leaves this monolith has been carried, structurally, from the very first extraction to final handover, by my own hand.",
-  "I am nineteen. The studio was not built by an agency, a team or a name inherited from anyone instead it was built by one person who decided, early, that permanence was worth more than noise. What leaves this studio carries that decision in it.",
+  "I am nineteen. The studio was not built by an agency, a team or a name inherited from anyone, instead it was built by one person who decided, early, that permanence was worth more than noise. What leaves this studio carries that decision in it.",
 ];
 
 /* corner controls both the title column AND its paired body box (desktop).
