@@ -166,19 +166,33 @@ export default function ClientShell({
   }, []);
 
   // Once the veil has fully COVERED, the route push has already fired (below).
-  // Hold for a fixed beat, then always sweep away — so the cover→reveal cadence
-  // is identical on every navigation, independent of how fast the new route
-  // commits (that variability is what made it snap on fast pages / stall on
-  // slow ones). Static/prerendered routes commit well within this hold.
+  // Reveal needs BOTH a minimum hold (so the cadence is identical everywhere)
+  // AND the new route to have actually committed. A fixed timer alone uncovers
+  // whatever is underneath — on a slow swap that is still the OLD page, which
+  // then snaps to the new one in plain view. Heavy routes like /thenarrative
+  // keep the main thread busy enough to miss a 260ms deadline.
+  // MAX_HOLD stops a route that never commits from stranding the veil.
+  const MIN_HOLD = 260;
+  const MAX_HOLD = 1400;
+  const coveredAtRef = useRef(0);
   useEffect(() => {
-    if (transition?.phase !== "covered") return;
+    if (transition?.phase !== "covered") {
+      coveredAtRef.current = 0;
+      return;
+    }
+    if (!coveredAtRef.current) coveredAtRef.current = Date.now();
+    const elapsed = Date.now() - coveredAtRef.current;
+    const arrived = clean(pathname) === clean(transition.href);
+    const wait = Math.max(0, (arrived ? MIN_HOLD : MAX_HOLD) - elapsed);
     const id = window.setTimeout(() => {
       setTransition((t) =>
         t && t.phase === "covered" ? { ...t, phase: "reveal" } : t,
       );
-    }, 260);
+    }, wait);
     return () => window.clearTimeout(id);
-  }, [transition?.phase, transition?.id]);
+    // `pathname` re-runs this the moment the route commits, converting the
+    // MAX_HOLD wait into the remainder of MIN_HOLD.
+  }, [transition?.phase, transition?.id, transition?.href, pathname]);
 
   const handleAnimComplete = () => {
     if (!transition) return;
