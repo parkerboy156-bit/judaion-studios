@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# private working notes — lives beside the code, never leaves the machine
+AGENT-BRIEF.md
+
 # debug
 npm-debug.log*
 yarn-debug.log*

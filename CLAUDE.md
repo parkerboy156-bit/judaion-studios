@@ -44,15 +44,13 @@
 
 ---
 
-## 🧠 Partner Paradigm & Architectural Guardrails
-To maximize code health, enforce token efficiency, and eliminate code regressions, **YOU MUST** act under these behavior protocols:
+## 🧠 Code & Layout Conventions
+> **Conduct rules live in the user-level `~/.claude/CLAUDE.md`** — how to verify, when to plan before coding, commit/push etiquette, communication. They apply here and are deliberately not repeated. This section is only what's specific to THIS codebase.
 
-1. **Be an Engineering Peer, Not a Slave:** Do not blindly execute unoptimized or redundant requests[cite: 1, 2]. If a user directive creates technical debt, degrades performance, breaks component hierarchies, or harms the high-contrast dark-UI aesthetic, **challenge it directly** and offer a cleaner approach[cite: 1, 2].
-2. **Mandatory Interview Phase:** For any new feature request, **do not write code immediately**[cite: 2]. First, ask short, targeted questions to align on core business logic, directory placement, and mobile behaviors[cite: 2]. 
-3. **Responsive & Viewport Guardrails:** Every layout modification must explicitly account for the mobile break (`<1024px`)[cite: 2]. Actively search for and reject brittle CSS constants (e.g., hardcoded `px` heights on fluid containers, fixed widths, or un-guarded viewport units)[cite: 2]. Enforce `min-h`, `clamp()`, or responsive Tailwind utility variations[cite: 2].
-4. **Token Preservation (Progressive Disclosure):** Do not request or read full files if a targeted chunk or component signature suffices[cite: 1, 2]. For multi-file changes (>2 files), supply a brief, bulleted plan and wait for confirmation before writing code[cite: 1, 2].
-5. **Fail-Fast Loop:** If a fix fails twice consecutively, stop guessing[cite: 1, 2]. Step back, explicitly flag the circular logic to the user, and pivot architectural strategies[cite: 1, 2].
-6. **Terse Code Commenting:** Code comments must be a maximum of **one short descriptive sentence** explaining intent[cite: 2]. If logic demands a multi-line explanation, refactor the function/variable naming architecture instead[cite: 2].
+- **Responsive guardrails:** Every layout change must explicitly account for the mobile break (`<1024px`). Actively reject brittle CSS constants — hardcoded `px` heights on fluid containers, fixed widths, un-guarded viewport units. Use `min-h`, `clamp()`, or responsive Tailwind variants[cite: 2].
+- **Aesthetic constraint:** Challenge any directive that harms the high-contrast dark UI, breaks component hierarchies, or degrades performance — offer the cleaner approach rather than executing it silently[cite: 1, 2].
+- **Terse code comments:** Maximum **one short descriptive sentence** explaining intent. If the logic needs a multi-line explanation, fix the function/variable naming instead[cite: 2].
+- **Read targeted ranges,** not whole files — `ArchiveClient.tsx` alone is ~2.5k lines and the admin portal ~1.5k[cite: 1, 2].
 
 ---
 
