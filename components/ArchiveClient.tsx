@@ -717,6 +717,12 @@ function OpenFolderView({
           // until re-uploaded; `undefined` simply omits the attribute.
           poster={asset.thumb}
           controls
+          // Strip Download and Picture-in-Picture from the native control menu
+          // and block the right-click "Save video as…" — nothing on the site is
+          // downloadable unless it is deliberately offered.
+          controlsList="nodownload noplaybackrate noremoteplayback"
+          disablePictureInPicture
+          onContextMenu={(e) => e.preventDefault()}
           // No thumb → still fetch metadata so SOMETHING renders. With a poster
           // there's nothing to show until play, so don't spend the request.
           preload={asset.thumb ? "none" : "metadata"}
