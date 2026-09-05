@@ -1422,9 +1422,13 @@ function OpenFolderView({
                 {/* ── ZOOM VIEWPORT — oversized image, pans via drag; click
                     closes. Overlays the grid rather than replacing it, so it
                     can fade OUT on close (a ternary would rip it away
-                    instantly) and the grid beneath never reflows. ── */}
+                    instantly) and the grid beneath never reflows.
+                    IMAGES ONLY: this sits OUTSIDE the ternary that routes PDFs
+                    to the inline reader, so it needs its own PDF guard — an
+                    unguarded `enlarged` renders an <img> of the PDF on top of
+                    the reader. ── */}
                 <AnimatePresence>
-                {enlarged && (
+                {enlarged && !isPdfUrl(enlarged.url) && (
                 <motion.div
                   key={`zoom-${enlarged.id}`}
                   initial={{ opacity: 0 }}
