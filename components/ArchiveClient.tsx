@@ -983,7 +983,9 @@ function OpenFolderView({
         className={
           isMobile
             ? "absolute inset-x-[3vw] top-[70px] bottom-[70px] flex flex-col bg-[#060606] border border-white/12 shadow-[0_30px_90px_rgba(0,0,0,0.8)] will-change-transform rounded-sm overflow-hidden"
-            : "absolute left-[3.5vw] right-[3.5vw] top-[84px] bottom-[84px] flex flex-col bg-[#060606] border border-white/15 shadow-[0_50px_140px_rgba(0,0,0,0.85)] will-change-transform rounded-sm"
+            : // overflow-hidden matches the mobile class: without it nothing
+              // clips to `rounded-sm`, so the zoom image escapes the corners.
+              "absolute left-[3.5vw] right-[3.5vw] top-[84px] bottom-[84px] flex flex-col bg-[#060606] border border-white/15 shadow-[0_50px_140px_rgba(0,0,0,0.85)] will-change-transform rounded-sm overflow-hidden"
         }
       >
         {/* ── TITLE BAR — breadcrumb (left) + X close (right); floats over the panels so its blur has content beneath. ── */}
@@ -1425,7 +1427,6 @@ function OpenFolderView({
                 {enlarged && (
                 <motion.div
                   key={`zoom-${enlarged.id}`}
-                  ref={zoomRef}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -1434,8 +1435,21 @@ function OpenFolderView({
                   // clicks — otherwise a sizing failure leaves the whole pane
                   // dead with nothing on screen to explain why.
                   style={{ pointerEvents: zoomSize ? "auto" : "none" }}
-                  className="absolute inset-0 z-20 overflow-hidden flex items-center justify-center"
+                  // Fills the whole pane so the image runs UNDER the title bar
+                  // and stays visible through it while panning. `bg-black` is
+                  // the backing: pan past the image's top edge and the bar
+                  // blurs black, not the asset grid underneath.
+                  className="absolute inset-0 z-20 overflow-hidden bg-black"
                 >
+                  {/* Sizing/centring box, inset by the title bar's height so the
+                      image sits BELOW it at rest instead of opening half-hidden.
+                      Deliberately not clipped — the image still overflows up
+                      under the bar, which is what keeps it visible through the
+                      blur while panning. */}
+                  <div
+                    ref={zoomRef}
+                    className="absolute inset-x-0 bottom-0 top-14 flex items-center justify-center"
+                  >
                   {/* Thumb underneath, master over it. The thumb is already in
                       cache (the grid just drew it), so the viewport is filled
                       the moment it opens and the master fades in on top once
@@ -1527,6 +1541,7 @@ function OpenFolderView({
                       className="absolute inset-0 h-full w-full select-none"
                     />
                   </motion.div>
+                  </div>
                 </motion.div>
                 )}
                 </AnimatePresence>
