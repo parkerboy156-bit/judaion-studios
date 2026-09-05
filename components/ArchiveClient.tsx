@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "react";
 import { preload } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import {
@@ -17,6 +23,12 @@ import { hasInAppHistory } from "./ClientShell";
 const VIDEO_EXTS = ["mp4", "webm", "ogg"];
 const isVideoUrl = (url: string) =>
   VIDEO_EXTS.includes(url?.split(".").pop()?.toLowerCase() || "");
+// Scroll restoration must land BEFORE paint or the list flashes at the top for
+// a frame. useLayoutEffect warns during SSR, so fall back to useEffect there —
+// the browser is the only place this runs for real.
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 const isPdfUrl = (url: string) =>
   url?.split(".").pop()?.toLowerCase() === "pdf";
 // First image asset of a project (prefers the WebP thumb, falls back to the legacy file_url list); null if none.
@@ -597,9 +609,55 @@ function OpenFolderView({
     const scale = Math.max(cw / iw, ch / ih) * 1.3; // cover + 30% pan headroom
     setZoomSize({ w: iw * scale, h: ih * scale });
   };
+  // The master is a fresh download (browsing served the thumb), so waiting for
+  // its onLoad to learn the geometry left the viewport empty until the whole
+  // file arrived. computeZoom's output depends only on ASPECT, so the stored
+  // master dims give exactly the same answer without the wait.
+  // Opening the zoom replaces the grid with a full-height viewport, which
+  // collapses the scroller's content and forces scrollTop to 0 — so the
+  // position has to be remembered while browsing and put back on close.
+  // Tracked on scroll rather than captured at click time: by the time any
+  // effect runs the content has already collapsed and the value is gone.
+  // The grid's staggered entrance belongs to opening the FOLDER, so it plays
+  // once. This component is keyed by folder id, so the flag resets per folder.
+  const gridIntroPlayed = useRef(false);
   useEffect(() => {
-    setZoomSize(null); // recompute per asset
+    gridIntroPlayed.current = true;
+  }, []);
+
+  const assetScrollRef = useRef<HTMLDivElement | null>(null);
+  const lastAssetScroll = useRef(0);
+  useIsoLayoutEffect(() => {
+    if (enlarged) return;
+    const el = assetScrollRef.current;
+    if (el) el.scrollTop = lastAssetScroll.current;
+  }, [enlarged]);
+
+  const [masterLoaded, setMasterLoaded] = useState(false);
+  // Natural dims of the enlarged asset, kept SEPARATE from the sizing pass.
+  // computeZoom needs zoomRef, and React attaches child refs before parent
+  // ones — so an image ref callback firing during commit found zoomRef still
+  // null, bailed, and left the viewport invisible but still covering the pane.
+  // Recording dims here and sizing in a layout effect removes that ordering
+  // dependency entirely.
+  const [zoomNatural, setZoomNatural] = useState<{ w: number; h: number } | null>(
+    null,
+  );
+  const noteNatural = (w: number, h: number) => {
+    if (w && h) setZoomNatural((prev) => prev ?? { w, h });
+  };
+  // Layout effect, not effect: stored dims must be in place before the first
+  // paint of the zoom, or it flashes empty for a frame on the way in.
+  useIsoLayoutEffect(() => {
+    setMasterLoaded(false);
+    setZoomSize(null);
+    const a = folder.assets.find((x) => x.id === enlargedId);
+    setZoomNatural(a?.width && a?.height ? { w: a.width, h: a.height } : null);
   }, [enlargedId]);
+  useIsoLayoutEffect(() => {
+    if (!enlargedId || !zoomNatural) return;
+    computeZoom(zoomNatural.w, zoomNatural.h);
+  }, [enlargedId, zoomNatural]);
 
   // ESC collapses an enlarged asset (image zoom or the inline PDF reader) first,
   // capture phase, before the parent's folder-close handler fires.
@@ -1091,10 +1149,15 @@ function OpenFolderView({
               </motion.div>
             )}
             <div
-              className={`relative z-10 h-full ${
-                enlarged
-                  ? "overflow-hidden"
-                  : "desc-scroll overflow-y-auto px-5 lg:px-12 pt-[88px] lg:pt-[96px] pb-12"
+              ref={assetScrollRef}
+              onScroll={(e) => {
+                if (!enlarged) lastAssetScroll.current = e.currentTarget.scrollTop;
+              }}
+              // Padding stays constant now that the grid renders underneath the
+              // zoom — swapping it would reflow the grid mid-fade. Only the
+              // overflow changes, to stop the list scrolling behind the zoom.
+              className={`relative z-10 h-full desc-scroll px-5 lg:px-12 pt-[88px] lg:pt-[96px] pb-12 ${
+                enlarged ? "overflow-hidden" : "overflow-y-auto"
               }`}
             >
               {folder.assets.length === 0 ? (
@@ -1120,62 +1183,8 @@ function OpenFolderView({
                     onClose={() => setEnlargedId(null)}
                   />
                 </div>
-              ) : enlarged ? (
-                /* ── ZOOM VIEWPORT — oversized image, pans via drag; click closes. ── */
-                <motion.div
-                  key={`zoom-${enlarged.id}`}
-                  ref={zoomRef}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="relative w-full h-full overflow-hidden flex items-center justify-center"
-                >
-                  <motion.img
-                    src={enlarged.url}
-                    alt={enlarged.title || folder.title}
-                    draggable={false}
-                    decoding="async"
-                    drag
-                    dragConstraints={zoomRef}
-                    dragMomentum={false}
-                    dragElastic={0}
-                    // Invisible until zoomSize is computed, then a smooth zoom-in (scale 0.55 → 1 + fade).
-                    initial={false}
-                    animate={
-                      zoomSize
-                        ? { opacity: 1, scale: 1 }
-                        : { opacity: 0, scale: 0.55 }
-                    }
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    onLoad={(e) => {
-                      const el = e.currentTarget;
-                      recordDims(enlarged.id, el);
-                      computeZoom(el.naturalWidth, el.naturalHeight);
-                    }}
-                    onPointerDown={() => {
-                      zoomMoved.current = false;
-                    }}
-                    onDragStart={() => {
-                      zoomMoved.current = true;
-                    }}
-                    {...{
-                      // Mobile: one tap closes (matches the one-tap open); desktop keeps double-click.
-                      [isMobile ? "onClick" : "onDoubleClick"]: () => {
-                        if (!zoomMoved.current) setEnlargedId(null);
-                      },
-                    }}
-                    onMouseEnter={() => !isMobile && setShowTag(true)}
-                    onMouseLeave={() => setShowTag(false)}
-                    className="shrink-0 max-w-none select-none cursor-grab active:cursor-grabbing"
-                    style={
-                      zoomSize
-                        ? { width: zoomSize.w, height: zoomSize.h }
-                        : { maxWidth: "100%", maxHeight: "100%", opacity: 0 }
-                    }
-                  />
-                </motion.div>
               ) : (
-                // Asset grid — 2 cols on desktop; landscapes span both, paired portraits take one each. grid-flow-dense backfills gaps.
+                /* Asset grid — 2 cols on desktop; landscapes span both, paired portraits take one each. grid-flow-dense backfills gaps. */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-x-8 lg:gap-y-14 [grid-auto-flow:dense] max-w-[1100px] mx-auto w-full">
                   {tiles.map((tile, i) => {
                     // The cover drives layout; the active variant only swaps
@@ -1367,7 +1376,16 @@ function OpenFolderView({
                       <motion.div
                         key={tile.key}
                         {...swipe}
-                        initial={{ x: 50, opacity: 0 }}
+                        // The stagger is the folder's ENTRANCE. Closing the zoom
+                        // remounts these tiles, which replayed it — leaving the
+                        // grid blank for `0.1 + i * 0.09` before each tile
+                        // arrived. Coming back from a zoom, snap straight to the
+                        // resting state.
+                        initial={
+                          gridIntroPlayed.current
+                            ? false
+                            : { x: 50, opacity: 0 }
+                        }
                         animate={{ x: 0, opacity: 1 }}
                         transition={{
                           delay: 0.1 + i * 0.09,
@@ -1399,6 +1417,120 @@ function OpenFolderView({
                 </div>
               )}
             </div>
+                {/* ── ZOOM VIEWPORT — oversized image, pans via drag; click
+                    closes. Overlays the grid rather than replacing it, so it
+                    can fade OUT on close (a ternary would rip it away
+                    instantly) and the grid beneath never reflows. ── */}
+                <AnimatePresence>
+                {enlarged && (
+                <motion.div
+                  key={`zoom-${enlarged.id}`}
+                  ref={zoomRef}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  // Until it has a size it is invisible, so it must not swallow
+                  // clicks — otherwise a sizing failure leaves the whole pane
+                  // dead with nothing on screen to explain why.
+                  style={{ pointerEvents: zoomSize ? "auto" : "none" }}
+                  className="absolute inset-0 z-20 overflow-hidden flex items-center justify-center"
+                >
+                  {/* Thumb underneath, master over it. The thumb is already in
+                      cache (the grid just drew it), so the viewport is filled
+                      the moment it opens and the master fades in on top once
+                      it lands — instead of an empty frame that pops. */}
+                  <motion.div
+                    drag
+                    dragConstraints={zoomRef}
+                    dragMomentum={false}
+                    dragElastic={0}
+                    // Invisible until zoomSize is computed, then a smooth zoom-in (scale 0.55 → 1 + fade).
+                    initial={false}
+                    animate={
+                      zoomSize
+                        ? { opacity: 1, scale: 1 }
+                        : { opacity: 0, scale: 0.55 }
+                    }
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    onPointerDown={() => {
+                      zoomMoved.current = false;
+                    }}
+                    onDragStart={() => {
+                      zoomMoved.current = true;
+                    }}
+                    {...{
+                      // Mobile: one tap closes (matches the one-tap open); desktop keeps double-click.
+                      [isMobile ? "onClick" : "onDoubleClick"]: () => {
+                        if (!zoomMoved.current) setEnlargedId(null);
+                      },
+                    }}
+                    onMouseEnter={() => !isMobile && setShowTag(true)}
+                    onMouseLeave={() => setShowTag(false)}
+                    className="relative shrink-0 max-w-none select-none cursor-grab active:cursor-grabbing"
+                    style={
+                      zoomSize
+                        ? { width: zoomSize.w, height: zoomSize.h }
+                        : { maxWidth: "100%", maxHeight: "100%", opacity: 0 }
+                    }
+                  >
+                    {/* Stays mounted for the whole zoom. Unmounting it the
+                        instant the master loaded left a gap while the master
+                        was still fading in — that was the flicker. It costs
+                        nothing to leave underneath. */}
+                    {enlarged.thumb && (
+                      <img
+                        src={enlarged.thumb}
+                        alt=""
+                        draggable={false}
+                        aria-hidden
+                        // Same aspect as the master, so this also gives the
+                        // geometry for legacy assets with no stored dims.
+                        ref={(el) => {
+                          if (el?.complete)
+                            noteNatural(el.naturalWidth, el.naturalHeight);
+                        }}
+                        onLoad={(e) =>
+                          noteNatural(
+                            e.currentTarget.naturalWidth,
+                            e.currentTarget.naturalHeight,
+                          )
+                        }
+                        className="absolute inset-0 h-full w-full select-none"
+                      />
+                    )}
+                    <img
+                      // A cached master can fire onLoad before this element's
+                      // effects run, so check `complete` on the ref too —
+                      // otherwise re-opening an asset leaves it stuck hidden.
+                      ref={(el) => {
+                        if (el?.complete && el.naturalWidth) {
+                          noteNatural(el.naturalWidth, el.naturalHeight);
+                          setMasterLoaded(true);
+                        }
+                      }}
+                      src={enlarged.url}
+                      alt={enlarged.title || folder.title}
+                      draggable={false}
+                      decoding="async"
+                      onLoad={(e) => {
+                        const el = e.currentTarget;
+                        recordDims(enlarged.id, el);
+                        noteNatural(el.naturalWidth, el.naturalHeight);
+                        setMasterLoaded(true);
+                      }}
+                      // Identical content to the thumb beneath it, so swapping
+                      // instantly is imperceptible — and a cross-fade between
+                      // two copies of the same image can only introduce
+                      // artefacts.
+                      style={{ opacity: masterLoaded ? 1 : 0 }}
+                      className="absolute inset-0 h-full w-full select-none"
+                    />
+                  </motion.div>
+                </motion.div>
+                )}
+                </AnimatePresence>
+
             {/* No-description folders lose the meta row with the panel. Author
                 and Category repeat at project level, so only Upload and Type —
                 the two facts that are per-folder — are worth keeping. */}
