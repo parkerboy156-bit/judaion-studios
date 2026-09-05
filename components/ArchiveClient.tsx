@@ -21,8 +21,25 @@ const isPdfUrl = (url: string) =>
   url?.split(".").pop()?.toLowerCase() === "pdf";
 // First image asset of a project (prefers the WebP thumb, falls back to the legacy file_url list); null if none.
 // A PDF counts as an image cover when it has a rendered first-page thumb.
+// Displayable image for one asset — a video or PDF only qualifies once it has
+// a generated thumb, since neither paints as an image on its own.
+const assetImage = (a: any): string | null => {
+  if (!a?.url) return null;
+  if (isPdfUrl(a.url) || isVideoUrl(a.url)) return a.thumb || null;
+  return a.thumb || a.url;
+};
+
 const firstImage = (item: any): string | null => {
   if (Array.isArray(item?.folders)) {
+    // An explicitly chosen cover wins over document order, wherever it sits in
+    // the folder structure. Unlike the automatic scan below it may be a video
+    // or PDF, because the admin only offers assets that have a usable image.
+    for (const f of item.folders)
+      for (const a of f?.assets ?? [])
+        if (a?.cover) {
+          const img = assetImage(a);
+          if (img) return img;
+        }
     for (const f of item.folders) {
       for (const a of f?.assets ?? []) {
         if (!a?.url) continue;
@@ -52,6 +69,8 @@ interface FolderAsset {
   height?: number;
   zoomable?: boolean; // false = view-only in the focus view; absent = zoomable
   group?: string; // shared label — assets with the same one stack into one tile
+  cover?: boolean; // this asset is the project's catalogue thumbnail
+
 }
 
 // ── Asset stacks ──
@@ -131,6 +150,10 @@ interface Folder {
   id: string;
   title: string;
   description?: string; // per-folder copy; falls back to project.content
+  // Admin opt-out: drop the description panel entirely for this folder. Needed
+  // as an explicit flag because a BLANK description falls back to the project
+  // copy — "none" and "empty" are different intents.
+  hideDescription?: boolean;
   assets: FolderAsset[];
 }
 
@@ -453,6 +476,9 @@ function OpenFolderView({
   // Mobile only: the description lives in a slide-up sheet so the asset stays
   // the priority. Toggled from the title-bar description icon; drag-to-dismiss
   // via a grip handle (the content still scrolls normally).
+  // No-description folder: no left pane, no mobile sheet, no launcher — just
+  // the assets, with a minimal Upload/Type label in place of the full meta row.
+  const noDesc = folder.hideDescription === true;
   const [descOpen, setDescOpen] = useState(false);
   const sheetDrag = useDragControls();
 
@@ -765,34 +791,33 @@ function OpenFolderView({
 
   // Info fields row ("i" icon + Author/Category/Upload/Type). Shared by the
   // mobile sheet card (folderMeta) and the desktop left-pane pinned footer.
+  // Info "i" icon — shared by the full meta row and the minimal no-description
+  // label so the two can't drift apart.
+  const infoIcon = (size = 22) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="shrink-0 text-white/70"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" />
+      <line
+        x1="12"
+        y1="11"
+        x2="12"
+        y2="16.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="7.75" r="1" fill="currentColor" />
+    </svg>
+  );
+
   const folderMetaInner = (
     <div className="relative z-10 flex items-center gap-5 px-9 py-6 min-w-0">
-      {/* Info "i" icon */}
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        className="shrink-0 text-white/70"
-      >
-        <circle
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="1.4"
-        />
-        <line
-          x1="12"
-          y1="11"
-          x2="12"
-          y2="16.5"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
-        <circle cx="12" cy="7.75" r="1" fill="currentColor" />
-      </svg>
+      {infoIcon()}
       {isMobile ? (
         /* Mobile: the fields are wider than a phone, so a scroller just looked
            cut off and hid the affordance. Walk them past instead — see
@@ -951,7 +976,10 @@ function OpenFolderView({
           style={{ scrollbarWidth: "none" }}
         >
           {/* ── LEFT PANEL — folder description + metadata; desktop only (mobile
-              moves it into the slide-up sheet). Stays visible during zoom. ── */}
+              moves it into the slide-up sheet). Stays visible during zoom.
+              Omitted entirely for no-description folders, so the asset grid
+              takes the full window width. ── */}
+          {!noDesc && (
           <div className="hidden lg:block order-2 lg:order-1 shrink-0 lg:w-[32%] lg:h-full relative overflow-hidden lg:border-r border-white/8">
             {/* Custom folder-description background (designed asset); fades in on open. */}
             <motion.div
@@ -1033,6 +1061,7 @@ function OpenFolderView({
               </div>
             </div>
           </div>
+          )}
 
           {/* ── RIGHT PANEL — assets (first on mobile); becomes a fixed viewport in zoom mode. ── */}
           <div
@@ -1370,11 +1399,27 @@ function OpenFolderView({
                 </div>
               )}
             </div>
+            {/* No-description folders lose the meta row with the panel. Author
+                and Category repeat at project level, so only Upload and Type —
+                the two facts that are per-folder — are worth keeping. */}
+            {noDesc && !enlarged && (
+              <div className="absolute bottom-4 left-4 z-30 flex items-center gap-4 bg-black/75 backdrop-blur-md border border-white/12 px-4 py-2.5 pointer-events-none">
+                {infoIcon(18)}
+                {infoFields
+                  .filter((f) => f.title === "Upload" || f.title === "Type")
+                  .map((f, i) => (
+                    <React.Fragment key={f.title}>
+                      {i > 0 && <span className="h-6 w-px bg-white/15" />}
+                      {metaField(f)}
+                    </React.Fragment>
+                  ))}
+              </div>
+            )}
 
             {/* Mobile description launcher — blurred square pinned bottom-right,
                 floats over the assets (hidden while an asset is enlarged). Same
                 bg-blur as the title bar. Opens the slide-up description sheet. */}
-            {!enlarged && (
+            {!enlarged && !noDesc && (
               <button
                 onClick={() => setDescOpen((v) => !v)}
                 aria-label="Folder description"
@@ -1400,7 +1445,7 @@ function OpenFolderView({
             title-bar description icon is tapped (desktop keeps the left pane).
             Backdrop starts below the title bar so Close/description stay tappable. ── */}
         <AnimatePresence>
-          {descOpen && (
+          {descOpen && !noDesc && (
             <motion.div
               key="desc-backdrop"
               initial={{ opacity: 0 }}

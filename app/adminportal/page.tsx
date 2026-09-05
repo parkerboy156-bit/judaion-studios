@@ -21,12 +21,18 @@ interface AssetEntry {
   // Shared label: images with the same group stack into one flickable tile in
   // the focus view (a logo's colourways). Blank = its own tile.
   group?: string;
+  // This asset is the project's catalogue thumbnail. At most one per project;
+  // absent everywhere = fall back to the first usable image.
+  cover?: boolean;
 }
 
 interface FolderEntry {
   id: string;
   title: string;
   description?: string; // per-folder copy (shown in the focus view left pane)
+  // Drop the description panel for this folder. Explicit flag, because a blank
+  // description falls back to the project copy — "none" and "empty" differ.
+  hideDescription?: boolean;
   assets: AssetEntry[];
 }
 
@@ -67,12 +73,14 @@ interface AssetDraft {
   height?: number;
   zoomable?: boolean;
   group?: string;
+  cover?: boolean;
 }
 
 interface FolderDraft {
   id: string;
   title: string;
   description: string;
+  hideDescription?: boolean;
   assets: AssetDraft[];
 }
 
@@ -365,6 +373,12 @@ export default function AdminPortal() {
     setFolders((f) => (f.length > 1 ? f.filter((x) => x.id !== fid) : f));
   const setFolderTitle = (fid: string, title: string) =>
     setFolders((f) => f.map((x) => (x.id === fid ? { ...x, title } : x)));
+  const toggleFolderDescription = (fid: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid ? { ...x, hideDescription: !x.hideDescription } : x,
+      ),
+    );
   const setFolderDescription = (fid: string, description: string) =>
     setFolders((f) =>
       f.map((x) => (x.id === fid ? { ...x, description } : x)),
@@ -424,6 +438,23 @@ export default function AdminPortal() {
       ),
     );
   };
+  // Cover is project-wide, so it behaves like a radio: setting one clears every
+  // other asset in EVERY folder. Clicking the current cover clears it, which
+  // returns the project to picking its first usable image automatically.
+  const setAssetCover = (aid: string) =>
+    setFolders((f) => {
+      const alreadyCover = f.some((x) =>
+        x.assets.some((a) => a.id === aid && a.cover),
+      );
+      return f.map((x) => ({
+        ...x,
+        assets: x.assets.map((a) => ({
+          ...a,
+          cover: !alreadyCover && a.id === aid,
+        })),
+      }));
+    });
+
   // Zoom is a property of the tile, so it applies to every variant at once.
   const toggleAssetZoom = (fid: string, aid: string, group?: string) =>
     setFolders((f) =>
@@ -729,12 +760,16 @@ export default function AdminPortal() {
             // Only persisted when OFF — absent means zoomable.
             ...(a.zoomable === false ? { zoomable: false } : {}),
             ...(a.group?.trim() ? { group: a.group.trim() } : {}),
+            ...(a.cover ? { cover: true } : {}),
           });
         }
         resolvedFolders.push({
           id: f.id,
           title: f.title.trim(),
           ...(f.description?.trim() ? { description: f.description.trim() } : {}),
+          // Written only when true — absent means the panel shows, so every
+          // existing folder is unchanged.
+          ...(f.hideDescription ? { hideDescription: true } : {}),
           assets,
         });
       }
@@ -1038,8 +1073,42 @@ export default function AdminPortal() {
                           setFolderDescription(folder.id, e.target.value)
                         }
                         placeholder="Folder description (optional — falls back to the project description if blank)"
-                        className="w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors duration-[400ms] outline-none cursor-text resize-y"
+                        disabled={folder.hideDescription}
+                        className={`w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors duration-[400ms] outline-none resize-y ${
+                          folder.hideDescription
+                            ? "opacity-30 cursor-not-allowed"
+                            : "cursor-text"
+                        }`}
                       />
+
+                      {/* Opt out of the description panel entirely — the focus
+                          view shows only the assets for this folder. */}
+                      <button
+                        type="button"
+                        onClick={() => toggleFolderDescription(folder.id)}
+                        className="flex items-center gap-2 self-start cursor-pointer group/nodesc"
+                      >
+                        <span
+                          className={`h-3 w-3 shrink-0 border flex items-center justify-center transition-colors duration-[400ms] ${
+                            folder.hideDescription
+                              ? "border-orange-600 bg-orange-600"
+                              : "border-white/20"
+                          }`}
+                        >
+                          {folder.hideDescription && (
+                            <span className="h-1 w-1 bg-black" />
+                          )}
+                        </span>
+                        <span
+                          className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] transition-colors duration-[400ms] ${
+                            folder.hideDescription
+                              ? "text-orange-500/80"
+                              : "text-white/40 group-hover/nodesc:text-white/70"
+                          }`}
+                        >
+                          No description panel
+                        </span>
+                      </button>
 
                       {/* Assets in this folder */}
                       <div className="space-y-3">
@@ -1165,6 +1234,39 @@ export default function AdminPortal() {
                                 </span>
                               </button>
                               )}
+
+                              {/* Project thumbnail. Radio across the whole
+                                  entry — click again to clear and fall back to
+                                  the first usable image. A stack uses its
+                                  cover variant. */}
+                              <button
+                                type="button"
+                                onClick={() => setAssetCover(asset.id)}
+                                className="flex items-center gap-2 self-start cursor-pointer group/cover"
+                              >
+                                <span
+                                  className={`h-3 w-3 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-[400ms] ${
+                                    asset.cover
+                                      ? "border-orange-600 bg-orange-600"
+                                      : "border-white/20"
+                                  }`}
+                                >
+                                  {asset.cover && (
+                                    <span className="h-1 w-1 rounded-full bg-black" />
+                                  )}
+                                </span>
+                                <span
+                                  className={`font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] transition-colors duration-[400ms] ${
+                                    asset.cover
+                                      ? "text-orange-500/80"
+                                      : "text-white/40 group-hover/cover:text-white/70"
+                                  }`}
+                                >
+                                  {asset.cover
+                                    ? "Entry thumbnail"
+                                    : "Use as thumbnail"}
+                                </span>
+                              </button>
                             </div>
 
                             {folder.assets.length > 1 && !row.group && (
@@ -1430,6 +1532,7 @@ export default function AdminPortal() {
                                           id: f.id || uid(),
                                           title: f.title || "",
                                           description: f.description || "",
+                                          hideDescription: f.hideDescription,
                                           assets:
                                             f.assets && f.assets.length > 0
                                               ? f.assets.map((a) => ({
@@ -1444,6 +1547,7 @@ export default function AdminPortal() {
                                                   height: a.height,
                                                   zoomable: a.zoomable,
                                                   group: a.group,
+                                                  cover: a.cover,
                                                 }))
                                               : [blankAsset()],
                                         }))
