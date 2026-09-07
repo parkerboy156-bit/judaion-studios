@@ -1,6 +1,7 @@
 // app/archivecatalogue/page.tsx
 import fs from 'node:fs';
 import path from 'node:path';
+import ReactDOM from 'react-dom';
 import ArchiveClient from '@/components/ArchiveClient';
 import { Metadata } from 'next';
 
@@ -29,5 +30,7 @@ function getWallpapers(): string[] {
 }
 
 export default function Page() {
+  // CSS background, so it isn't discoverable until the header paints.
+  ReactDOM.preload('/archive-header-1.avif', { as: 'image' });
   return <ArchiveClient wallpapers={getWallpapers()} />;
 }

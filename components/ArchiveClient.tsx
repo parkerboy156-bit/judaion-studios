@@ -98,6 +98,55 @@ interface AssetTile {
   variants: FolderAsset[]; // always includes the cover, at index 0
 }
 
+/* ── CATALOGUE SURFACE ────────────────────────────────────────────────────── */
+const GROUND = "rgb(15, 15, 15)";
+const PLACEHOLDER_PLATE = "rgba(48, 48, 48, 1)";
+
+const HEADER_SHADOW = "0 16px 35px -10px rgba(0, 0, 0, 0.95)";
+const HEADER_CUT = 72;
+const EXIT_MARK_PINNED = "/exit-wide-240.png";
+const EXIT_MARK_PINNED_WIDTH = 60;
+const AUDIO_PINNED_SHIFT = -50;
+
+// Height-per-unit-width of a project's cover. Mirrors firstImage()'s choice —
+// explicit cover first, then the first usable image — so the packing measures
+// the asset that actually gets rendered. Cards carry no caption (the title is a
+// hover overlay), so height is width x this. Unknown dims fall back to a
+// portrait-ish guess: wrong only until the image loads, and never fatal.
+const DEFAULT_ASPECT = 1.25;
+const coverAspect = (item: any): number => {
+  const dims = (a: any) =>
+    a?.width && a?.height ? a.height / a.width : null;
+  for (const f of item?.folders || [])
+    for (const a of f?.assets || []) if (a?.cover) return dims(a) ?? DEFAULT_ASPECT;
+  for (const f of item?.folders || [])
+    for (const a of f?.assets || []) {
+      if (!a?.url || isVideoUrl(a.url) || isPdfUrl(a.url)) continue;
+      const d = dims(a);
+      if (d) return d;
+    }
+  return DEFAULT_ASPECT;
+};
+
+/* Pack items into `count` columns, each item going to whichever column is
+   currently SHORTEST. This is what Pinterest/Cosmos actually do, and what CSS
+   multi-column cannot: `columns-N` balances by choosing where to BREAK a single
+   flow, so with tall break-inside-avoid cards it leaves a ragged bottom and can
+   strand a column. Ties go left, so the first item — the pinned one — is always
+   top-left. */
+const packColumns = <T,>(items: T[], count: number, weight: (t: T) => number) => {
+  const cols: T[][] = Array.from({ length: count }, () => []);
+  const heights = new Array(count).fill(0);
+  for (const item of items) {
+    let target = 0;
+    for (let i = 1; i < count; i++)
+      if (heights[i] < heights[target]) target = i;
+    cols[target].push(item);
+    heights[target] += weight(item);
+  }
+  return cols;
+};
+
 // Loose-pile slots by depth (0 = top, face-up). Alternating x + rotation reads
 // as a dropped stack rather than a staircase. Scaled down from the old
 // full-screen PosterStack — these cards sit inside a grid cell.
@@ -1757,12 +1806,12 @@ function DesktopMenuBar({
     <div
       className="fixed top-0 inset-x-0 z-[200] h-15 flex items-center justify-between px-4 lg:px-8 border-b border-white/10 backdrop-blur-md overflow-hidden"
       style={{
-        backgroundImage: "url('/archive-header.avif')",
+        backgroundImage: "url('/archive-header-1.avif')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-black/70 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/60 pointer-events-none" />
       <div className="relative z-10 flex items-center gap-4 lg:gap-5 min-w-0">
         <button
           onClick={onNav}
@@ -1882,7 +1931,7 @@ function DesktopStatusBar({
       <div
         className="hidden lg:flex fixed bottom-0 inset-x-0 z-[150] h-15 items-center px-8 border-t border-white/10 backdrop-blur-md pointer-events-none overflow-hidden"
         style={{
-          backgroundImage: "url('/archive-header.avif')",
+          backgroundImage: "url('/archive-header-1.avif')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -1999,7 +2048,7 @@ function DesktopStatusBar({
       <div
         className="lg:hidden fixed bottom-0 inset-x-0 z-[150] h-15 flex items-center justify-between gap-4 px-4 border-t border-white/10 backdrop-blur-md overflow-hidden"
         style={{
-          backgroundImage: "url('/archive-header.avif')",
+          backgroundImage: "url('/archive-header-1.avif')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -2210,6 +2259,17 @@ export default function ArchiveCatalogue({
 
   const [, setIsPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [columnCount, setColumnCount] = useState(4);
+  const [pinned, setPinned] = useState(false);
+  const [wideMarkOk, setWideMarkOk] = useState(true);
+  // Desktop only: the header is static below lg, so there is no pin to swap on.
+  const markSwapped = pinned && wideMarkOk && !isMobile;
+  useEffect(() => {
+    const onScroll = () => setPinned(window.scrollY > HEADER_CUT);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const [isAudioOn, setIsAudioOn] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -2232,10 +2292,16 @@ export default function ArchiveCatalogue({
   }, [activeCategory, isMobile]);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    // Column count has to live in JS now that the grid packs by shortest
+    // column — the breakpoints match the old columns-2 / lg:3 / xl:4 exactly.
+    const measure = () => {
+      const w = window.innerWidth;
+      setIsMobile(w < 1024);
+      setColumnCount(w >= 1280 ? 4 : w >= 1024 ? 3 : 2);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
   }, []);
 
   useEffect(() => {
@@ -2518,12 +2584,51 @@ export default function ArchiveCatalogue({
   const filtered = projects
     .filter((p) => activeCategory === "All" || p.category === activeCategory)
     .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  // Shared by the desktop header and the mobile filter sheet; only the type
+  // size differs.
+  const categoryButtons = (sizeCls: string) =>
+    categories.map((cat) => (
+      <button
+        key={cat.name}
+        onClick={() => setActiveCategory(cat.name)}
+        data-active={activeCategory === cat.name}
+        className={`${sizeCls} font-brand-secondary-thin uppercase tracking-[0.1em] transition-colors duration-300 relative pb-1 cursor-pointer ${
+          activeCategory === cat.name
+            ? "text-white"
+            : "text-white/40 hover:text-white/50"
+        }`}
+      >
+        {cat.name}
+        {/* "All" always stays underlined, marking it as the distinct reset
+            option regardless of the active category; opacity tracks the text. */}
+        {cat.name === "All" && (
+          <span
+            className={`absolute bottom-0 left-0 w-full h-[2px] transition-colors duration-300 ${
+              activeCategory === "All" ? "bg-white" : "bg-white/40"
+            }`}
+          />
+        )}
+      </button>
+    ));
+
+  // Prefer history-back so the Archive page returns from cache with its scroll
+  // intact; a deep link has nothing behind it, so fall back to the parent page.
+  const exitArchive = () =>
+    hasInAppHistory() ? router.back() : router.push("/projectarchive");
+
+  // Packed by shortest column, so the bottom edge stays roughly level instead
+  // of the ragged run CSS columns produced. Pinned leads, so it takes column 0.
+  const gridColumns = useMemo(
+    () => packColumns(filtered, columnCount, coverAspect),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projects, activeCategory, columnCount],
+  );
   // One catalogue card. Shared by the pinned row and the masonry so the two
   // can never drift; the masonry flag adds only the column-flow classes.
   const renderCard = (item: any, masonry = false) => (
                 <div
                   key={item.id}
-                  className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden bg-[#111] border border-white/15 hover:border-white/45 duration-800 cursor-pointer select-none`}
+                  className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden cursor-pointer select-none`}
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -2541,7 +2646,7 @@ export default function ArchiveCatalogue({
                       />
                     </div>
                   ) : (
-                    <div className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-3 grid-image-reveal">
+                    <div className="w-full aspect-[4/5] flex flex-col items-center justify-center gap-3 grid-image-reveal" style={{ background: PLACEHOLDER_PLATE }}>
                       <span className="font-brand-cn text-[16px] text-orange-600 leading-none">
                         *
                       </span>
@@ -2582,7 +2687,7 @@ export default function ArchiveCatalogue({
     );
 
   return (
-    <main className="relative bg-black">
+    <main className="relative" style={{ background: GROUND }}>
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -2596,30 +2701,27 @@ export default function ArchiveCatalogue({
         }}
       />
 
-      <div className="min-h-screen relative text-white font-brand-secondary-thin antialiased overflow-x-hidden bg-black">
-        {/* Fixed video background */}
-        <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
-          <video
-            muted
-            autoPlay
-            loop
-            playsInline
-            preload="auto"
-            className="w-full h-full object-cover"
-          >
-            <source
-              src="https://objectstorage.af-johannesburg-1.oraclecloud.com/n/axqupand75tw/b/judaion-vault/o/%20JDS%20Global%20Bgglobal-bg.mp4"
-              type="video/mp4"
-            />
-          </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/75 pointer-events-none" />
-        </div>
+      {/* Ground is #131313 — the mean of archive-header.avif, so it is a colour
+          lifted from the header rather than an invented grey. Sitting ~19
+          levels above black gives near-black cover edges something to separate
+          against now that cards are borderless. */}
+      <div className="min-h-screen relative text-white font-brand-secondary-thin antialiased"
+        style={{ background: GROUND }}>
+        {/* No fixed backdrop behind the grid — deliberately. A `fixed` layer
+            does not scroll, so cards slid ACROSS a stationary field: two
+            planes, with the content reading as floating over a backdrop. One
+            flat ground that travels with the content is what makes a masonry
+            catalogue read as a single surface. The vertical gradient went with
+            it — it made identical covers look different depending on where
+            they sat in the scroll. The header keeps its own plate. */}
 
         {/* ── HEADER ── */}
         <header
-          className="relative bg-black backdrop-blur-sm px-6 lg:px-35 pt-10 pb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sticky top-0 z-30 transition-all duration-500 overflow-hidden shadow-2xl border-b border-white/10"
+          className="relative lg:sticky lg:top-[var(--header-cut)] bg-black backdrop-blur-sm px-6 lg:px-35 flex justify-between gap-6 z-30 overflow-hidden border-b border-white/10 pt-10 pb-10 flex-col md:flex-row items-start md:items-end"
           style={{
-            backgroundImage: "url('/archive-header.avif')",
+            boxShadow: HEADER_SHADOW,
+            ["--header-cut" as any]: `-${HEADER_CUT}px`,
+            backgroundImage: "url('/archive-header-1.avif')",
             backgroundSize: "cover",
             backgroundPosition: "center top",
           }}
@@ -2636,11 +2738,28 @@ export default function ArchiveCatalogue({
                 onClick={() =>
                   hasInAppHistory() ? router.back() : router.push("/projectarchive")
                 }
-                className="flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
+                className="relative flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
               >
                 <motion.img
                   src="/exit.png"
-                  className="pt-8 w-25 h-auto opacity-75 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                  className={`h-auto transition-opacity duration-[400ms] pt-8 w-25 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] ${
+                    markSwapped
+                      ? "opacity-0"
+                      : "opacity-75 group-hover:opacity-100"
+                  }`}
+                  animate={{ x: [0, -4, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                <motion.img
+                  src={EXIT_MARK_PINNED}
+                  alt=""
+                  onError={() => setWideMarkOk(false)}
+                  style={{ width: EXIT_MARK_PINNED_WIDTH }}
+                  className={`absolute bottom-0 left-0 h-auto transition-opacity duration-[500ms] drop-shadow-[0_0_6px_rgba(255,255,255,0.35)] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] ${
+                    markSwapped
+                      ? "opacity-75 group-hover:opacity-100"
+                      : "opacity-0"
+                  }`}
                   animate={{ x: [0, -4, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />
@@ -2648,7 +2767,11 @@ export default function ArchiveCatalogue({
 
               <button
                 onClick={toggleAudio}
-                className="pt-8 mb-1 self-end flex items-end gap-[3px] opacity-40 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                style={{
+                  transform: `translateX(${markSwapped ? AUDIO_PINNED_SHIFT : 0}px)`,
+                  transition: "transform 400ms ease, opacity 300ms ease",
+                }}
+                className="mb-1 self-end flex items-end gap-[3px] opacity-40 hover:opacity-100 pt-8 cursor-pointer"
               >
                 {(
                   [
@@ -2700,41 +2823,23 @@ export default function ArchiveCatalogue({
             ref={scrollRef as any}
             className="relative z-10 archive-nav-scroller flex flex-wrap gap-x-7 gap-y-2 mb-1"
           >
-            {categories.map((cat, i) => (
-              <React.Fragment key={cat.name}>
-                <button
-                  onClick={() => setActiveCategory(cat.name)}
-                  data-active={activeCategory === cat.name}
-                  className={`text-[15px] font-brand-secondary-thin uppercase tracking-[0.1em] transition-colors duration-300 relative pb-1 cursor-pointer ${
-                    activeCategory === cat.name
-                      ? "text-white"
-                      : "text-white/40 hover:text-white/50"
-                  }`}
-                >
-                  {cat.name}
-                  {/* "All" always stays underlined, marking it as the distinct reset option regardless of the active category; opacity tracks the text (full white when active, dimmed to match otherwise). */}
-                  {cat.name === "All" && (
-                    <span
-                      className={`absolute bottom-0 left-0 w-full h-[2px] transition-colors duration-300 ${
-                        activeCategory === "All" ? "bg-white" : "bg-white/40"
-                      }`}
-                    />
-                  )}
-                </button>
-              </React.Fragment>
-            ))}
+            {categoryButtons("text-[15px]")}
           </nav>
         </header>
 
         {/* ── COSMOS-STYLE MASONRY GRID ── */}
-        <main className="relative z-10 px-3 lg:px-6 pb-24 pt-7">
-          {/* Desktop: CSS columns masonry */}
+        <main className="relative z-10 px-3 lg:px-7 pb-24 pt-9 overflow-x-hidden">
+          {/* Desktop masonry — real columns, packed shortest-first. */}
           {!isMobile ? (
-            <div
-              key={activeCategory}
-              className="columns-2 lg:columns-3 xl:columns-4 gap-7"
-            >
-              {filtered.map((item) => renderCard(item, true))}
+            <div key={activeCategory} className="flex gap-8 items-start">
+              {gridColumns.map((col, i) => (
+                <div
+                  key={i}
+                  className="flex-1 min-w-0 flex flex-col gap-8"
+                >
+                  {col.map((item) => renderCard(item))}
+                </div>
+              ))}
             </div>
           ) : (
             /* Mobile: same CSS-columns masonry as desktop, two columns and a
@@ -2744,11 +2849,13 @@ export default function ArchiveCatalogue({
                and the periodic wide item made the rhythm feel mechanical.
                Letting each cover keep its own aspect is what makes the desktop
                version read well; mobile now does the same. */
-            <div key={activeCategory} className="columns-2 gap-2">
-              {filtered.map((item) => (
+            <div key={activeCategory} className="flex gap-5 items-start">
+              {gridColumns.map((col, ci) => (
+                <div key={ci} className="flex-1 min-w-0 flex flex-col gap-5">
+              {col.map((item) => (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-2 group relative overflow-hidden bg-[#111] border border-white/10 select-none"
+                  className="group relative overflow-hidden select-none"
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -2768,7 +2875,8 @@ export default function ArchiveCatalogue({
                     // No cover to take a height from, so give the placeholder
                     // the same portrait ratio the desktop one uses.
                     <div
-                      className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-2 grid-image-reveal"
+                      className="w-full aspect-[4/5] flex flex-col items-center justify-center gap-2 grid-image-reveal"
+                      style={{ background: PLACEHOLDER_PLATE }}
                     >
                       <span className="font-brand-cn text-[14px] text-orange-600 leading-none">
                         *
@@ -2801,6 +2909,8 @@ export default function ArchiveCatalogue({
                   </div>
                 </div>
               ))}
+                </div>
+              ))}
             </div>
           )}
 
@@ -2826,6 +2936,37 @@ export default function ArchiveCatalogue({
           )}
         </main>
 
+        {/* ── BACK TO TOP (mobile) ────────────────────────────────────────
+            Mobile's answer to the desktop pinned header: the filters live at
+            the top of the page, so the bottom of a long category is a dead end.
+            A fixed bar would eat too much of a phone viewport, so this appears
+            only once the header is gone and takes you back to it. Same blurred
+            square as the focus view's description launcher, so it reads as part
+            of the same system. Hidden while a project is open. ── */}
+        {isMobile && !selectedProject && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            aria-label="Back to top"
+            className={`lg:hidden fixed bottom-4 right-4 z-50 h-11 w-11 flex items-center justify-center bg-black/80 backdrop-blur-md border border-white/12 rounded-sm text-white/75 transition-opacity duration-[400ms] ${
+              pinned
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
+        )}
 
         {/* ── FOCUS VIEW ── */}
         <AnimatePresence>
