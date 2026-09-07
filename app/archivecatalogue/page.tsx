@@ -1,6 +1,7 @@
 // app/archivecatalogue/page.tsx
 import fs from 'node:fs';
 import path from 'node:path';
+import { Suspense } from 'react';
 import ReactDOM from 'react-dom';
 import ArchiveClient from '@/components/ArchiveClient';
 import { Metadata } from 'next';
@@ -32,5 +33,12 @@ function getWallpapers(): string[] {
 export default function Page() {
   // CSS background, so it isn't discoverable until the header paints.
   ReactDOM.preload('/archive-header-1.avif', { as: 'image' });
-  return <ArchiveClient wallpapers={getWallpapers()} />;
+  // ArchiveClient reads ?project= with useSearchParams, which a statically
+  // rendered route requires a boundary around. The client owns its own loader,
+  // so this fallback is only ever the pre-hydration frame.
+  return (
+    <Suspense fallback={null}>
+      <ArchiveClient wallpapers={getWallpapers()} />
+    </Suspense>
+  );
 }

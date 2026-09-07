@@ -15,7 +15,7 @@ import {
   useMotionValue,
   useDragControls,
 } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PdfReader from "./PdfReader";
 import LoaderScreen from "./LoaderScreen";
 import { hasInAppHistory } from "./ClientShell";
@@ -383,9 +383,6 @@ function FolderIcon({
         dragMomentum={false}
         dragElastic={0.12}
         style={{ x, y, touchAction: "none" }}
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: index * 0.06, duration: 0.4, ease: "easeOut" }}
         onPointerDown={() => {
           moved.current = false;
         }}
@@ -2237,7 +2234,40 @@ export default function ArchiveCatalogue({
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  /* The open project is DERIVED from ?project=, not held in state. Back and
+     forward change the param, this recomputes, and the view follows — so the
+     history stack can never disagree with what is on screen. It also makes a
+     deep link work with no restore step: the param is already there on the
+     first render that has projects. */
+  const searchParams = useSearchParams();
+  const projectParam = searchParams.get("project");
+  const selectedProject = useMemo(
+    () =>
+      projectParam
+        ? (projects.find((p) => String(p.id) === projectParam) ?? null)
+        : null,
+    [projectParam, projects],
+  );
+  // Router-owned so Next tracks the entry; scroll:false or entering a project
+  // would jump the grid to the top and lose the position we return to.
+  const enterProject = (item: any) => {
+    setIsPlaying(false);
+    pushedProjectRef.current = true;
+    router.push(`/archivecatalogue?project=${item.id}`, { scroll: false });
+  };
+  /* Unwind the entry we pushed. A deep link has none behind it, so move
+     FORWARD onto the grid rather than rewriting the landing entry: a replace
+     leaves that entry as ?project=, so every later Back lands on the project
+     again instead of the grid. Pushing costs one entry and makes Back mean the
+     same thing on both paths. */
+  const leaveProject = () => {
+    if (pushedProjectRef.current) {
+      pushedProjectRef.current = false;
+      router.back();
+    } else {
+      router.push("/archivecatalogue", { scroll: false });
+    }
+  };
 
   /* Focus-view wallpaper, from public/archive-wallpapers/ (drop a file in and
      it's picked up automatically — see getWallpapers in the page).
@@ -2272,6 +2302,11 @@ export default function ArchiveCatalogue({
   // Deep-link plumbing (?project=&folder=).
   const deepLinkAppliedRef = useRef(false);
   const pendingFolderRef = useRef<string | null>(null);
+  // Did WE push the ?project= entry, or did the visitor land on it directly?
+  const pushedProjectRef = useRef(false);
+  // Projects whose entrance loader has already played this session.
+  const seenProjectsRef = useRef<Set<string>>(new Set());
+  const [entranceFade, setEntranceFade] = useState(false);
 
   // Selected project's folders, normalised (wraps a legacy file_url array into one folder).
   const projectFolders: Folder[] = useMemo(() => {
@@ -2477,7 +2512,7 @@ export default function ArchiveCatalogue({
       if (e.key !== "Escape") return;
       if (openFolder) setOpenFolder(null);
       else if (selectedFolderId) setSelectedFolderId(null);
-      else setSelectedProject(null);
+      else leaveProject();
     };
     if (selectedProject) document.addEventListener("keydown", onKeyDown);
     return () => {
@@ -2503,29 +2538,23 @@ export default function ArchiveCatalogue({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject, projectFolders]);
 
-  // Apply a ?project=&folder= deep link once the archive has loaded.
+  // ?project= now resolves on its own (selectedProject is derived), so only the
+  // folder still needs handing off — once, to the opener below.
   useEffect(() => {
     if (loading || deepLinkAppliedRef.current || projects.length === 0) return;
     deepLinkAppliedRef.current = true;
     const params = new URLSearchParams(window.location.search);
-    const pid = params.get("project");
-    if (!pid) return;
-    const proj = projects.find((p) => String(p.id) === pid);
-    if (!proj) return;
-    pendingFolderRef.current = params.get("folder");
-    setFocusLoading(true);
-    setSelectedProject(proj);
+    if (params.get("project")) pendingFolderRef.current = params.get("folder");
   }, [loading, projects]);
 
-  // Mirror focus-view state into the URL (replaceState) so views are shareable and survive a refresh.
+  /* Only the FOLDER is mirrored here, and only with replaceState — it gets no
+     history entry, because the folder window is plainly an overlay with its own
+     X and nobody reaches for Back to close it. ?project= is the router's now;
+     writing it here too would fight the navigation that owns it. */
   useEffect(() => {
-    if (loading) return;
+    if (loading || !selectedProject) return;
     const url = new URL(window.location.href);
-    if (selectedProject)
-      url.searchParams.set("project", String(selectedProject.id));
-    else url.searchParams.delete("project");
-    if (selectedProject && openFolder)
-      url.searchParams.set("folder", openFolder.id);
+    if (openFolder) url.searchParams.set("folder", openFolder.id);
     else url.searchParams.delete("folder");
     window.history.replaceState(null, "", url.toString());
   }, [selectedProject, openFolder, loading]);
@@ -2533,6 +2562,18 @@ export default function ArchiveCatalogue({
   // Gate the focus view behind a loader until the peek-fan thumbnails preload (folders load per-folder later).
   useEffect(() => {
     if (!selectedProject) return;
+    /* Once per project per session. The wait is really two things: preloading
+       the peek-fan thumbnails, which is already done the second time, and a
+       1.5s linger so the title reads — a first-impression beat, not a
+       progress bar. Replaying it on every re-entry turns the beat into a
+       toll, which is what Back made obvious. */
+    if (seenProjectsRef.current.has(String(selectedProject.id))) {
+      setFocusLoading(false);
+      // No loader, but not a hard cut either — hand over from black the way
+      // the archive itself arrives from the project archive page.
+      setEntranceFade(true);
+      return;
+    }
     let cancelled = false;
     setFocusLoading(true);
 
@@ -2548,7 +2589,11 @@ export default function ArchiveCatalogue({
       Promise.all([...urls.map(loadAssetUrl), minDelay]),
       maxWait,
     ]).then(() => {
-      if (!cancelled) setFocusLoading(false);
+      if (cancelled) return;
+      // Only mark it seen once the beat has actually played — bailing out
+      // early must not count as having shown it.
+      seenProjectsRef.current.add(String(selectedProject.id));
+      setFocusLoading(false);
     });
 
     return () => {
@@ -2682,11 +2727,6 @@ export default function ArchiveCatalogue({
       </button>
     ));
 
-  // Prefer history-back so the Archive page returns from cache with its scroll
-  // intact; a deep link has nothing behind it, so fall back to the parent page.
-  const exitArchive = () =>
-    hasInAppHistory() ? router.back() : router.push("/projectarchive");
-
   // Packed by shortest column, so the bottom edge stays roughly level instead
   // of the ragged run CSS columns produced. Pinned leads, so it takes column 0.
   const gridColumns = useMemo(
@@ -2700,11 +2740,7 @@ export default function ArchiveCatalogue({
                 <div
                   key={item.id}
                   className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden cursor-pointer select-none border border-white/6`}
-                  onClick={() => {
-                    setFocusLoading(true);
-                    setSelectedProject(item);
-                    setIsPlaying(false);
-                  }}
+                  onClick={() => enterProject(item)}
                 >
                   {/* Cover — first image, or a branded placeholder for image-less projects. */}
                   {firstImage(item) ? (
@@ -2927,11 +2963,7 @@ export default function ArchiveCatalogue({
                 <div
                   key={item.id}
                   className="group relative overflow-hidden select-none border border-white/5"
-                  onClick={() => {
-                    setFocusLoading(true);
-                    setSelectedProject(item);
-                    setIsPlaying(false);
-                  }}
+                  onClick={() => enterProject(item)}
                 >
                   {firstImage(item) ? (
                     // Wrapper keeps the mount reveal animation (which also animates filter); img carries the permanent desaturation so the two don't clobber each other.
@@ -3054,6 +3086,20 @@ export default function ArchiveCatalogue({
                 background: "rgba(0,0,0,0.88)",
               }}
             >
+              {/* Re-entry hand-off — the loader is skipped for a project seen
+                  this session, so a black plate dissolves instead of the view
+                  cutting straight in. */}
+              {entranceFade && (
+                <motion.div
+                  key={`entrance-${selectedProject.id}`}
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  onAnimationComplete={() => setEntranceFade(false)}
+                  className="absolute inset-0 z-[260] bg-black pointer-events-none"
+                />
+              )}
+
               {/* Asset loader — gates the reveal until all assets are ready. */}
               <AnimatePresence>
                 {focusLoading && (
@@ -3080,7 +3126,7 @@ export default function ArchiveCatalogue({
                   0,
                 )}
                 isAudioOn={isAudioOn}
-                onNav={() => setSelectedProject(null)}
+                onNav={leaveProject}
                 onToggleAudio={toggleAudio}
               />
               <DesktopStatusBar
