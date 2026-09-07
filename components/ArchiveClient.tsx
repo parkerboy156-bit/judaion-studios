@@ -104,6 +104,10 @@ const PLACEHOLDER_PLATE = "rgba(48, 48, 48, 1)";
 
 const HEADER_SHADOW = "0 16px 35px -10px rgba(0, 0, 0, 0.95)";
 const HEADER_CUT = 72;
+/* Trailing slash is mandatory: next.config sets trailingSlash, so
+   "/archivecatalogue" is not the canonical path and a push to it does not
+   resolve against the prerendered route. */
+const ARCHIVE_PATH = "/archivecatalogue/";
 const CLOSE_HOVER = "rgb(221, 44, 0)";
 const EXIT_MARK_PINNED = "/exit-wide-240.png";
 const EXIT_MARK_PINNED_WIDTH = 60;
@@ -2253,7 +2257,7 @@ export default function ArchiveCatalogue({
   const enterProject = (item: any) => {
     setIsPlaying(false);
     pushedProjectRef.current = true;
-    router.push(`/archivecatalogue?project=${item.id}`, { scroll: false });
+    router.push(`${ARCHIVE_PATH}?project=${item.id}`, { scroll: false });
   };
   /* Unwind the entry we pushed. A deep link has none behind it, so move
      FORWARD onto the grid rather than rewriting the landing entry: a replace
@@ -2265,7 +2269,7 @@ export default function ArchiveCatalogue({
       pushedProjectRef.current = false;
       router.back();
     } else {
-      router.push("/archivecatalogue", { scroll: false });
+      router.push(ARCHIVE_PATH, { scroll: false });
     }
   };
 
@@ -2843,7 +2847,7 @@ export default function ArchiveCatalogue({
                   the page this view belongs to. */}
               <button
                 onClick={() =>
-                  hasInAppHistory() ? router.back() : router.push("/projectarchive")
+                  hasInAppHistory() ? router.back() : router.push("/projectarchive/")
                 }
                 className="relative flex items-center cursor-pointer group mb-0 self-start bg-transparent border-none p-0"
               >
