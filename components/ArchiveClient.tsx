@@ -2269,7 +2269,14 @@ export default function ArchiveCatalogue({
       pushedProjectRef.current = false;
       router.back();
     } else {
-      router.push(ARCHIVE_PATH, { scroll: false });
+      /* Hard navigation, deliberately. router.push to the pathname we are
+         already on is deduped in production — the static RSC payload is
+         cached, so the router decides there is nothing to fetch and the URL
+         never changes. Dev has no such cache, which is why this looked fixed
+         there. Only a deep-link visitor takes this branch, and they just came
+         from a cold load anyway; everyone who entered from the grid unwinds
+         with router.back() above. */
+      window.location.href = ARCHIVE_PATH;
     }
   };
 
