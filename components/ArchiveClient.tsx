@@ -2628,7 +2628,7 @@ export default function ArchiveCatalogue({
   const renderCard = (item: any, masonry = false) => (
                 <div
                   key={item.id}
-                  className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden cursor-pointer select-none`}
+                  className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden cursor-pointer select-none border border-white/6`}
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
@@ -2855,7 +2855,7 @@ export default function ArchiveCatalogue({
               {col.map((item) => (
                 <div
                   key={item.id}
-                  className="group relative overflow-hidden select-none"
+                  className="group relative overflow-hidden select-none border border-white/5"
                   onClick={() => {
                     setFocusLoading(true);
                     setSelectedProject(item);
