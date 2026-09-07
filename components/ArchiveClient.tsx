@@ -104,6 +104,7 @@ const PLACEHOLDER_PLATE = "rgba(48, 48, 48, 1)";
 
 const HEADER_SHADOW = "0 16px 35px -10px rgba(0, 0, 0, 0.95)";
 const HEADER_CUT = 72;
+const CLOSE_HOVER = "rgb(221, 44, 0)";
 const EXIT_MARK_PINNED = "/exit-wide-240.png";
 const EXIT_MARK_PINNED_WIDTH = 60;
 const AUDIO_PINNED_SHIFT = -50;
@@ -533,6 +534,18 @@ function OpenFolderView({
   onVideoRestore: () => void;
 }) {
   const [enlargedId, setEnlargedId] = useState<string | null>(null);
+  const [metaOpen, setMetaOpen] = useState(false);
+  const metaRef = useRef<HTMLDivElement>(null);
+  // Close on any click outside the box. The opening click targets the box
+  // itself, so `contains` is true for it and it can't self-close.
+  useEffect(() => {
+    if (!metaOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!metaRef.current?.contains(e.target as Node)) setMetaOpen(false);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [metaOpen]);
   const enlarged = folder.assets.find((a) => a.id === enlargedId) || null;
   // Mobile only: the description lives in a slide-up sheet so the asset stays
   // the priority. Toggled from the title-bar description icon; drag-to-dismiss
@@ -902,35 +915,20 @@ function OpenFolderView({
     </div>
   );
 
-  // Info fields row ("i" icon + Author/Category/Upload/Type). Shared by the
-  // mobile sheet card (folderMeta) and the desktop left-pane pinned footer.
-  // Info "i" icon — shared by the full meta row and the minimal no-description
-  // label so the two can't drift apart.
-  const infoIcon = (size = 22) => (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      className="shrink-0 text-white/70"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.4" />
-      <line
-        x1="12"
-        y1="11"
-        x2="12"
-        y2="16.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="7.75" r="1" fill="currentColor" />
-    </svg>
+  // Marks the meta row. Shared by the described folder's footer and the
+  // no-description plate so the two can't drift apart.
+  const asteriskMark = (size = 22) => (
+    <img
+      src="/asterisk.webp"
+      alt=""
+      style={{ width: size, height: size }}
+      className="shrink-0"
+    />
   );
 
   const folderMetaInner = (
     <div className="relative z-10 flex items-center gap-5 px-9 py-6 min-w-0">
-      {infoIcon()}
+      {asteriskMark()}
       {isMobile ? (
         /* Mobile: the fields are wider than a phone, so a scroller just looked
            cut off and hid the affordance. Walk them past instead — see
@@ -1071,15 +1069,19 @@ function OpenFolderView({
             <span className="text-white/30 shrink-0">|</span>
             <span className="text-white truncate">{folder.title}</span>
           </div>
-          <div className="flex items-center gap-4 shrink-0 ml-4">
-            <button
-              onClick={onClose}
-              aria-label="Close folder"
-              className="flex items-center justify-center text-white/70 hover:text-white transition-colors duration-150 cursor-pointer"
-            >
-              <span className="text-[21px] leading-none font-brand-cn">X</span>
-            </button>
-          </div>
+          {/* Windows-style close: full bar height, flush to the corner (the
+              negative margin cancels the bar's own padding), so the target is
+              the whole block rather than the glyph. */}
+          <button
+            onClick={onClose}
+            aria-label="Close folder"
+            style={{ ["--close-hover" as any]: CLOSE_HOVER }}
+            className="self-stretch shrink-0 ml-4 -mr-4 lg:-mr-6 w-16 flex items-center justify-center rounded-tr-sm text-white/70 hover:text-white hover:bg-[var(--close-hover)] transition-colors duration-500"
+          >
+            <span className="text-[21px] leading-none font-brand-secondary-thin">
+              X
+            </span>
+          </button>
         </div>
 
         {/* ── BODY — description + assets panes; mobile shows assets first. While
@@ -1606,20 +1608,89 @@ function OpenFolderView({
                 )}
                 </AnimatePresence>
 
-            {/* No-description folders lose the meta row with the panel. Author
-                and Category repeat at project level, so only Upload and Type —
-                the two facts that are per-folder — are worth keeping. */}
+            {/* No-description folders lose the meta row with the panel, so the
+                icon carries it: click to unroll the fields, click to close.
+                Anchored bottom-left on desktop and bottom-right on mobile, with
+                the row reversed to match, so it always grows into the pane. */}
             {noDesc && !enlarged && (
-              <div className="absolute bottom-4 left-4 z-30 flex items-center gap-4 bg-black/75 backdrop-blur-md border border-white/12 px-4 py-2.5 pointer-events-none">
-                {infoIcon(18)}
-                {infoFields
-                  .filter((f) => f.title === "Upload" || f.title === "Type")
-                  .map((f, i) => (
-                    <React.Fragment key={f.title}>
-                      {i > 0 && <span className="h-6 w-px bg-white/15" />}
-                      {metaField(f)}
-                    </React.Fragment>
-                  ))}
+              <div className="absolute bottom-4 left-4 right-4 lg:right-auto z-30 pointer-events-none">
+                <div
+                  ref={metaRef}
+                  /* Collapsed, the whole plate is the target; expanded, only
+                     the asterisk toggles, so a click on the fields doesn't
+                     shut it under your cursor. */
+                  onClick={() => !metaOpen && setMetaOpen(true)}
+                  className={`pointer-events-auto flex flex-row-reverse lg:flex-row items-center bg-black/75 backdrop-blur-md border border-white/12 rounded-sm px-4 py-2.5 w-fit max-w-full ml-auto lg:ml-0 ${metaOpen ? "" : "cursor-pointer"}`}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMetaOpen((v) => !v);
+                    }}
+                    aria-label="Folder metadata"
+                    aria-expanded={metaOpen}
+                    className="flex items-center cursor-pointer transition-opacity duration-200"
+                  >
+                    {asteriskMark(18)}
+                  </button>
+                  {/* max-w-full clamps against the PANE, not the viewport, and
+                      beats the inline width framer sets when it measures the
+                      open state — so the fields walk past inside the box
+                      instead of pushing it off the folder's edge. */}
+                  <motion.div
+                    initial={false}
+                    animate={{ width: metaOpen ? "auto" : 0 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="overflow-hidden min-w-0 max-w-full lg:max-w-none"
+                  >
+                    {/* Padding sits inside the animated box so it collapses
+                        with it — on the button it would leave dead space. */}
+                    {isMobile ? (
+                      <div
+                        /* MARGIN, not padding: overflow-hidden clips at the
+                           padding box, so padding here just lets the marquee
+                           run through the gap and under the asterisk. */
+                        className="overflow-hidden mr-6"
+                        onTouchStart={() => setMetaPaused(true)}
+                        onTouchEnd={() => setMetaPaused(false)}
+                        onTouchCancel={() => setMetaPaused(false)}
+                      >
+                        <div
+                          className="folder-meta-marquee flex items-stretch gap-4 w-max"
+                          style={{
+                            animationPlayState: metaPaused
+                              ? "paused"
+                              : "running",
+                          }}
+                        >
+                          {[0, 1].map((copy) => (
+                            <div
+                              key={copy}
+                              className="flex items-stretch gap-4"
+                              aria-hidden={copy === 1 || undefined}
+                            >
+                              {infoFields.map((f) => (
+                                <React.Fragment key={`${copy}-${f.title}`}>
+                                  <div className="w-px self-stretch bg-white/20 shrink-0" />
+                                  {metaField(f)}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-4 whitespace-nowrap pl-6">
+                        {infoFields.map((f, i) => (
+                          <React.Fragment key={f.title}>
+                            {i > 0 && <span className="h-6 w-px bg-white/15" />}
+                            {metaField(f)}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
               </div>
             )}
 
