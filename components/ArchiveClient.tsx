@@ -1706,15 +1706,15 @@ function OpenFolderView({
               <button
                 onClick={() => setDescOpen((v) => !v)}
                 aria-label="Folder description"
-                className="lg:hidden absolute bottom-4 right-4 z-40 h-11 w-11 flex items-center justify-center bg-black/75 backdrop-blur-md border border-white/12 rounded-sm text-white/75 hover:text-white transition-colors duration-150 cursor-pointer"
+                className="lg:hidden absolute bottom-4 right-4 z-40 h-12 w-12 flex items-center justify-center bg-black/75 backdrop-blur-md border border-white/12 rounded-sm text-white/75 hover:text-white transition-colors duration-150 cursor-pointer"
               >
                 <svg
-                  width="18"
-                  height="18"
+                  width="23"
+                  height="23"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.6"
+                  strokeWidth="1.3"
                   strokeLinecap="round"
                 >
                   <path d="M5 6h14M5 10h14M5 14h9M5 18h9" />
