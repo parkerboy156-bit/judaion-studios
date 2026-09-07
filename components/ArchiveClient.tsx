@@ -922,7 +922,7 @@ function OpenFolderView({
     <img
       src="/asterisk.webp"
       alt=""
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size }}
       className="shrink-0"
     />
   );
@@ -1630,7 +1630,11 @@ function OpenFolderView({
                     }}
                     aria-label="Folder metadata"
                     aria-expanded={metaOpen}
-                    className="flex items-center cursor-pointer transition-opacity duration-200"
+                    /* shrink-0 or the marquee at full width squeezes this flex
+                       item, and Preflight's img{max-width:100%} then caps the
+                       mark's WIDTH while its inline height holds — squashing
+                       it rather than clipping. */
+                    className="shrink-0 flex items-center cursor-pointer transition-opacity duration-200"
                   >
                     {asteriskMark(18)}
                   </button>
@@ -2696,8 +2700,8 @@ export default function ArchiveCatalogue({
   // Pinned marker on a catalogue card. Above the scan lines and hover gradient
   // (z-30) and top-RIGHT, since the hover title occupies the top-left.
   const pinBadge = (
-    <div className="absolute top-3 right-3 z-30 pointer-events-none flex h-8 w-8 items-center justify-center bg-black/68 backdrop-blur-sm border border-white/15">
-      <img src="/pin-icon.webp" alt="Pinned" className="h-4 w-4" />
+    <div className="absolute top-3 right-3 z-30 pointer-events-none flex h-10 w-10 items-center justify-center bg-black/68 backdrop-blur-sm border border-white/15">
+      <img src="/pin-icon.webp" alt="Pinned" className="h-6 w-6" />
     </div>
   );
 
