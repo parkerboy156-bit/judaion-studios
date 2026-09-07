@@ -2700,7 +2700,7 @@ export default function ArchiveCatalogue({
   // Pinned marker on a catalogue card. Above the scan lines and hover gradient
   // (z-30) and top-RIGHT, since the hover title occupies the top-left.
   const pinBadge = (
-    <div className="absolute top-4 right-4 z-30 pointer-events-none flex h-10 w-10 items-center justify-center bg-black/68 backdrop-blur-sm border border-white/15">
+    <div className="absolute top-4 right-4 z-30 pointer-events-none flex h-10 w-10 items-center justify-center bg-black/68 backdrop-blur-sm border border-white/15 rounded-sm">
       <img src="/pin-icon.webp" alt="Pinned" className="h-6 w-6" />
     </div>
   );
