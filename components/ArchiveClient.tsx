@@ -161,7 +161,7 @@ const formatDate = (iso?: string) => {
 interface Folder {
   id: string;
   title: string;
-  description?: string; // per-folder copy; falls back to project.content
+  description?: string; // per-folder copy — no fallback; see hideDescription
   // Admin opt-out: drop the description panel entirely for this folder. Needed
   // as an explicit flag because a BLANK description falls back to the project
   // copy — "none" and "empty" are different intents.
@@ -940,10 +940,11 @@ function OpenFolderView({
   const folderMeta = <div className="bg-black">{folderMetaInner}</div>;
 
   // Folder description copy — shared by the desktop left pane and the mobile
-  // slide-up sheet (per-folder, falling back to project content).
+  // slide-up sheet. No fallback: a folder that shouldn't carry copy sets
+  // `hideDescription` and loses the panel entirely.
   const descParagraph = (
     <p className="font-brand-secondary-thin text-[clamp(12px,0.68vw,14px)] leading-[1.9] text-white/60 whitespace-pre-wrap tracking-[0em] text-justify">
-      {folder.description?.trim() || project?.content}
+      {folder.description}
     </p>
   );
 
@@ -1074,7 +1075,7 @@ function OpenFolderView({
               style={{ scrollbarWidth: "none" }}
             >
               <div className="flex-1 px-7 lg:px-10 pt-[96px] lg:pt-[104px] pb-28">
-                {/* Per-folder description — falls back to project content. */}
+                {/* Per-folder description; no fallback (see hideDescription). */}
                 {descHeading}
                 {descParagraph}
               </div>
@@ -2499,8 +2500,78 @@ export default function ArchiveCatalogue({
     setLoading(false);
   }
 
-  const filtered = projects.filter(
-    (p) => activeCategory === "All" || p.category === activeCategory,
+  // Pinned marker on a catalogue card. Above the scan lines and hover gradient
+  // (z-30) and top-RIGHT, since the hover title occupies the top-left.
+  const pinBadge = (
+    <div className="absolute top-3 right-3 z-30 pointer-events-none flex h-8 w-8 items-center justify-center bg-black/68 backdrop-blur-sm border border-white/15">
+      <img src="/pin-icon.webp" alt="Pinned" className="h-4 w-4" />
+    </div>
+  );
+
+  // Pinned lead the grid, then the existing created_at order. Applies inside a
+  // category filter too, so a pin leads its own category. NOTE: the grid is CSS
+  // multi-column, which flows DOWN one column before starting the next — so two
+  // pins stack in the first column rather than sitting side by side along the
+  // top. That is the layout's nature, and preferred here to breaking the
+  // masonry flow with a separate row. `sort` mutates, so filter() gives a fresh
+  // array; it is stable, so everything else keeps its order.
+  const filtered = projects
+    .filter((p) => activeCategory === "All" || p.category === activeCategory)
+    .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  // One catalogue card. Shared by the pinned row and the masonry so the two
+  // can never drift; the masonry flag adds only the column-flow classes.
+  const renderCard = (item: any, masonry = false) => (
+                <div
+                  key={item.id}
+                  className={`${masonry ? "break-inside-avoid mb-7" : ""} group relative overflow-hidden bg-[#111] border border-white/15 hover:border-white/45 duration-800 cursor-pointer select-none`}
+                  onClick={() => {
+                    setFocusLoading(true);
+                    setSelectedProject(item);
+                    setIsPlaying(false);
+                  }}
+                >
+                  {/* Cover — first image, or a branded placeholder for image-less projects. */}
+                  {firstImage(item) ? (
+                    // Wrapper keeps the mount reveal animation (which also animates filter); img carries the permanent desaturation so the two don't clobber each other.
+                    <div className="grid-image-reveal">
+                      <img
+                        src={firstImage(item) as string}
+                        alt={item.title}
+                        className="w-full h-auto block object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-3 grid-image-reveal">
+                      <span className="font-brand-cn text-[16px] text-orange-600 leading-none">
+                        *
+                      </span>
+                      <span className="font-brand-other uppercase text-white/85 text-[16px] tracking-[0.1em] text-center px-5 leading-tight">
+                        {item.title}
+                      </span>
+                      <span className="font-brand-cn text-[9px] tracking-[0.3em] uppercase text-white/40">
+                        Archive
+                      </span>
+                    </div>
+                  )}
+                  {item.pinned && pinBadge}
+                  {/* Scan lines — same treatment as the Methodology carousel; fades in on hover. */}
+                  <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div
+                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
+                        backgroundSize: "100% 3px",
+                      }}
+                    />
+                  </div>
+                  {/* Hover — top-to-bottom gradient with the title in the top-left, instead of a full dark overlay. */}
+                  <div className="absolute z-10 top-0 inset-x-0 h-95 bg-gradient-to-b from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-start p-4">
+                    <p className="font-brand-other-semi text-white text-[17px] uppercase tracking-[0.1em] leading-tight">
+                      {item.title}
+                    </p>
+                  </div>
+                </div>
   );
 
   if (loading)
@@ -2663,58 +2734,7 @@ export default function ArchiveCatalogue({
               key={activeCategory}
               className="columns-2 lg:columns-3 xl:columns-4 gap-7"
             >
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  className="break-inside-avoid mb-7 group relative overflow-hidden bg-[#111] border border-white/15 hover:border-white/45 duration-800 cursor-pointer select-none "
-                  onClick={() => {
-                    setFocusLoading(true);
-                    setSelectedProject(item);
-                    setIsPlaying(false);
-                  }}
-                >
-                  {/* Cover — first image, or a branded placeholder for image-less projects. */}
-                  {firstImage(item) ? (
-                    // Wrapper keeps the mount reveal animation (which also animates filter); img carries the permanent desaturation so the two don't clobber each other.
-                    <div className="grid-image-reveal">
-                      <img
-                        src={firstImage(item) as string}
-                        alt={item.title}
-                        className="w-full h-auto block object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-[4/5] bg-[#141414] flex flex-col items-center justify-center gap-3 grid-image-reveal">
-                      <span className="font-brand-cn text-[16px] text-orange-600 leading-none">
-                        *
-                      </span>
-                      <span className="font-brand-other uppercase text-white/85 text-[16px] tracking-[0.1em] text-center px-5 leading-tight">
-                        {item.title}
-                      </span>
-                      <span className="font-brand-cn text-[9px] tracking-[0.3em] uppercase text-white/40">
-                        Archive
-                      </span>
-                    </div>
-                  )}
-                  {/* Scan lines — same treatment as the Methodology carousel; fades in on hover. */}
-                  <div className="absolute inset-0 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div
-                      className="pillar-scanlines absolute inset-[-12px] bg-black/[0.05]"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px)",
-                        backgroundSize: "100% 3px",
-                      }}
-                    />
-                  </div>
-                  {/* Hover — top-to-bottom gradient with the title in the top-left, instead of a full dark overlay. */}
-                  <div className="absolute z-10 top-0 inset-x-0 h-95 bg-gradient-to-b from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-800 flex items-start p-4">
-                    <p className="font-brand-other-semi text-white text-[17px] uppercase tracking-[0.1em] leading-tight">
-                      {item.title}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {filtered.map((item) => renderCard(item, true))}
             </div>
           ) : (
             /* Mobile: same CSS-columns masonry as desktop, two columns and a
@@ -2761,6 +2781,7 @@ export default function ArchiveCatalogue({
                       </span>
                     </div>
                   )}
+                  {item.pinned && pinBadge}
                   {/* Scan lines — always on, same as the Methodology mobile stack (no hover on touch). */}
                   <div className="absolute inset-0 z-20 pointer-events-none opacity-100">
                     <div

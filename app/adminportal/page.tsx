@@ -42,12 +42,12 @@ interface ArchiveItem {
   subtitle?: string;
   author?: string;
   category: string;
-  content: string;
   file_url: string[];
   folders?: FolderEntry[];
   instagram_url?: string;
   linkedin_url?: string;
   website_url?: string;
+  pinned?: boolean; // leads the catalogue grid; at most two across the archive
   created_at?: string;
 }
 
@@ -360,10 +360,16 @@ export default function AdminPortal() {
     title: "",
     author: "",
     category: "",
-    content: "",
+    // `content` (the old project-wide description) is gone: every description
+    // is per-folder, and a folder that shouldn't have one sets
+    // hideDescription rather than falling back to anything.
+
     instagram_url: "",
     linkedin_url: "",
     website_url: "",
+    // `pinned` is deliberately NOT here: it is owned by the card's pin button.
+    // Carrying it in the form would let a save re-write the value the form
+    // loaded, silently undoing a pin toggled on a card in the meantime.
   });
   const [folders, setFolders] = useState<FolderDraft[]>([blankFolder()]);
 
@@ -564,6 +570,36 @@ export default function AdminPortal() {
     [],
   );
 
+  // Pinning is a one-click action on the project card, not part of the edit
+  // form — you pin something you can see, without loading it for editing.
+  // One, not two: the catalogue is CSS multi-column, which flows down a column
+  // before starting the next — so a second pin sits BENEATH the first rather
+  // than beside it. One pin is the only count that reliably reads as "top".
+  const PIN_LIMIT = 1;
+  const togglePin = async (item: ArchiveItem) => {
+    const next = !item.pinned;
+    if (next && archive.filter((a) => a.pinned).length >= PIN_LIMIT) {
+      showToast(
+        "danger",
+        PIN_LIMIT === 1
+          ? "Unpin the current project first"
+          : `Only ${PIN_LIMIT} projects can be pinned`,
+      );
+      return;
+    }
+    const { error } = await supabase
+      .from("archive")
+      .update({ pinned: next })
+      .eq("id", item.id);
+    if (error) {
+      console.error("Pin failed:", error);
+      showToast("danger", "Pin not saved");
+      return;
+    }
+    fetchData();
+    showToast("success", next ? "Pinned to top" : "Unpinned");
+  };
+
   const handleAddOption = async () => {
     if (!newOption.name) return;
     // New categories land at the end of the drag order, not alphabetically.
@@ -627,7 +663,7 @@ export default function AdminPortal() {
   };
 
   const resetForm = () => {
-    setFormData({ title: "", author: "", category: "", content: "", instagram_url: "", linkedin_url: "", website_url: "" });
+    setFormData({ title: "", author: "", category: "", instagram_url: "", linkedin_url: "", website_url: "" });
     setFolders([blankFolder()]);
     setEditingId(null);
   };
@@ -844,6 +880,25 @@ export default function AdminPortal() {
     },
     { Uncategorized: archive.filter((item) => !item.category) },
   );
+
+  // Cover image for a project card — mirrors the archive's firstImage(). The
+  // list used to preview `file_url[0]`, the raw MASTER: a PDF master can't
+  // render as an image (hence the white "PDF" placeholder) and an image master
+  // meant loading the full-size file for a thumbnail. Prefers the chosen cover,
+  // then any asset with a usable image.
+  const coverOf = (item: ArchiveItem): string | null => {
+    const usable = (a: AssetEntry) => {
+      if (!a?.url) return null;
+      const ext = extOf(a.url);
+      if (ext === "pdf" || VIDEO_EXTS.includes(ext)) return a.thumb || null;
+      return a.thumb || a.url;
+    };
+    for (const f of item.folders || [])
+      for (const a of f.assets || []) if (a.cover) { const i = usable(a); if (i) return i; }
+    for (const f of item.folders || [])
+      for (const a of f.assets || []) { const i = usable(a); if (i) return i; }
+    return item.file_url?.find((u) => u && !VIDEO_EXTS.includes(extOf(u)) && extOf(u) !== "pdf") || null;
+  };
 
   const renderAssetPreview = (url: string) => {
     const extension = url.split(".").pop()?.toLowerCase();
@@ -1072,7 +1127,7 @@ export default function AdminPortal() {
                         onChange={(e) =>
                           setFolderDescription(folder.id, e.target.value)
                         }
-                        placeholder="Folder description (optional — falls back to the project description if blank)"
+                        placeholder="Folder description — or tick 'No description panel' below to drop it entirely"
                         disabled={folder.hideDescription}
                         className={`w-full bg-black/40 border border-white/10 p-3 h-44 font-brand-secondary-thin text-[11px] focus:border-orange-600 transition-colors duration-[400ms] outline-none resize-y ${
                           folder.hideDescription
@@ -1320,19 +1375,6 @@ export default function AdminPortal() {
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="font-brand-secondary-thin text-[9px] uppercase text-white/30 tracking-[0.3em]">
-                    Project Description
-                  </label>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) =>
-                      setFormData({ ...formData, content: e.target.value })
-                    }
-                    className="w-full bg-black/40 border border-white/10 p-4 h-24 text-[12px] font-medium font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
-                  />
-                </div>
-
                 <div className="h-[1px] w-full bg-white/10" />
 
                 <div className="space-y-2">
@@ -1509,9 +1551,43 @@ export default function AdminPortal() {
                         >
                           <div className="aspect-[4/5] overflow-hidden bg-black mb-3 relative">
                             <div className="w-full h-full opacity-50 group-hover:opacity-100 transition-opacity duration-[400ms]">
-                              {renderAssetPreview(item.file_url?.[0] || "")}
+                              {coverOf(item) ? (
+                                <img
+                                  src={coverOf(item) as string}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                renderAssetPreview(item.file_url?.[0] || "")
+                              )}
                             </div>
+                            {/* Pinned marker — same signal the catalogue shows. */}
+                            {item.pinned && (
+                              <div className="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center bg-black/70 backdrop-blur-sm border border-white/15">
+                                <img
+                                  src="/pin-icon.webp"
+                                  alt="Pinned"
+                                  className="h-3 w-3"
+                                />
+                              </div>
+                            )}
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-[400ms]">
+                              <button
+                                type="button"
+                                onClick={() => togglePin(item)}
+                                className={`flex items-center justify-center gap-2 border w-2/3 py-3 font-brand-secondary-thin text-[9px] uppercase tracking-widest transition-all duration-[400ms] cursor-pointer ${
+                                  item.pinned
+                                    ? "border-orange-600/60 bg-orange-600/10 text-orange-500 hover:border-orange-600"
+                                    : "border-white/40 bg-black/80 text-white hover:border-white"
+                                }`}
+                              >
+                                <img
+                                  src="/pin-icon.webp"
+                                  alt=""
+                                  className="h-3 w-3"
+                                />
+                                {item.pinned ? "Unpin" : "Pin to top"}
+                              </button>
                               <button
                                 onClick={() => {
                                   setEditingId(item.id);
@@ -1519,7 +1595,6 @@ export default function AdminPortal() {
                                     title: item.title,
                                     author: item.author || "",
                                     category: item.category,
-                                    content: item.content,
                                     instagram_url: item.instagram_url || "",
                                     linkedin_url: item.linkedin_url || "",
                                     website_url: item.website_url || "",
@@ -1608,7 +1683,7 @@ export default function AdminPortal() {
                                   fetchData();
                                   showToast("danger", "Project deleted");
                                 }}
-                                className="font-brand-secondary-thin text-red-500/60 text-[9px] uppercase tracking-widest hover:text-red-400 cursor-pointer"
+                                className="border border-red-500/50 bg-red-500/20 text-red-400 w-2/3 py-3 font-brand-secondary-thin text-[9px] uppercase tracking-widest hover:border-red-500 hover:bg-red-500/20 transition-all duration-[400ms] cursor-pointer"
                               >
                                 Delete
                               </button>
