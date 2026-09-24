@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Reorder } from "framer-motion";
+import { Reorder, useDragControls } from "framer-motion";
 
 interface AssetEntry {
   id: string;
@@ -24,6 +24,9 @@ interface AssetEntry {
   // This asset is the project's catalogue thumbnail. At most one per project;
   // absent everywhere = fall back to the first usable image.
   cover?: boolean;
+  // Website screenshot: the focus view frames it as a browser window and
+  // opens this URL in a new tab instead of zooming.
+  link?: string;
 }
 
 interface FolderEntry {
@@ -74,6 +77,7 @@ interface AssetDraft {
   zoomable?: boolean;
   group?: string;
   cover?: boolean;
+  link?: string;
 }
 
 interface FolderDraft {
@@ -89,7 +93,50 @@ const uid = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+// A bare "site.com" gets https:// added. Anything that isn't a real http(s)
+// address returns null — above all `javascript:`, which as an href would run
+// on the public page.
+const normaliseLink = (raw?: string): string | null => {
+  const v = raw?.trim();
+  if (!v) return null;
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
+  } catch {
+    return null;
+  }
+};
+
 const blankAsset = (): AssetDraft => ({ id: uid(), title: "" });
+
+// One draggable asset row. Drag starts ONLY from the grip it hands its
+// children — the row is full of inputs, and a whole-row drag would fight
+// text selection. A component because useDragControls can't live in a map.
+function DragRow({
+  value,
+  children,
+}: {
+  value: string;
+  children: (startDrag: (e: React.PointerEvent) => void) => React.ReactNode;
+}) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={value}
+      dragListener={false}
+      dragControls={controls}
+      style={{ backgroundColor: "rgba(0,0,0,0)" }}
+      whileDrag={{
+        backgroundColor: "rgba(8,8,8,0.96)",
+        boxShadow: "0 14px 32px rgba(0,0,0,0.7)",
+        zIndex: 10,
+      }}
+      className="relative"
+    >
+      {children((e) => controls.start(e))}
+    </Reorder.Item>
+  );
+}
 
 // Form rows: a stack's variants collapse into ONE row, everything else is its
 // own row — mirrors how the focus view tiles them.
@@ -481,6 +528,29 @@ export default function AdminPortal() {
           : x,
       ),
     );
+  // Rows, not assets: a stack's variants move together and keep their own
+  // order. Refuses any result that doesn't account for every asset, so a
+  // stray drag can never drop one.
+  const reorderAssets = (fid: string, keys: string[]) =>
+    setFolders((f) =>
+      f.map((x) => {
+        if (x.id !== fid) return x;
+        const byKey = new Map(draftRows(x.assets).map((r) => [r.key, r.assets]));
+        const next = keys.flatMap((k) => byKey.get(k) ?? []);
+        return next.length === x.assets.length ? { ...x, assets: next } : x;
+      }),
+    );
+  const setAssetLink = (fid: string, aid: string, link: string) =>
+    setFolders((f) =>
+      f.map((x) =>
+        x.id === fid
+          ? {
+              ...x,
+              assets: x.assets.map((a) => (a.id === aid ? { ...a, link } : a)),
+            }
+          : x,
+      ),
+    );
   const setAssetTitle = (fid: string, aid: string, title: string) =>
     setFolders((f) =>
       f.map((x) =>
@@ -797,6 +867,7 @@ export default function AdminPortal() {
             ...(a.zoomable === false ? { zoomable: false } : {}),
             ...(a.group?.trim() ? { group: a.group.trim() } : {}),
             ...(a.cover ? { cover: true } : {}),
+            ...(normaliseLink(a.link) ? { link: normaliseLink(a.link)! } : {}),
           });
         }
         resolvedFolders.push({
@@ -1167,10 +1238,32 @@ export default function AdminPortal() {
 
                       {/* Assets in this folder */}
                       <div className="space-y-3">
+                        {/* Drag order IS the focus view's order — keys, not row
+                            objects, because draftRows rebuilds those each render. */}
+                        <Reorder.Group
+                          axis="y"
+                          values={draftRows(folder.assets).map((r) => r.key)}
+                          onReorder={(keys) => reorderAssets(folder.id, keys)}
+                          className="space-y-3"
+                        >
                         {draftRows(folder.assets).map((row) => {
                           const asset = row.assets[0];
                           return (
-                          <div key={row.key} className="flex gap-3">
+                          <DragRow key={row.key} value={row.key}>
+                          {(startDrag) => (
+                          <div className="flex gap-3">
+                            {draftRows(folder.assets).length > 1 && (
+                              <button
+                                type="button"
+                                aria-label="Drag to reorder"
+                                onPointerDown={startDrag}
+                                className="shrink-0 self-center grid grid-cols-2 gap-[3px] p-1 cursor-grab active:cursor-grabbing touch-none text-white/25 hover:text-orange-500 transition-colors duration-200"
+                              >
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                  <span key={i} className="h-[3px] w-[3px] rounded-full bg-current" />
+                                ))}
+                              </button>
+                            )}
                             {/* Thumb + file picker. A stack shows every variant
                                 in one strip — first is the cover. */}
                             {row.group ? (
@@ -1242,6 +1335,28 @@ export default function AdminPortal() {
                                 className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
                               />
 
+                              {/* Website screenshot: framed as a browser window
+                                  in the focus view, and clicking opens the site.
+                                  Images only, and not stacks — a deck flips. */}
+                              {draftKind(asset) === "image" && !row.group && (
+                                <>
+                                  <input
+                                    type="url"
+                                    value={asset.link || ""}
+                                    onChange={(e) =>
+                                      setAssetLink(folder.id, asset.id, e.target.value)
+                                    }
+                                    placeholder="Website link (optional) — shows this as a site preview"
+                                    className="w-full bg-black/40 border border-white/10 p-2.5 text-[11px] font-brand-secondary-thin focus:border-orange-600 outline-none cursor-text"
+                                  />
+                                  {asset.link?.trim() && !normaliseLink(asset.link) && (
+                                    <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-red-500/80">
+                                      Not a valid web address — it won&apos;t be saved
+                                    </span>
+                                  )}
+                                </>
+                              )}
+
                               {row.group && (
                                 <span className="font-brand-secondary-thin text-[9px] uppercase tracking-[0.25em] text-orange-500/70">
                                   Stack — {row.assets.length} variant
@@ -1255,7 +1370,7 @@ export default function AdminPortal() {
                                   zoom crops badly. Only shown where it does
                                   something — videos have controls, PDFs open
                                   the reader, and stacks flip instead. */}
-                              {draftKind(asset) === "image" && !row.group && (
+                              {draftKind(asset) === "image" && !row.group && !normaliseLink(asset.link) && (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1334,8 +1449,11 @@ export default function AdminPortal() {
                               </button>
                             )}
                           </div>
+                          )}
+                          </DragRow>
                           );
                         })}
+                        </Reorder.Group>
 
                         <div className="flex gap-3">
                           <button
@@ -1623,6 +1741,7 @@ export default function AdminPortal() {
                                                   zoomable: a.zoomable,
                                                   group: a.group,
                                                   cover: a.cover,
+                                                  link: a.link,
                                                 }))
                                               : [blankAsset()],
                                         }))

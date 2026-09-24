@@ -82,6 +82,7 @@ interface FolderAsset {
   zoomable?: boolean; // false = view-only in the focus view; absent = zoomable
   group?: string; // shared label — assets with the same one stack into one tile
   cover?: boolean; // this asset is the project's catalogue thumbnail
+  link?: string; // website screenshot — framed as a browser, click opens the site
 
 }
 
@@ -169,7 +170,8 @@ const groupAssets = (assets: FolderAsset[]): AssetTile[] => {
   const tiles: AssetTile[] = [];
   const byGroup = new Map<string, AssetTile>();
   for (const a of assets) {
-    const stackable = a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url);
+    const stackable =
+      a.url && !isVideoUrl(a.url) && !isPdfUrl(a.url) && !a.link;
     const g = stackable ? a.group?.trim() : "";
     if (!g) {
       tiles.push({ key: a.id, cover: a, variants: [a] });
@@ -750,13 +752,10 @@ function OpenFolderView({
   // wording rather than the generic zoom prompt.
   const tagX = useMotionValue(0);
   const tagY = useMotionValue(0);
-  const [tagKind, setTagKind] = useState<"image" | "pdf" | "stack" | null>(
-    null,
-  );
-  const setShowTag = (on: boolean | "pdf" | "stack") =>
-    setTagKind(
-      on === false ? null : on === true ? "image" : (on as "pdf" | "stack"),
-    );
+  type TagKind = "image" | "pdf" | "stack" | "link";
+  const [tagKind, setTagKind] = useState<TagKind | null>(null);
+  const setShowTag = (on: boolean | Exclude<TagKind, "image">) =>
+    setTagKind(on === false ? null : on === true ? "image" : on);
   const showTag = tagKind !== null;
 
   const renderMedia = (asset: FolderAsset) => {
@@ -846,6 +845,66 @@ function OpenFolderView({
             </span>
           </div>
         </button>
+      );
+    }
+    // Website screenshot — framed as a browser window; one click (desktop and
+    // mobile) opens the live site instead of zooming.
+    if (asset.link) {
+      let host = asset.link;
+      try {
+        host = new URL(asset.link).hostname.replace(/^www\./, "");
+      } catch {}
+      const landscape = sizeCls === "w-full h-auto";
+      return (
+        <a
+          href={asset.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          draggable={false}
+          onClick={(e) => {
+            // Same guards as the zoom gesture: the tap that opened the folder,
+            // or the end of a stack swipe, must not also leave the site.
+            if (
+              Date.now() - openedAtRef.current < OPEN_GUARD_MS ||
+              Date.now() - swipedAtRef.current < 400
+            )
+              e.preventDefault();
+          }}
+          onMouseEnter={() => !isMobile && setShowTag("link")}
+          onMouseLeave={() => setShowTag(false)}
+          className={`block bg-[#0b0b0b] border border-white/10 select-none cursor-pointer ${
+            landscape ? "w-full" : "w-fit max-w-full mx-auto"
+          }`}
+        >
+          <div className="flex items-center gap-3 h-7 px-3 border-b border-white/10 bg-black/60">
+            <span className="flex gap-1.5 shrink-0 w-10">
+              {/* Close, minimise, maximise. */}
+              {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
+                <span
+                  key={c}
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ background: c }}
+                />
+              ))}
+            </span>
+            <span className="flex-1 min-w-0 truncate text-center font-brand-cn text-[9px] uppercase tracking-[0.25em] text-white/80">
+              {host}
+            </span>
+            {/* Balances the dots so the address sits truly centred. */}
+            <span className="w-10 shrink-0" />
+          </div>
+          <img
+            ref={(el) => {
+              if (el && el.complete) recordDims(asset.id, el);
+            }}
+            src={displayUrl(asset)}
+            alt={asset.title || host}
+            draggable={false}
+            decoding="async"
+            onLoad={(e) => recordDims(asset.id, e.currentTarget)}
+            className={`block ${sizeCls}`}
+          />
+        </a>
       );
     }
     // Image — double-click zooms into the pan viewport; serves the WebP thumb (master only in zoom).
@@ -1836,7 +1895,9 @@ function OpenFolderView({
                 ? "Double-click to open PDF"
                 : tagKind === "stack"
                   ? "Click to flip"
-                  : "Double-click to open"}
+                  : tagKind === "link"
+                    ? "Click to visit site"
+                    : "Double-click to open"}
           </span>
         </motion.div>
       )}
