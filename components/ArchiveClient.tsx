@@ -2377,7 +2377,6 @@ export default function ArchiveCatalogue({
   const loadedFoldersRef = useRef<Set<string>>(new Set());
   // Deep-link plumbing (?project=&folder=).
   const deepLinkAppliedRef = useRef(false);
-  const pendingFolderRef = useRef<string | null>(null);
   // Did WE push the ?project= entry, or did the visitor land on it directly?
   const pushedProjectRef = useRef(false);
   // Projects whose entrance loader has already played this session.
@@ -2604,24 +2603,16 @@ export default function ArchiveCatalogue({
     setOpenOrigin(null);
   }, [selectedProject]);
 
-  // Deep-link open: once the deep-linked project's folders are computed, open the requested folder (centre zoom).
+  // Deep-link open, once per page load: reads ?folder= itself rather than via a
+  // ref handed between two effects, which fire in the same commit now.
   useEffect(() => {
-    const fid = pendingFolderRef.current;
-    if (!fid || !selectedProject) return;
-    pendingFolderRef.current = null;
-    const f = projectFolders.find((x) => x.id === fid);
+    if (deepLinkAppliedRef.current || !selectedProject) return;
+    deepLinkAppliedRef.current = true;
+    const fid = new URLSearchParams(window.location.search).get("folder");
+    const f = fid ? projectFolders.find((x) => x.id === fid) : undefined;
     if (f) openFolderWindow(f, null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject, projectFolders]);
-
-  // ?project= now resolves on its own (selectedProject is derived), so only the
-  // folder still needs handing off — once, to the opener below.
-  useEffect(() => {
-    if (loading || deepLinkAppliedRef.current || projects.length === 0) return;
-    deepLinkAppliedRef.current = true;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("project")) pendingFolderRef.current = params.get("folder");
-  }, [loading, projects]);
 
   /* Only the FOLDER is mirrored here, and only with replaceState — it gets no
      history entry, because the folder window is plainly an overlay with its own
