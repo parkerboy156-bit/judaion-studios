@@ -965,7 +965,7 @@ function OpenFolderView({
   // One field's label + value. Shared so the desktop scroller and the mobile
   // marquee can never drift apart in styling.
   const metaField = (f: { title: string; value: string }) => (
-    <div className="flex flex-col gap-1 shrink-0">
+    <div className="flex flex-col gap-1 shrink-0 select-none">
       <span className="font-brand-cn text-[8px] tracking-[0.3em] uppercase text-white/45">
         {f.title}
       </span>
