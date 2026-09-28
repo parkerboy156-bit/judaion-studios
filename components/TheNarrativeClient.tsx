@@ -9,6 +9,7 @@ import NarrativeMobile, {
   NarrativeCtaMobile,
 } from "./NarrativeMobile";
 import { useIsMobile } from "./useIsMobile";
+import { getLenis } from "./SmoothScroll";
 import {
   TITLES,
   KICKER,
@@ -28,23 +29,46 @@ import {
    SECTION 02: THE NARRATIVE — PINNED SCROLL STAGE
 
    Scroll choreography (driven by one progress value p, 0 → 1):
-     p 0.00 → 0.36   "SECT.2 THE NARRATIVE" kerning widens; overlay → 57%.
-     p 0.32 → 0.68   four titles wipe in (right → left), staggered,
-     p 0.66 → 0.72   then the four body boxes fade in.
-     p 0.72 → 1.00   DWELL — everything sits in its final state, pinned,
-                     so users can linger and hover the titles before release.
+     p 0.00 → 0.25   "SECT.1 THE PRINCIPLES" kerning widens; overlay → 57%.
+     p 0.22 → 0.60   four titles wipe in (right → left), staggered,
+     p 0.58 → 0.64   then the four body boxes fade in.
+     p 0.64 → 1.00   DWELL — everything sits in its final state, pinned.
+   The intro used to run to 0.36 of a 420vh stage: ~1.15 screens of scroll
+   where only letter-spacing changed, which is where readers decided the page
+   was stuck. Now ~0.65 screens; the dwell keeps its length.
 
-   Hover (once boxes are in):
-     - hovered title stays clean; the other three get struck + dimmed
-     - background crossfades to the hovered title's image
-     - that title's body box lifts to full opacity; the rest stay faint
+   Selection (once boxes are in): one principle is always showing, 01 first.
+   Clicking a title makes it stick; hovering previews another and returns to
+   the selection on leave. Reading no longer depends on holding the cursor
+   still over a title at the far end of the screen.
 ------------------------------------------------------------------- */
+
+/* Pinned stage heights, in vh. They set the scroll length of each part and
+   the proportions of the section rail, so they live in one place. */
+const STAGE_VH = 360;
+const OUTRO_VH = 250;
+const STAGE_SCROLL = STAGE_VH - 100;
+const OUTRO_SCROLL = OUTRO_VH - 100;
+// The rail's span ends where Contact starts — when the CTA begins to rise
+// (q 0.45) — so the last dot IS the end of the line, with no tail after it.
+const RAIL_SPAN = STAGE_SCROLL + 0.45 * OUTRO_SCROLL;
+// Where each stop sits along the rail (0 → 1). "start" is the top of the
+// section with the centre line unkerned; "principles" is where Reformation
+// has fully landed (p 0.64, the start of the dwell).
+const RAIL = [
+  { id: "start", index: "01", label: "The Principles", at: 0 },
+  // Unnumbered: a waypoint inside 01, not a section of its own.
+  { id: "principles", index: "", label: "The Titles", at: (0.64 * STAGE_SCROLL) / RAIL_SPAN },
+  { id: "leadership", index: "02", label: "The Leadership", at: STAGE_SCROLL / RAIL_SPAN },
+  { id: "contact", index: "03", label: "Contact", at: 1 },
+] as const;
+type RailId = (typeof RAIL)[number]["id"];
 
 /* map v from [a,b] onto [0,1], clamped */
 
 /* fixed positioning + text alignment per corner */
 const CORNER_POS: Record<Title["corner"], string> = {
-  tl: "top-[10%] left-8 lg:left-16 text-left items-start",
+  tl: "top-[15%] left-8 lg:left-16 text-left items-start",
   bl: "top-[calc(10%+15rem)] left-8 lg:left-16 text-left items-start",
   tr: "top-[10%] right-8 lg:right-16 text-right items-end",
   br: "top-[calc(10%+15rem)] right-8 lg:right-16 text-right items-end",
@@ -56,16 +80,24 @@ export default function TheNarrative() {
   const [p, setP] = useState(0);
   const [q, setQ] = useState(0); // bio→CTA outro stage progress
   const [hovered, setHovered] = useState<number | null>(null);
+  const [selected, setSelected] = useState(0); // sticky principle; hover previews
+  const [heroScrolled, setHeroScrolled] = useState(false); // retires the hero cue
+  const [heroCueIn, setHeroCueIn] = useState(false); // hero chevron's delayed entrance
   const [showHint, setShowHint] = useState(false);
   const [showOutroHint, setShowOutroHint] = useState(false);
   const [ctaHover, setCtaHover] = useState(false);
   const [ctaPos, setCtaPos] = useState({ x: 0, y: 0 });
   const [elevIn, setElevIn] = useState(false); // hero elevator fade-in on entry
-  const [kernLow, setKernLow] = useState(0.06); // kern-start bound; rises on scroll-up
+  const [kernLow, setKernLow] = useState(0.04); // kern-start bound; rises on scroll-up
 
   useEffect(() => {
     const t = setTimeout(() => setElevIn(true), 1100);
-    return () => clearTimeout(t);
+    // The hero chevron waits until the headline has had time to land.
+    const c = setTimeout(() => setHeroCueIn(true), 3000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(c);
+    };
   }, []);
 
   /* Warm the below-the-fold bio/CTA/hover images so a first scroll-in never waits
@@ -107,11 +139,12 @@ export default function TheNarrative() {
 
     let renderedP = 0;
     let raf = 0;
-    // Direction-aware kern-start bound: short lead-in going down (0.06), but a
-    // longer hold going up (0.18) so the line finishes un-kerning with a buffer
+    // Direction-aware kern-start bound: short lead-in going down (0.04), but a
+    // longer hold going up (0.125) so the line finishes un-kerning with a buffer
     // before the hero arrives. Smoothed (renderedLow) so reversing never snaps.
-    let targetLow = 0.06;
-    let renderedLow = 0.06;
+    // Both scaled with the shorter intro (was 0.06 / 0.18 against a 0.36 end).
+    let targetLow = 0.04;
+    let renderedLow = 0.04;
     let prevRP = 0;
 
     const targets = () => {
@@ -137,14 +170,15 @@ export default function TheNarrative() {
 
       // pick the low bound from scroll direction (idle keeps the current one),
       // then ease toward it so a mid-scroll reversal glides instead of jumping
-      if (renderedP < prevRP - 0.00003) targetLow = 0.18; // scrolling up
-      else if (renderedP > prevRP + 0.00003) targetLow = 0.06; // scrolling down
+      if (renderedP < prevRP - 0.00003) targetLow = 0.125; // scrolling up
+      else if (renderedP > prevRP + 0.00003) targetLow = 0.04; // scrolling down
       renderedLow += (targetLow - renderedLow) * 0.05;
       prevRP = renderedP;
 
       setP(renderedP);
       setQ(tq); // direct — React bails if unchanged, so no idle churn on the bio
       setKernLow(renderedLow);
+      setHeroScrolled(window.scrollY > 40);
       raf = requestAnimationFrame(frame);
     };
 
@@ -184,86 +218,54 @@ export default function TheNarrative() {
   /* Clear any stuck hover when the titles aren't on-stage — scrolling away while
      the cursor sits over a title never fires onMouseLeave, so the image + body
      box would otherwise stay lit when you leave and return. */
-  const titlesPresent = p >= 0.66 && p < 0.99;
+  const titlesPresent = p >= 0.58 && p < 0.99;
   useEffect(() => {
     if (!titlesPresent) setHovered(null);
   }, [titlesPresent]);
 
-  const inDwell = p >= 0.72 && p < 0.99;
+  const inDwell = p >= 0.64 && p < 0.99;
 
-  /* ── SELF-DEMONSTRATING HOVER ───────────────────────────────────────────
-     Nothing signals the titles are interactive, so a reader who never thinks
-     to hover simply misses all four bodies. Instead of instructing them, the
-     stage performs the interaction once: title 01 lights up on its own, holds,
-     and releases.
-
-     It plays the REAL hover state (same `hovered` value a cursor sets), so
-     there is no second code path to keep in sync — and no separate "demo look"
-     that could drift from the actual behaviour.
-
-     Timing is dictated by the existing choreography, not chosen: the image
-     takes 1500ms and the body box is deliberately delayed 1100ms behind it, so
-     the reveal only completes at ~1800ms. Anything shorter shows a
-     half-crossfaded plate and no copy at all — a glitch, not an invitation.
-     Hence land (1.8s) → hold (2.2s) → release.
-
-     Fires once per visit. A real hover at any point cancels it and stops it
-     ever running: someone who already understands must never be interrupted. */
-  const [demoIndex, setDemoIndex] = useState<number | null>(null);
-  const demoSpentRef = useRef(false);
-  const demoTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  /* Called from the titles' own hover handler rather than an effect watching
-     `hovered` — the cursor arriving IS the cancellation, so handling it at the
-     source keeps cause and effect together (and avoids a cascading render). */
-  const retireDemo = () => {
-    demoSpentRef.current = true;
-    demoTimers.current.forEach(clearTimeout);
-    demoTimers.current = [];
-    setDemoIndex(null);
+  /* One principle is always showing once the titles have landed: the hovered
+     one if the cursor is on a title, otherwise the selected one (01 until the
+     reader clicks another). This replaced a one-off self-playing demo — with
+     a principle permanently on screen there is nothing left to demonstrate. */
+  const activeTitle = titlesPresent ? (hovered ?? selected) : null;
+  /* Scroll to a section. Lenis on desktop, so the page's own smoothing drives
+     the choreography; native smooth scroll where Lenis isn't running. Targets
+     land where each part is settled, not at its first pixel. */
+  const goTo = (id: RailId) => {
+    const stage = stageRef.current;
+    const outro = outroRef.current;
+    const top = (el: HTMLElement) => el.getBoundingClientRect().top + window.scrollY;
+    let y = window.innerHeight; // mobile: the start of the principles
+    if (id === "start" && stage) y = top(stage); // p 0: centre line unkerned
+    if (id === "principles" && stage)
+      y = top(stage) + (stage.offsetHeight - window.innerHeight) * 0.66;
+    if (id === "leadership" && outro)
+      y = top(outro) + (outro.offsetHeight - window.innerHeight) * 0.1;
+    if (id === "contact" && outro)
+      y = top(outro) + (outro.offsetHeight - window.innerHeight) * 0.9;
+    const lenis = getLenis();
+    if (lenis) lenis.scrollTo(y, { duration: 1.8 });
+    else window.scrollTo({ top: y, behavior: "smooth" });
   };
 
-  useEffect(() => {
-    if (!inDwell || demoSpentRef.current) return;
-    // Let the body boxes finish their own entrance (p 0.66 → 0.72) before
-    // taking the stage, so the two reveals don't overlap.
-    const start = setTimeout(() => {
-      if (demoSpentRef.current) return;
-      demoSpentRef.current = true; // spent on play, so it can't repeat
-      setDemoIndex(0);
-      // 1800ms to land + 2200ms to read.
-      const end = setTimeout(() => setDemoIndex(null), 4000);
-      demoTimers.current.push(end);
-    }, 800);
-    demoTimers.current.push(start);
-    return () => {
-      // Scrolling out mid-demo kills the timer that would have ended it, so
-      // reset here too — otherwise demoIndex sticks and the demo re-appears on
-      // the way back. (Cancelled during the 800ms lead-in it stays unspent, so
-      // a reader who scrolls out and returns still gets it.)
-      demoTimers.current.forEach(clearTimeout);
-      demoTimers.current = [];
-      setDemoIndex(null);
-    };
-  }, [inDwell]);
+  // Section rail: overall position through the two pinned parts, 0 → 1.
+  const railProgress = (p * STAGE_SCROLL + q * OUTRO_SCROLL) / RAIL_SPAN;
+  const railActive = [...RAIL].reverse().find((s) => railProgress >= s.at - 0.001)?.id;
+  const railVisible = p > 0.02;
 
-  /* A cursor always wins over the demo, and scrolling the titles off-stage
-     drops it — gated here rather than in an effect so there's no state to keep
-     in sync. Everything downstream reads this, so the demo is indistinguishable
-     from a real hover. */
-  const activeTitle = hovered ?? (titlesPresent ? demoIndex : null);
-
-  /* Scroll hint appears on a dwell TIMER (not scroll) once titles have landed;
-     resets if the user scrolls back out of the dwell zone. Waits out the demo
-     so the two never share the screen. */
+  /* Scroll hint — a CONTINGENCY, not part of the composition. It only appears
+     after 8s of no interaction with the titles; every hover or selection
+     (activeTitle changing) hides it and restarts the clock. At 1.5s it landed
+     with the titles and read as the next step, so people clicked it instead
+     of exploring the four principles. */
   useEffect(() => {
-    if (!inDwell) {
-      setShowHint(false);
-      return;
-    }
-    const t = setTimeout(() => setShowHint(true), demoIndex !== null ? 6000 : 3500);
+    setShowHint(false);
+    if (!inDwell) return;
+    const t = setTimeout(() => setShowHint(true), 8000);
     return () => clearTimeout(t);
-  }, [inDwell, demoIndex]);
+  }, [inDwell, activeTitle]);
 
   /* Bio→CTA outro: while the bio is pinned in its dwell, a timer shows a chevron;
      it hides once the CTA starts rising. */
@@ -273,16 +275,17 @@ export default function TheNarrative() {
       setShowOutroHint(false);
       return;
     }
-    const t = setTimeout(() => setShowOutroHint(true), 2500);
+    // 8s, matching the principles hint — a fallback, not part of the design.
+    const t = setTimeout(() => setShowOutroHint(true), 8000);
     return () => clearTimeout(t);
   }, [outroDwell]);
 
   /* ---- derived animation values ---- */
-  const kernPhase = clamp01(p, kernLow, 0.36); // kernLow: short down, longer up-hold
+  const kernPhase = clamp01(p, kernLow, 0.25); // kernLow: short down, longer up-hold
   const overlayOpacity = kernPhase * 0.57;
-  const titlesPhase = clamp01(p, 0.32, 0.68);
-  const boxesPhase = clamp01(p, 0.66, 0.72); // boxes fade in after titles land
-  // p 0.72 → 1.00 is dwell — the section stays pinned in its final state.
+  const titlesPhase = clamp01(p, 0.22, 0.6);
+  const boxesPhase = clamp01(p, 0.58, 0.64); // boxes fade in after titles land
+  // p 0.64 → 1.00 is dwell — the section stays pinned in its final state.
 
   /* CTA rises over the pinned bio after a dwell; heavy ease-out arrival.
      q 0 → 0.5 dwell on bio, q 0.5 → 0.9 the CTA slides up, then rests. */
@@ -359,6 +362,43 @@ export default function TheNarrative() {
           />
         </Link>
 
+        {/* SCROLL CUE — an instruction, not a control. Deliberately NOT
+            clickable: a jump from the hero straight to the landed titles
+            skipped the whole intro and felt jarring, so this just tells the
+            reader to scroll. Same spot as the page's other chevrons, black to
+            sit with the JUDAION / kicker type. Delayed, and retires on scroll. */}
+        <div
+          aria-hidden="true"
+          className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          style={{
+            opacity: heroCueIn && !heroScrolled ? 1 : 0,
+            transition: "opacity 900ms ease-out",
+          }}
+        >
+          {/* The drift lives on this inner wrapper so the word travels with
+              the chevron — on the outer box its transform would override the
+              -translate-x-1/2 that centres the cue. */}
+          {/* The word hangs off the right (absolute), so the chevron itself
+              stays dead centre — the same spot as the page's other chevrons. */}
+          <span className="narrative-chevron-drift relative flex items-center">
+            <span className="absolute left-full ml-2 font-brand-bold text-[10px] lg:text-[11px] uppercase tracking-[0.3em] text-black">
+              Scroll
+            </span>
+            <svg
+              width="34"
+              height="34"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(0,0,0,1)"
+              strokeWidth="2"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </div>
+
         <div className="absolute bottom-[4vh] left-0 right-0 px-[2.5vw]">
           <div className="flex w-full items-center gap-[1vw] font-brand-secondary-heavy text-[10px] lg:text-[11px] uppercase tracking-[0.60em] text-black mb-[4vh]">
             <span className="shrink-0">JUDAION</span>
@@ -393,7 +433,11 @@ export default function TheNarrative() {
       {isMobile ? (
         <NarrativeMobile />
       ) : (
-        <div ref={stageRef} className="relative w-full h-[420vh] bg-black">
+        <div
+          ref={stageRef}
+          className="relative w-full bg-black"
+          style={{ height: `${STAGE_VH}vh` }}
+        >
         <div className="sticky top-0 h-screen w-full overflow-hidden isolate">
           {/* BASE PLATE — video over its own poster still; the still carries
               the plate if the video can't play (see NarrativeVideoPlate). */}
@@ -446,7 +490,7 @@ export default function TheNarrative() {
               style={{
                 letterSpacing: `${kernPhase * 4}em`,
                 paddingLeft: `${kernPhase * 4}em`,
-                opacity: 1 - clamp01(p, 0.52, 0.66) * 0.80, // ease down to ~0.15, not fully out
+                opacity: 1 - clamp01(p, 0.42, 0.58) * 0.80, // ease down to ~0.15, not fully out
                 // No CSS transition — the rAF lerp on `p` already smooths this
                 // every frame; a transition on top re-creates the snap.
               }}
@@ -462,14 +506,14 @@ export default function TheNarrative() {
             return (
               <div
                 key={t.index}
-                className={`absolute z-20 flex flex-col overflow-hidden pointer-events-none top-[10%] ${
+                className={`absolute z-20 flex flex-col overflow-hidden pointer-events-none top-[calc(21%+19px)] -translate-y-1/2 ${
                   t.side === "left"
                     ? "left-8 lg:left-16 text-left items-start"
                     : "right-8 lg:right-16 text-right items-end"
                 }`}
                 style={{
                   width: t.w,
-                  height: t.h,
+                  marginTop: t.bodyNudge,
                   opacity: isActive ? 1 : 0,
                   transition: isActive
                     ? "opacity 700ms ease-out 1100ms" // wait for the image to land, then fade in
@@ -498,10 +542,9 @@ export default function TheNarrative() {
                     title={t}
                     reveal={clamp01(titlesPhase, i * 0.2, i * 0.2 + 0.62)}
                     struck={activeTitle !== null && activeTitle !== idx}
-                    onHover={() => {
-                      retireDemo();
-                      setHovered(idx);
-                    }}
+                    selected={selected === idx}
+                    onHover={() => setHovered(idx)}
+                    onSelect={() => setSelected(idx)}
                     onLeave={() => setHovered(null)}
                   />
                 );
@@ -521,10 +564,9 @@ export default function TheNarrative() {
                       i * 0.2 + 0.71,
                     )}
                     struck={activeTitle !== null && activeTitle !== idx}
-                    onHover={() => {
-                      retireDemo();
-                      setHovered(idx);
-                    }}
+                    selected={selected === idx}
+                    onHover={() => setHovered(idx)}
+                    onSelect={() => setSelected(idx)}
                     onLeave={() => setHovered(null)}
                     align="right"
                   />
@@ -533,29 +575,34 @@ export default function TheNarrative() {
             </div>
           </div>
 
-          {/* SCROLL HINT — appears on a dwell timer so lingering users know to keep going */}
-          <div
-            aria-hidden="true"
-            className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-40 pointer-events-none"
+          {/* SCROLL HINT — appears on a dwell timer so lingering users know to
+              keep going; clicking it goes there. Only clickable while shown. */}
+          <button
+            type="button"
+            onClick={() => goTo("leadership")}
+            aria-label="Next: The Leadership"
+            tabIndex={showHint ? 0 : -1}
+            className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-40 p-2 cursor-pointer"
             style={{
               opacity: showHint ? 1 : 0,
+              pointerEvents: showHint ? "auto" : "none",
               transition: "opacity 900ms ease-out",
             }}
           >
             <svg
-              width="26"
-              height="26"
+              width="34"
+              height="34"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="rgba(255,255,255,0.55)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              stroke="rgba(255,255,255,1)"
+              strokeWidth="2"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
               className="narrative-chevron-drift"
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
-          </div>
+          </button>
         </div>
         </div>
       )}
@@ -568,7 +615,11 @@ export default function TheNarrative() {
          The name spans full width like the hero and blends against the
          plate; the cutout sits IN FRONT so you overlap the letters. */}
       {/* ===== OUTRO STAGE: bio pinned as a backdrop, CTA rises over it ===== */}
-      <div ref={outroRef} className="relative w-full h-[250vh] bg-black">
+      <div
+        ref={outroRef}
+        className="relative w-full bg-black"
+        style={{ height: `${OUTRO_VH}vh` }}
+      >
         <section
           ref={bioRef}
           className="sticky top-0 isolate w-full h-screen overflow-hidden bg-black"
@@ -697,29 +748,34 @@ export default function TheNarrative() {
             {/* END SCALE WRAPPER */}
           </div>
 
-          {/* SCROLL HINT — dwell timer, cues the CTA rise below. Desktop only. */}
-          <div
-            aria-hidden="true"
-            className="hidden lg:block absolute bottom-[3vh] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          {/* SCROLL HINT — dwell timer, cues the CTA rise below; clicking runs
+              to it. Desktop only, and only clickable while shown. */}
+          <button
+            type="button"
+            onClick={() => goTo("contact")}
+            aria-label="Next: Contact"
+            tabIndex={showOutroHint ? 0 : -1}
+            className="hidden lg:block absolute bottom-[3vh] left-1/2 -translate-x-1/2 z-30 p-2 cursor-pointer"
             style={{
               opacity: showOutroHint ? 1 : 0,
+              pointerEvents: showOutroHint ? "auto" : "none",
               transition: "opacity 900ms ease-out",
             }}
           >
             <svg
-              width="26"
-              height="26"
+              width="34"
+              height="34"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="rgba(255,255,255,0.55)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              stroke="rgba(255,255,255,1)"
+              strokeWidth="2"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
               className="narrative-chevron-drift"
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
-          </div>
+          </button>
 
           {/* DEPTH OVERLAY — bio recedes into shadow as the CTA rises over it */}
           <div
@@ -811,6 +867,74 @@ export default function TheNarrative() {
         </section>
       </div>
 
+      {/* SECTION RAIL — desktop, top centre: the header's free middle, level
+          with the menu button, so it reads as page chrome rather than an
+          object over the story. Fills left → right; numbers under each dot,
+          the name on hover. Marker spacing is the real scroll proportion of
+          each part, and each marker scrolls to its section. */}
+      {!isMobile && (
+        <nav
+          aria-label="Page sections"
+          className="fixed top-[38px] left-1/2 -translate-x-1/2 z-[60] w-[32vw] opacity-[var(--rail-o)] hover:opacity-100 transition-opacity duration-500 ease-out"
+          style={{
+            // Dimmed while a principle's image is up, so it doesn't sit on the
+            // picture; hover brings it back to full. Through a variable so the
+            // hover class can still override it — an inline opacity would win.
+            ["--rail-o" as any]: !railVisible ? 0 : activeTitle !== null ? 0.6 : 1,
+            pointerEvents: railVisible ? "auto" : "none",
+          }}
+        >
+          <div className="relative h-px w-full bg-white/35">
+            <div
+              className="absolute top-0 left-0 h-px bg-white"
+              style={{ width: `${Math.min(1, railProgress) * 100}%` }}
+            />
+            {RAIL.map((s) => {
+              const active = railActive === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => goTo(s.id)}
+                  aria-label={`${s.index} ${s.label}`.trim()}
+                  aria-current={active ? "step" : undefined}
+                  /* The ::before is an invisible hit area ~31px wide around a
+                     7px square — clickable without having to land on it. It
+                     stops at the button's foot so the hover chip below never
+                     sits under the cursor. */
+                  className="group absolute top-[-3px] -translate-x-1/2 flex flex-col items-center gap-1.5 cursor-pointer before:content-[''] before:absolute before:-inset-x-3 before:-top-3 before:bottom-0"
+                  style={{ left: `${s.at * 100}%` }}
+                >
+                  <span
+                    className={`h-[7px] w-[7px] border transition-colors duration-300 ${
+                      active ? "bg-white border-white" : "bg-black border-white/70"
+                    }`}
+                  />
+                  {/* Unnumbered squares keep an invisible number, so every
+                      marker is the same height and its chip drops to the same
+                      place — without it the chip rose into the cursor. */}
+                  <span
+                    aria-hidden={!s.index || undefined}
+                    className={`font-brand-cn text-[8px] tracking-[0.2em] transition-colors duration-300 ${
+                      !s.index
+                        ? "invisible"
+                        : active
+                          ? "text-white"
+                          : "text-white/60 group-hover:text-white"
+                    }`}
+                  >
+                    {s.index || "00"}
+                  </span>
+                  <span className="pointer-events-none absolute top-full mt-1.5 px-2 py-1 bg-black/75 backdrop-blur-sm border border-white/10 font-brand-cn text-[8px] uppercase tracking-[0.3em] text-white whitespace-nowrap opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
+
       {/* CURSOR TAG — desktop, shown on CTA hover; same format as the archive tag */}
       <div
         aria-hidden="true"
@@ -841,14 +965,18 @@ function TitleLine({
   title,
   reveal,
   struck,
+  selected,
   onHover,
+  onSelect,
   onLeave,
   align = "left",
 }: {
   title: Title;
   reveal: number;
   struck: boolean;
+  selected: boolean;
   onHover: () => void;
+  onSelect: () => void;
   onLeave: () => void;
   align?: "left" | "right";
 }) {
@@ -858,8 +986,10 @@ function TitleLine({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onMouseEnter={onHover}
       onFocus={onHover}
+      onClick={onSelect}
       onMouseLeave={onLeave}
       onBlur={onLeave}
       tabIndex={interactive ? 0 : -1}

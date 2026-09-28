@@ -23,6 +23,11 @@ const ROUTE_LERP: Record<string, number> = {
   "/thenarrative": 0.04, // heavier for the kern choreography
 };
 
+// The live instance, for pages that scroll programmatically. Null on mobile,
+// reduced motion and non-floor routes — callers fall back to native scrolling.
+let current: Lenis | null = null;
+export const getLenis = () => current;
+
 export default function SmoothScroll() {
   const pathname = usePathname();
 
@@ -34,6 +39,7 @@ export default function SmoothScroll() {
     if (!desktop || reduced || !FLOOR_ROUTES.has(route)) return;
 
     const lenis = new Lenis({ lerp: ROUTE_LERP[route] ?? DEFAULT_LERP });
+    current = lenis;
     let raf = 0;
     const loop = (time: number) => {
       lenis.raf(time);
@@ -44,6 +50,7 @@ export default function SmoothScroll() {
     return () => {
       cancelAnimationFrame(raf);
       lenis.destroy();
+      if (current === lenis) current = null;
     };
   }, [pathname]);
 

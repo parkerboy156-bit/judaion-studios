@@ -31,6 +31,7 @@ export type Title = {
   body: string;
   image: string; // desktop hover plate (landscape)
   mobileImage?: string; // portrait-optimised background for the mobile stage; falls back to `image`
+  bodyNudge?: string; // desktop: shifts just this principle's text box; negative = up (e.g. "-4vh")
 };
 
 export const TITLES: Title[] = [
@@ -43,7 +44,7 @@ export const TITLES: Title[] = [
     h: "16rem",
     image: "/narrative-01.avif",
     mobileImage: "/narrative-01-mobile.avif",
-    body: "Before JUDAION, there was a lifestyle governed by outside forces, the likes of impulses, habits and distractions were all in control of the wheel. The reformation began as a personal one: strip away what wasn't essential, install discipline where there had only been drift. JUDAION — the convergence of Zion and Judah — was the first name given to that reformation. Before it built identities for others, it was the identity being built.",
+    body: "Before JUDAION, there was a lifestyle governed by outside forces, the likes of impulses, habits and distractions were all in control of the wheel. The reformation began as a personal one: strip away what wasn't essential, install discipline where there had only been drift. JUDAION * the convergence of Zion and Judah * was the first name given to that reformation. Before it built identities for others, it was the identity being built.",
   },
   {
     index: "02",
@@ -54,7 +55,7 @@ export const TITLES: Title[] = [
     h: "16rem",
     image: "/narrative-02.avif",
     mobileImage: "/narrative-02-mobile.avif",
-    body: "The discipline that rebuilt a life is the same discipline that now rebuilds brands. Hack away at the unessential until only the true structure remains, that's what makes a mark legible and what makes it last. This studio doesn't chase trends because permanence was never optional in the first place. It was the whole point.",
+    body: "The discipline that rebuilt a life is the same discipline that now rebuilds brands. The reformation stripped everything down to what mattered. The form is what came after, the discipline to rebuild on it. Not inspiration, not talent, just foundation carried consistently until it holds weight on its own. JUDAION stands on that same principle: structure first, everything else after.",
   },
   {
     index: "03",
@@ -65,18 +66,19 @@ export const TITLES: Title[] = [
     h: "16rem",
     image: "/narrative-03.avif",
     mobileImage: "/narrative-03-mobile.avif",
-    body: "A vision handled without care is a vision at risk. I know exactly what that feels like, I built this studio so my clients never do. Every engagement starts with full extraction, not a brief skimmed for keywords. I carry the structural weight of the creative side of your business — the load-bearing wall — so you can run operations without wondering if the foundation will hold.",
+    body: "A vision handled without care is a vision at risk. I know exactly what that feels like, I built this studio so my clients never do. Every engagement starts with full extraction, not a brief skimmed for keywords. A partnership isn't two sides meeting in the middle by chance. It's an engineered monolith, weight distributed, both ends anchored, built to hold under load. That's the structure I carry for you, so you can run operations without wondering if the foundation will hold.",
   },
   {
     index: "04",
-    word: "MONOLITH",
+    word: "PERMANENCE",
     corner: "br",
     side: "right",
     w: "55rem",
     h: "16rem",
     image: "/narrative-04.avif",
+    bodyNudge: "-4vh",
     mobileImage: "/narrative-04-mobile.avif",
-    body: "A monolith doesn't reference anything. It doesn't chase the moment or borrow authority from what's around it, it simply holds its shape while everything else cycles through. That's the reference point here, 'not built to be current, built to be permanent'. A brand should be able to stand in any era and still read as itself.",
+    body: "Permanence doesn't reference anything. It doesn't chase the moment or borrow authority from what's around it. It simply holds its shape while everything else cycles through. Not built to be current, built to last. A brand should be able to stand in any era and still read as itself.",
   },
 ];
 

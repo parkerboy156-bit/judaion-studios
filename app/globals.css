@@ -1329,12 +1329,14 @@ video:not([controls]) {
 }
 
 /* Narrative dwell scroll-hint chevron — slow, heavy drift */
+/* Narrative chevrons. A long, slow travel (16px / 3.2s) — motion is what
+   catches peripheral vision; the earlier 11px / 2.6s drift let them get lost. */
 @keyframes narrative-chevron-drift {
   0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(11px); }
+  50%      { transform: translateY(16px); }
 }
 .narrative-chevron-drift {
-  animation: narrative-chevron-drift 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: narrative-chevron-drift 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 /* ── ROTATE-TO-PORTRAIT PROMPT ──────────────────────────────────────────

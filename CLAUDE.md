@@ -22,7 +22,10 @@
 | **Optimize Media** | `npm run optimize -- <file\|folder> [maxWidth] [quality] [--to fmt]` | `scripts/optimize.mjs`: `sharp` resize + re-encode, `effort: 6`. Same-format = in-place, only if smaller. `--to` CONVERTS and **deletes the source**[cite: 2] |
 
 ### 📐 Asset Optimisation Standard
-> **Every raster asset ships as AVIF.** PNG/JPG masters are working files, never served. Ceiling per image = the hero (~550 KB); nothing should exceed it.
+> **Every raster asset ships as AVIF.** PNG/JPG masters are working files, never served. Ceiling per image = the hero (~550 KB); nothing should exceed it — **except grain-heavy full-bleed plates**, below.
+
+- **Exception — grain-heavy full-bleed plates ship at q88, native width, even past the ceiling.** Zion's call, made deliberately: he won't trade visible texture for bytes unless the bytes genuinely matter. The narrative principle backgrounds (`narrative-0N.avif`, 2560×1440) are ~1 MB each at q88; q80 visibly softened the grain in dark flats and q70 smeared it. This is acceptable because they load in the background at low priority and aren't needed until ~2 screens of scroll: the four together add ~3.4 s on a 10 Mbps line, ~1.4 s at 25 Mbps, nothing perceptible above that, and first paint is unaffected. Don't "fix" these back under 550 KB. For a NEW asset, let him judge the quality level in the browser (see the global CLAUDE.md) rather than assuming this exception applies.
+- **10-bit AVIF is not available through sharp** here (prebuilt binaries are 8-bit only). ffmpeg/libaom can write 10-bit, but its output showed a green cast in near-blacks in the browser even with full-range BT.709 tags set — not worth pursuing for the size saving.
 
 | Target | Width | Quality | Command |
 | :--- | :--- | :--- | :--- |
