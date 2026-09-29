@@ -85,6 +85,8 @@ export default function TheNarrative() {
   const [heroCueIn, setHeroCueIn] = useState(false); // hero chevron's delayed entrance
   const [showHint, setShowHint] = useState(false);
   const [showOutroHint, setShowOutroHint] = useState(false);
+  const [ctaBarIn, setCtaBarIn] = useState(false); // mobile: orange bar's delayed entrance
+  const [ctaOpen, setCtaOpen] = useState(false); // mobile: CTA opened by tapping the bar
   const [ctaHover, setCtaHover] = useState(false);
   const [ctaPos, setCtaPos] = useState({ x: 0, y: 0 });
   const [elevIn, setElevIn] = useState(false); // hero elevator fade-in on entry
@@ -280,6 +282,21 @@ export default function TheNarrative() {
     return () => clearTimeout(t);
   }, [outroDwell]);
 
+  /* Mobile outro: the page ENDS on the bio — no scroll-driven rise, because
+     Safari brings its toolbar back at the end of a scroll and covered both
+     PARKER and the arriving CTA. Instead an orange bar arrives a beat after
+     the bio lands (late enough to read as a prompt, not decoration) and a
+     tap opens the CTA over the bio. Leaving the bio resets both. */
+  useEffect(() => {
+    if (!isMobile || !bioIn) return;
+    const t = setTimeout(() => setCtaBarIn(true), 2500);
+    return () => {
+      clearTimeout(t);
+      setCtaBarIn(false);
+      setCtaOpen(false);
+    };
+  }, [isMobile, bioIn]);
+
   /* ---- derived animation values ---- */
   const kernPhase = clamp01(p, kernLow, 0.25); // kernLow: short down, longer up-hold
   const overlayOpacity = kernPhase * 0.57;
@@ -290,7 +307,9 @@ export default function TheNarrative() {
   /* CTA rises over the pinned bio after a dwell; heavy ease-out arrival.
      q 0 → 0.5 dwell on bio, q 0.5 → 0.9 the CTA slides up, then rests. */
   const ctaRaw = clamp01(q, 0.45, 0.85);
-  const ctaRise = 1 - Math.pow(1 - ctaRaw, 3); // easeOutCubic
+  // mobile: 0/1 from the tap, eased by the CSS transitions on each layer
+  const ctaRise = isMobile ? (ctaOpen ? 1 : 0) : 1 - Math.pow(1 - ctaRaw, 3); // easeOutCubic
+  const ctaEase = isMobile ? "700ms cubic-bezier(0.16,1,0.3,1)" : null;
   const ctaTranslate = (1 - ctaRise) * 100; // %: 100 (below fold) → 0 (rested)
   // CTA content reveals after the bar has largely rested
   const ctaLineReveal = clamp01(ctaRise, 0.91, 1.0); // line draws after
@@ -369,7 +388,7 @@ export default function TheNarrative() {
             sit with the JUDAION / kicker type. Delayed, and retires on scroll. */}
         <div
           aria-hidden="true"
-          className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          className="hidden lg:block absolute bottom-[2vh] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
           style={{
             opacity: heroCueIn && !heroScrolled ? 1 : 0,
             transition: "opacity 900ms ease-out",
@@ -618,11 +637,13 @@ export default function TheNarrative() {
       <div
         ref={outroRef}
         className="relative w-full bg-black"
-        style={{ height: `${OUTRO_VH}vh` }}
+        // Mobile: exactly one screen, measured WITH Safari's toolbar showing
+        // (svh), so nothing sits under it and there is no scroll to pin through.
+        style={{ height: isMobile ? "100svh" : `${OUTRO_VH}vh` }}
       >
         <section
           ref={bioRef}
-          className="sticky top-0 isolate w-full h-screen overflow-hidden bg-black"
+          className="sticky top-0 isolate w-full h-[100svh] lg:h-screen overflow-hidden bg-black"
         >
           {/* SCALE WRAPPER — the whole bio composition recedes (scales down)
               as the CTA rises. PARKER + cutout live inside together, so their
@@ -631,6 +652,7 @@ export default function TheNarrative() {
             className="absolute inset-0"
             style={{
               transform: `scale(${1 - ctaRise * 0.07})`,
+              transition: ctaEase ? `transform ${ctaEase}` : undefined,
               transformOrigin: "center center",
               // No will-change: it eagerly promoted this mix-blend layer, which
               // painted white for one frame on first composite (the whole-section
@@ -778,19 +800,76 @@ export default function TheNarrative() {
           </button>
 
           {/* DEPTH OVERLAY — bio recedes into shadow as the CTA rises over it */}
+          {/* Mobile: tapping the shadowed bio closes the opened CTA. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 z-[35] bg-black pointer-events-none"
-            style={{ opacity: ctaRise * 0.6 }}
+            className="absolute inset-0 z-[35] bg-black"
+            onClick={isMobile && ctaOpen ? () => setCtaOpen(false) : undefined}
+            style={{
+              opacity: ctaRise * 0.6,
+              pointerEvents: isMobile && ctaOpen ? "auto" : "none",
+              transition: ctaEase ? `opacity ${ctaEase}` : undefined,
+            }}
           />
+
+          {/* MOBILE CTA BAR — the page's last element. Arrives a beat after
+              the bio lands, clear of Safari's toolbar (the section is svh +
+              the home-indicator inset), and opens the CTA on tap. */}
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setCtaOpen(true)}
+              aria-label="Open contact"
+              aria-expanded={ctaOpen}
+              tabIndex={ctaBarIn && !ctaOpen ? 0 : -1}
+              className="absolute inset-x-0 bottom-0 z-[38] overflow-hidden"
+              style={{
+                paddingBottom: "env(safe-area-inset-bottom)",
+                transform: ctaBarIn ? "translateY(0)" : "translateY(100%)",
+                pointerEvents: ctaBarIn && !ctaOpen ? "auto" : "none",
+                transition: "transform 700ms cubic-bezier(0.16,1,0.3,1)",
+              }}
+            >
+              <img
+                src="/cta-bg.avif"
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+              <span className="relative flex h-11 items-center justify-between px-5">
+                <span className="font-brand-other uppercase text-black text-[13px] leading-none tracking-[0.3em]">
+                  <span className="font-brand-other-medium">Build </span>
+                  <span className="font-bold">Your </span>
+                  <span className="font-brand-other-medium">Authority</span>
+                </span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="square"
+                  strokeLinejoin="miter"
+                  aria-hidden="true"
+                >
+                  <polyline points="6 15 12 9 18 15" />
+                </svg>
+              </span>
+            </button>
+          )}
+
           {/* ===== CTA — rises up over the pinned bio after the dwell =====
            Whole bar is one link to /contact. Arrow is code-drawn so it
-           always spans the gap between the CTA text and the elevator. */}
+           always spans the gap between the CTA text and the elevator.
+           Mobile: opened by the bar above instead of by scroll. */}
           <div
             className="absolute inset-x-0 bottom-0 z-40 will-change-transform"
             style={{
               transform: `translateY(${ctaTranslate}%)`,
               boxShadow: `0 -${40 * ctaRise}px ${60 * ctaRise}px rgba(0,0,0,${0.7 * ctaRise})`,
+              paddingBottom: isMobile ? "env(safe-area-inset-bottom)" : undefined,
+              transition: ctaEase ? `transform ${ctaEase}, box-shadow ${ctaEase}` : undefined,
             }}
           >
             <Link

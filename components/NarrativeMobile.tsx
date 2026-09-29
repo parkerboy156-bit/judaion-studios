@@ -35,18 +35,37 @@ import {
 export default function NarrativeMobile() {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [p, setP] = useState(0);
+  const pRef = useRef(0); // latest p for the idle timer, which outlives renders
+
+  /* IDLE CUE — a fallback for readers who've stopped, not part of the
+     design. Appears after 4s without scrolling while inside this stage;
+     any scroll hides it and restarts the clock. Shorter than desktop's 8s
+     because there's no hover interaction here for it to compete with. */
+  const [showCue, setShowCue] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ---- one scroll-progress value across the whole pinned stage ---- */
   useEffect(() => {
     let raf = 0;
+    const armIdle = () => {
+      setShowCue(false);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(() => {
+        const cp = pRef.current;
+        if (cp > 0.001 && cp < 0.995) setShowCue(true); // only while pinned
+      }, 4000);
+    };
     const onScroll = () => {
+      armIdle();
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const stage = stageRef.current;
         if (!stage) return;
         const rect = stage.getBoundingClientRect();
         const scrollable = rect.height - window.innerHeight;
-        setP(scrollable > 0 ? clamp01(-rect.top, 0, scrollable) : 0);
+        const next = scrollable > 0 ? clamp01(-rect.top, 0, scrollable) : 0;
+        pRef.current = next;
+        setP(next);
       });
     };
 
@@ -55,6 +74,7 @@ export default function NarrativeMobile() {
     window.addEventListener("resize", onScroll);
     return () => {
       cancelAnimationFrame(raf);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
@@ -85,6 +105,24 @@ export default function NarrativeMobile() {
 
   const slotFade = (i: number) =>
     clamp01((Math.abs(idxFloat - i) - HOLD) / CROSS, 0, 1);
+
+  /* Tap the cue: go to the NEXT principle's settled centre (from the intro,
+     that's 01); past the last, run out of the stage into the bio. Native
+     smooth scroll — Lenis doesn't run on mobile. */
+  const goNext = () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const top = stage.getBoundingClientRect().top + window.scrollY;
+    const scrollable = stage.offsetHeight - window.innerHeight;
+    const next = idxFloat < 0 ? 0 : Math.floor(idxFloat + 0.5) + 1;
+    const span = n - 1 + LEAD + TAIL;
+    const targetP =
+      next >= n ? 1 : 0.24 + ((next + LEAD) / span) * (1 - 0.24); // inverse of idxFloat
+    window.scrollTo({
+      top: top + scrollable * targetP + (next >= n ? 2 : 0),
+      behavior: "smooth",
+    });
+  };
 
   return (
     <section
@@ -150,7 +188,8 @@ export default function NarrativeMobile() {
           return (
             <div
               key={t.index}
-              className="absolute inset-0 z-[4] flex flex-col justify-center px-6 pointer-events-none"
+              // pr-9 (not px-6) leaves the right edge free as the rail's lane.
+              className="absolute inset-0 z-[4] flex flex-col justify-center pl-6 pr-9 pointer-events-none"
               style={{ opacity: (1 - fade) * reveal, transform: `translateY(${drift}vh)` }}
             >
               <div className="max-w-[46ch]">
@@ -170,6 +209,66 @@ export default function NarrativeMobile() {
             </div>
           );
         })}
+
+        {/* PRINCIPLE RAIL — orientation only, for the title sequence alone:
+            fades in with Reformation, out after Monolith. One square per
+            principle; the solid one is showing, and the fill reaches each
+            square exactly as its principle comes into focus (same idxFloat
+            the crossfade uses). Not tappable — the scroll is the navigation. */}
+        <div
+          aria-hidden="true"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-[5] h-[30svh] w-px bg-white/35 pointer-events-none"
+          style={{ opacity: reveal * (1 - clamp01(p, 0.975, 0.995)) }}
+        >
+          <div
+            className="absolute top-0 left-0 w-px bg-white"
+            // +0.5: reach square i at the HANDOVER into principle i (idx
+            // i-0.5), the same instant Math.round below lights it and the
+            // title becomes the visible one — not at the centre of its slot.
+            style={{ height: `${clamp01(idxFloat + 0.5, 0, n - 1) * 100}%` }}
+          />
+          {TITLES.map((t, i) => {
+            const showing = Math.round(Math.min(Math.max(idxFloat, 0), n - 1)) === i;
+            return (
+              <span
+                key={t.index}
+                className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 h-[6px] w-[6px] border transition-colors duration-300 ${
+                  showing ? "bg-white border-white" : "bg-black border-white/70"
+                }`}
+                style={{ top: `${(i / (n - 1)) * 100}%` }}
+              />
+            );
+          })}
+        </div>
+
+        {/* IDLE CUE — same chevron as desktop's. Tap target ~58px; only
+            tappable while shown, so an invisible one can't catch taps. */}
+        <button
+          type="button"
+          onClick={goNext}
+          aria-label="Next principle"
+          tabIndex={showCue ? 0 : -1}
+          className="absolute bottom-[3svh] left-1/2 -translate-x-1/2 z-[5] p-3"
+          style={{
+            opacity: showCue ? 1 : 0,
+            pointerEvents: showCue ? "auto" : "none",
+            transition: "opacity 900ms ease-out",
+          }}
+        >
+          <svg
+            width="34"
+            height="34"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="rgba(255,255,255,1)"
+            strokeWidth="2"
+            strokeLinecap="square"
+            strokeLinejoin="miter"
+            className="narrative-chevron-drift"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
       </div>
     </section>
   );
@@ -294,7 +393,12 @@ const BIO_BG = "/section-3-bg.avif";
 
 export function NarrativeBioMobile({ bioIn }: { bioIn: boolean }) {
   return (
-    <div className="absolute inset-0 flex flex-col">
+    // Bottom padding = the orange CTA bar (h-11) + home indicator, so PARKER
+    // sits on top of the bar instead of under it. The plate still fills.
+    <div
+      className="absolute inset-0 flex flex-col"
+      style={{ paddingBottom: "calc(2.75rem + env(safe-area-inset-bottom))" }}
+    >
       {/* ELONGATED PLATE */}
       <img
         src={BIO_BG}
