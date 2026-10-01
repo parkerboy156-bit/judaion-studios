@@ -1079,6 +1079,12 @@ function OpenFolderView({
       style={{
         background: "rgba(0,0,0,0.30)",
       }}
+      // Clicking the dimmed desktop around the window closes it; the guard stops the opening click's tail from closing it straight away.
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (Date.now() - openedAtRef.current < OPEN_GUARD_MS) return;
+        onClose();
+      }}
     >
       {/* ── WINDOW — grows from the clicked icon (mobile: full-bleed sheet; desktop: centred frame). ── */}
       <motion.div
