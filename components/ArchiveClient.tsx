@@ -634,10 +634,13 @@ function OpenFolderView({
   const swipedAtRef = useRef(0);
   const swipeStartRef = useRef(0);
 
-  // Only pair portraits when there are ≥2; a lone vertical stays full-width.
-  // Counted on covers, since covers are what the grid lays out.
-  const portraitCount = tiles.filter((t) => isPortrait(t.cover)).length;
-  const gridPortraits = portraitCount >= 2;
+  // Portraits take one column when anything else does too (another portrait,
+  // a square or a stack) so they can pair; only a truly lone vertical goes
+  // full-width. Counted on covers, since covers are what the grid lays out.
+  const oneColumnCount = tiles.filter(
+    (t) => isPortrait(t.cover) || isSquarish(t.cover) || t.variants.length > 1,
+  ).length;
+  const gridPortraits = oneColumnCount >= 2;
 
   // Measure every visual asset (images AND videos) up-front with dedicated elements — cached media often never fires onLoad, which would leave the portrait grid blank.
   useEffect(() => {
